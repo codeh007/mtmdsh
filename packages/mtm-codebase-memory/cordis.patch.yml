@@ -1,0 +1,12 @@
+# Opt-in profile bundle for the local codebase-memory-mcp stdio server.
+# The server is installed and maintained separately from this package.
+- insert:
+    - id: mtm-codebase-memory
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: codebase_memory
+        transport: stdio
+        command: codebase-memory-mcp
+        args: []
+        env: {}
+        cwd: !!js process.cwd()
