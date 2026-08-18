@@ -29,6 +29,12 @@ bridge for a local `codebase-memory-mcp` executable. The package owns only the
 profile patch; the MCP server remains an external prerequisite. See the package
 README for installation, workspace indexing, and security configuration.
 
+## Release
+
+The first release unit is `mtm-codebase-memory`; the hello package is a demo and
+is not published by the release workflow. See [RELEASING.md](RELEASING.md) for
+package-specific tags, npm integrity read-back, and local DSH updates.
+
 ## License
 
 MIT

@@ -9,7 +9,9 @@
   "scripts": {
     "build": "tsc -p packages/plugin-hello/tsconfig.json",
     "demo": "node packages/plugin-hello/dist/demo.js",
-    "check": "tsc -p packages/plugin-hello/tsconfig.json && node packages/plugin-hello/dist/demo.js"
+    "check": "tsc -p packages/plugin-hello/tsconfig.json && node packages/plugin-hello/dist/demo.js && node scripts/verify-package.mjs",
+    "verify:package": "node scripts/verify-package.mjs",
+    "pack:mtm-codebase-memory": "pnpm --filter mtm-codebase-memory pack --pack-destination dist/npm"
   },
   "devDependencies": {
     "typescript": "6.0.3"
