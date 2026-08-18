@@ -1,0 +1,72 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.19.0', '24']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Verify pnpm version
+        run: test "$(pnpm --version)" = 11.7.0
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Check workspace
+        run: pnpm check
+
+      - name: Pack codebase-memory bundle
+        id: pack
+        run: |
+          set -euo pipefail
+          pack_dir="$RUNNER_TEMP/mtm-codebase-memory"
+          mkdir -p "$pack_dir"
+          pnpm --filter mtm-codebase-memory pack --pack-destination "$pack_dir"
+          tarball="$(find "$pack_dir" -maxdepth 1 -type f -name 'mtm-codebase-memory-*.tgz' -print -quit)"
+          test -n "$tarball"
+          printf 'tarball=%s\n' "$tarball" >> "$GITHUB_OUTPUT"
+
+      - name: Verify tarball contract
+        run: node scripts/verify-package.mjs packages/mtm-codebase-memory "${{ steps.pack.outputs.tarball }}"
+
+      - name: Lint package metadata
+        run: pnpm dlx publint run "${{ steps.pack.outputs.tarball }}" --strict
+
+      - name: Rehearse npm publication
+        run: npm publish "${{ steps.pack.outputs.tarball }}" --dry-run --access public --ignore-scripts
