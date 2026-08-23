@@ -107,8 +107,8 @@ From the repository root:
 ~~~sh
 pnpm check:mtm-codebase-memory
 pnpm --filter mtm-codebase-memory pack --pack-destination dist/npm
-node scripts/verify-package.mjs packages/mtm-codebase-memory dist/npm/mtm-codebase-memory-0.2.1.tgz
-pnpm run smoke:mtm-codebase-memory -- dist/npm/mtm-codebase-memory-0.2.1.tgz
+node scripts/verify-package.mjs packages/mtm-codebase-memory dist/npm/mtm-codebase-memory-0.2.2.tgz
+pnpm run smoke:mtm-codebase-memory -- dist/npm/mtm-codebase-memory-0.2.2.tgz
 ~~~
 
 Set `DSH_SMOKE_TOOL_CATALOG=1` for the optional live-session assertion that checks `mcp__codebase_memory__list_projects` in the model tool catalog. This check requires a working DSH model route.

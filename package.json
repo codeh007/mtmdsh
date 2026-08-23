@@ -13,8 +13,6 @@
     "check": "pnpm run build:mtm-codebase-memory && pnpm --filter mtm-codebase-memory run test && tsc -p packages/plugin-hello/tsconfig.json && node packages/plugin-hello/dist/demo.js && node scripts/verify-package.mjs && pnpm --filter mtmcanvas run check && pnpm --filter mtmharness run check",
     "check:mtm-codebase-memory": "pnpm run build:mtm-codebase-memory && pnpm --filter mtm-codebase-memory run test && node scripts/verify-package.mjs",
     "smoke:mtm-codebase-memory": "node scripts/verify-dsh-web.mjs",
-    "verify:package": "node scripts/verify-package.mjs",
-    "pack:mtm-codebase-memory": "pnpm --filter mtm-codebase-memory pack --pack-destination dist/npm",
     "pack:mtmcanvas": "pnpm --filter mtmcanvas pack:check",
     "pack:mtmharness": "pnpm --filter mtmharness pack:check"
   },
