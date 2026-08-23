@@ -6,6 +6,8 @@ The release workflow owns `mtm-codebase-memory`, `mtmcanvas`, and `mtmharness` a
 
 `mtmcanvas` and `mtmharness` releases must pass the DSH manifest, lazy-CJS client artifact, profile patch, and isolated profile-install checks before publication.
 
+`mtm-connect` is an experimental workspace package. CI verifies its manifest, tarball, metadata, and isolated profile installation, but there is no release workflow or package-specific tag until the connection contract is validated against a real adapter.
+
 For `mtmharness`, use the tag `mtmharness-v<version>` and update the DSH Web profile with the published package after npm integrity read-back.
 
 The package version is the release identity. Tags use:

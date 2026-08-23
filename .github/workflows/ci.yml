@@ -132,3 +132,35 @@ jobs:
       - name: Rehearse mtmharness npm publication
         if: ${{ matrix.node == '22.19.0' }}
         run: npm publish "${{ steps.pack_mtmharness.outputs.tarball }}" --dry-run --access public --ignore-scripts
+
+      - name: Pack mtm-connect plugin
+        id: pack_mtm_connect
+        run: |
+          set -euo pipefail
+          pack_dir="$RUNNER_TEMP/mtm-connect"
+          mkdir -p "$pack_dir"
+          pnpm --filter mtm-connect pack --pack-destination "$pack_dir"
+          tarball="$(find "$pack_dir" -maxdepth 1 -type f -name 'mtm-connect-*.tgz' -print -quit)"
+          test -n "$tarball"
+          printf 'tarball=%s\n' "$tarball" >> "$GITHUB_OUTPUT"
+
+      - name: Verify mtm-connect tarball contract
+        run: node packages/mtm-connect/scripts/verify-package.mjs "${{ steps.pack_mtm_connect.outputs.tarball }}"
+
+      - name: Lint mtm-connect package metadata
+        run: pnpm dlx publint run "${{ steps.pack_mtm_connect.outputs.tarball }}"
+
+      - name: Install mtm-connect into an isolated DSH Web profile
+        if: ${{ matrix.node == '22.19.0' }}
+        env:
+          DSH_HOME: ${{ runner.temp }}/dsh-mtm-connect
+        run: |
+          set -euo pipefail
+          pnpm dlx @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web add "${{ steps.pack_mtm_connect.outputs.tarball }}"
+          pnpm dlx @deepseek-ai/dsh@0.1.1-rc.2 --profile web --dump-config > "$RUNNER_TEMP/mtm-connect-dump-config.txt"
+          grep -F '# == mtm-connect' "$RUNNER_TEMP/mtm-connect-dump-config.txt"
+          grep -F 'name: mtm-connect' "$RUNNER_TEMP/mtm-connect-dump-config.txt"
+
+      - name: Rehearse mtm-connect npm publication
+        if: ${{ matrix.node == '22.19.0' }}
+        run: npm publish "${{ steps.pack_mtm_connect.outputs.tarball }}" --dry-run --access public --ignore-scripts

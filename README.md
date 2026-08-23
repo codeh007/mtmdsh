@@ -23,6 +23,7 @@ Hello from mtmdsh.
 - `mtm-codebase-memory`: source-loadable, opt-in DSH plugin and profile bundle for codebase-memory-mcp.
 - `mtmcanvas`: installable DSH Web Host/Client Canvas view plugin with a fixture provider.
 - `mtmharness`: minimal installable DSH Web panel plugin proving the additive sidebar contract.
+- `mtm-connect`: experimental DSH Web connection control plane with fixture adapters and explicit unavailable boundaries.
 
 ## DSH Web Canvas plugin
 
@@ -42,6 +43,15 @@ pnpm --filter mtmharness run check
 pnpm --filter mtmharness run pack:check
 ```
 
+## DSH Web MTM Connect plugin
+
+`mtm-connect` is the first experimental control-plane package for user-owned connections. It shows mock workstation and device adapters, lifecycle state, capability policy, event projection, and unavailable SSH/Android/Chrome/container entries without claiming those integrations are implemented.
+
+```sh
+pnpm --filter mtm-connect run check
+pnpm --filter mtm-connect run pack:check
+```
+
 ## DSH bundle
 
 Install `mtm-codebase-memory` into the official local DSH Web profile. The
@@ -53,8 +63,9 @@ security boundaries.
 ## Release
 
 The first release unit is `mtm-codebase-memory`; the hello package is a demo and
-is not published by the release workflow. See [RELEASING.md](RELEASING.md) for
-package-specific tags, npm integrity read-back, and local DSH updates.
+is not published by the release workflow. `mtm-connect` is checked and packable in CI,
+but has no release workflow while its experimental contract is being validated. See
+[RELEASING.md](RELEASING.md) for package-specific tags, npm integrity read-back, and local DSH updates.
 
 ## License
 
