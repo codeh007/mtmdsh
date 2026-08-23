@@ -14,7 +14,7 @@ The package version is the release identity. Tags use:
 mtm-codebase-memory-v<version>
 ~~~
 
-For example: `mtm-codebase-memory-v0.2.0` or `mtmharness-v0.1.0`.
+For example: `mtm-codebase-memory-v0.2.1` or `mtmharness-v0.1.0`.
 
 ## Publish
 
@@ -23,8 +23,8 @@ For example: `mtm-codebase-memory-v0.2.0` or `mtmharness-v0.1.0`.
 3. Create and push the package-specific tag from the merged main commit:
 
 ~~~sh
-git tag -a mtm-codebase-memory-v0.2.0 -m 'release mtm-codebase-memory 0.2.0'
-git push origin mtm-codebase-memory-v0.2.0
+git tag -a mtm-codebase-memory-v0.2.1 -m 'release mtm-codebase-memory 0.2.1'
+git push origin mtm-codebase-memory-v0.2.1
 ~~~
 
 The workflow packs one tarball, verifies its exact files and metadata, runs
@@ -34,7 +34,7 @@ registry integrity with the local SHA-512 value.
 ## Local read-back
 
 ~~~sh
-npm view mtm-codebase-memory@0.2.0 --json
+npm view mtm-codebase-memory@0.2.1 --json
 ~~~
 
 ## Update the DSH profile
@@ -43,7 +43,7 @@ Back up the profile before replacing a local tarball or package spec. Then:
 
 ~~~sh
 dsh plugin --profile web remove mtm-codebase-memory
-dsh plugin --profile web add mtm-codebase-memory@0.2.0
+dsh plugin --profile web add mtm-codebase-memory@0.2.1
 dsh --profile web --dump-config
 ~~~
 
