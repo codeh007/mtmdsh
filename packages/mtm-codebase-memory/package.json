@@ -1,6 +1,6 @@
 {
   "name": "mtm-codebase-memory",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "DeepSeek Harness integration for codebase-memory-mcp",
   "type": "module",
   "main": "./dist/index.js",

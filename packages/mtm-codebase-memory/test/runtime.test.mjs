@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import test from "node:test";
 import {
+  ensureRuntime,
   extractHookContext,
+  extractNativeCommand,
   resolveBundledCommand,
   resolveCommand,
   resolveEnvironment,
@@ -28,6 +30,40 @@ test("explicit command remains an opt-in override", () => {
     args: ["--ui"],
     bundled: false,
   });
+});
+
+test("resolves the native binary for the long-lived MCP connection", async () => {
+  const specs = [];
+  const fake = {
+    subprocess: {
+      spawn(spec) {
+        specs.push(spec);
+        const reader = { readFrom: () => ({ text: process.execPath, nextOffset: process.execPath.length, lossy: false }) };
+        return {
+          collected: { stdout: reader, stderr: { readFrom: () => ({ text: "", nextOffset: 0, lossy: false }) } },
+          done: Promise.resolve({ exitCode: 0, signal: null }),
+          terminate() {},
+        };
+      },
+    },
+  };
+  const resolved = await ensureRuntime(
+    fake,
+    { command: process.execPath, args: [], bundled: true },
+    process.cwd(),
+    {},
+    1000,
+    ["--check"],
+  );
+  assert.equal(extractNativeCommand(process.execPath), process.execPath);
+  assert.equal(extractNativeCommand("not-an-absolute-path"), undefined);
+  assert.equal(resolved.command, process.execPath);
+  assert.deepEqual(resolved.args, ["--check"]);
+  assert.equal(resolved.bundled, true);
+  assert.equal(specs.length, 1);
+  assert.equal(specs[0].argv.at(-3), "node");
+  assert.equal(specs[0].argv.at(-2), "-e");
+  assert.match(specs[0].argv.at(-1), /codebase-memory-mcp/);
 });
 
 test("normalizes working directory and explicit CBM environment", () => {

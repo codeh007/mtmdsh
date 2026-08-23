@@ -89,6 +89,46 @@ async function waitForCbm() {
   throw new Error("CBM plugin did not become active; last entry: " + JSON.stringify(lastEntry));
 }
 
+async function rpc(path, method, payload, rpcId) {
+  const response = await fetch("http://127.0.0.1:" + port + path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ type: "client-request", rpcId, method, payload }),
+  });
+  return parseJsonResponse(await response.text(), method);
+}
+
+async function verifyToolCatalog(sessionId) {
+  await rpc("/api/session.prompt", "session.prompt", {
+    sessionId,
+    mode: "queue",
+    content: [{ type: "text", text: "Tool catalog smoke test. Reply READY without calling any tool." }],
+  }, "mtm-codebase-memory-tool-catalog-prompt");
+  const deadline = Date.now() + 120_000;
+  let lastNames = [];
+  while (Date.now() < deadline) {
+    try {
+      const history = await rpc("/api/session.history", "session.history", { sessionId, maxMessages: 100 }, "mtm-codebase-memory-tool-catalog-history");
+      const header = history.events
+        .map((entry) => entry.event)
+        .find((event) => event.type === "request/header")?.data?.header;
+      const names = Array.isArray(header?.tools) ? header.tools.map((tool) => tool.name) : undefined;
+      if (names !== undefined) {
+        lastNames = names;
+        const mcpNames = names.filter((name) => name.startsWith("mcp__codebase_memory__"));
+        if (!names.includes("mcp__codebase_memory__list_projects")) {
+          throw new Error("tool catalog is missing mcp__codebase_memory__list_projects: " + JSON.stringify(mcpNames));
+        }
+        return { toolCount: names.length, mcpToolCount: mcpNames.length };
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("tool catalog is missing")) throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error("tool catalog did not arrive; last names: " + JSON.stringify(lastNames));
+}
+
 try {
   run(["plugin", "--profile", "web", "add", tarball]);
   const dump = run(["--profile", "web", "--dump-config"]);
@@ -130,12 +170,16 @@ try {
   });
   const created = parseJsonResponse(await createResponse.text(), "session.create");
   if (typeof created.sessionId !== "string") fail("session.create returned no session id");
+  const toolCatalog = process.env.DSH_SMOKE_TOOL_CATALOG === "1"
+    ? await verifyToolCatalog(created.sessionId)
+    : undefined;
 
   console.log(JSON.stringify({
     profile: home,
     plugin: cbmEntry,
     sessionCount: sessions.items.length,
     createdSessionId: created.sessionId,
+    ...toolCatalog === undefined ? {} : { toolCatalog },
     logs: logs.split("\n").filter((line) => line.includes("dsh web:") || line.includes("mtm-codebase-memory")).slice(-10),
   }));
 } finally {

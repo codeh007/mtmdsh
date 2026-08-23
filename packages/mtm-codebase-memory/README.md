@@ -6,7 +6,7 @@ A source-loadable [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-har
 
 The package exports a named Cordis plugin and a DSH profile bundle. Both paths use the same runtime implementation:
 
-- The plugin executes its package-owned npm CLI through the current Node binary, so neither npx nor CBM must be on PATH.
+- The plugin uses its package-owned npm CLI through the current Node binary only to provision the pinned package, then starts the cached native binary directly; neither npx nor CBM must be on PATH.
 - The pinned npm CLI provisions codebase-memory-mcp@0.10.8 on first use; the upstream wrapper verifies and caches the native runtime, including when lifecycle scripts are skipped.
 - The official @deepseek-ai/dsh-mcp-client remains responsible for MCP tool discovery, namespacing, reconnect, tool execution, and disposal.
 - The plugin maps CBM's graph-first instructions and documented explore/review workflows into DSH system-prompt assembly because the official bridge exposes MCP tools, not MCP prompts.
@@ -62,7 +62,7 @@ All fields are optional:
 | env | empty | Explicit CBM environment entries |
 | cacheDir | unset | Sets CBM_CACHE_DIR |
 | allowedRoot | unset | Sets CBM_ALLOWED_ROOT |
-| ensureRuntime | true | Run the wrapper version check before MCP activation |
+| ensureRuntime | true | Provision/resolve the native binary before MCP activation; false requires an offline cached runtime |
 | augmentHooks | true | Enable session and read/search context augmentation |
 | failOnStartupError | false | Use the official MCP client's startup failure policy |
 | toolCallTimeoutMs | 60000 | MCP tool-call timeout |
@@ -107,9 +107,11 @@ From the repository root:
 ~~~sh
 pnpm check:mtm-codebase-memory
 pnpm --filter mtm-codebase-memory pack --pack-destination dist/npm
-node scripts/verify-package.mjs packages/mtm-codebase-memory dist/npm/mtm-codebase-memory-0.2.0.tgz
-pnpm run smoke:mtm-codebase-memory -- dist/npm/mtm-codebase-memory-0.2.0.tgz
+node scripts/verify-package.mjs packages/mtm-codebase-memory dist/npm/mtm-codebase-memory-0.2.1.tgz
+pnpm run smoke:mtm-codebase-memory -- dist/npm/mtm-codebase-memory-0.2.1.tgz
 ~~~
+
+Set `DSH_SMOKE_TOOL_CATALOG=1` for the optional live-session assertion that checks `mcp__codebase_memory__list_projects` in the model tool catalog. This check requires a working DSH model route.
 
 ## Scope
 

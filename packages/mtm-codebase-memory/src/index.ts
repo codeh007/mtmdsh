@@ -280,12 +280,14 @@ function hookMessage(text: string, summary: string): UserMessage {
 /** Mount CBM tools and DSH-native prompt/context lifecycle behavior. */
 export async function apply(ctx: Context, rawConfig: Config = {}): Promise<void> {
   const config = resolveConfig(rawConfig);
-  const command = resolveCommand(config.command, config.args);
+  let command = resolveCommand(config.command, config.args);
   const env = resolveEnvironment(config.env, config.cacheDir, config.allowedRoot);
   const hookEnv = { ...env, CBM_HOOK_DEADLINE_MS: String(config.hookTimeoutMs) };
 
-  if (config.ensureRuntime && command.bundled) {
-    await ensureRuntime(ctx, command, config.cwd, env, config.runtimeCheckTimeoutMs);
+  if (command.bundled) {
+    command = await ensureRuntime(
+      ctx, command, config.cwd, env, config.runtimeCheckTimeoutMs, config.args, config.ensureRuntime,
+    );
   }
 
   await ctx.plugin(McpClient, buildMcpConfig(config, command, env));

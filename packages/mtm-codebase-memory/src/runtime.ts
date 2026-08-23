@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import type { Context } from "@deepseek-ai/cordis";
 import type {
   SubprocessCollect,
@@ -13,6 +13,27 @@ const require = createRequire(import.meta.url);
 export const CBM_PACKAGE_VERSION = "0.10.8";
 const OUTPUT_LIMIT_BYTES = 16 * 1024;
 const ERROR_LIMIT_BYTES = 4 * 1024;
+
+// npm exec exposes the temporary package through PATH. Probe that package,
+// let its wrapper provision the native binary, then return the binary itself
+// for the long-lived MCP stdio connection.
+const NATIVE_RESOLVER_SCRIPT = [
+  "const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process');",
+  "const packageName='codebase-memory-mcp';",
+  "const binaryName=process.platform==='win32'?'codebase-memory-mcp.exe':'codebase-memory-mcp';",
+  "for(const entry of (process.env.PATH||'').split(path.delimiter)){",
+  "if(!entry)continue;",
+  "const root=path.resolve(entry,'..',packageName);",
+  "try{",
+  "const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));",
+  "if(pkg.name!==packageName||pkg.version!=='0.10.8')continue;",
+  "const probe=cp.spawnSync(process.execPath,[path.join(root,'bin.js'),'--version'],{stdio:'ignore',timeout:120000});",
+  "const binary=path.join(root,'bin',binaryName);",
+  "if(probe.status===0&&fs.existsSync(binary)){process.stdout.write(binary);process.exit(0);}",
+  "}catch{}",
+  "}",
+  "process.stderr.write('codebase-memory-mcp native binary could not be resolved');process.exit(1);",
+].join('');
 
 export interface CommandSpec {
   readonly command: string;
@@ -135,19 +156,53 @@ export async function runCollected(
   }
 }
 
-/** Trigger the npm wrapper's lazy download and verify that it is runnable. */
+function bundledResolverCommand(offline: boolean): CommandSpec {
+  const wrapper = resolveBundledCommand();
+  return {
+    command: wrapper.command,
+    args: [
+      wrapper.args[0]!,
+      offline ? "--offline" : "--yes",
+      "--package",
+      "codebase-memory-mcp@" + CBM_PACKAGE_VERSION,
+      "node",
+      "-e",
+      NATIVE_RESOLVER_SCRIPT,
+    ],
+    bundled: true,
+  };
+}
+
+export function extractNativeCommand(output: string): string | undefined {
+  const candidate = output.trim();
+  return candidate.length > 0 && !/[\r\n]/.test(candidate) && isAbsolute(candidate) && existsSync(candidate)
+    ? candidate
+    : undefined;
+}
+
+/** Provision or resolve the native binary, then return a long-lived command. */
 export async function ensureRuntime(
   ctx: Context,
   command: CommandSpec,
   cwd: string,
   env: Readonly<Record<string, string>>,
   timeoutMs: number,
-): Promise<void> {
-  const result = await runCollected(ctx, [command.command, ...command.args, "--version"], cwd, env, "", timeoutMs);
-  if (result.timedOut || result.outcome.exitCode !== 0) {
+  runtimeArgs: readonly string[] = [],
+  provision = true,
+): Promise<CommandSpec> {
+  if (!command.bundled) return command;
+  const resolver = bundledResolverCommand(!provision);
+  const result = await runCollected(ctx, resolver.args.length > 0
+    ? [resolver.command, ...resolver.args]
+    : [resolver.command], cwd, env, "", timeoutMs);
+  const native = !result.timedOut && result.outcome.exitCode === 0
+    ? extractNativeCommand(result.stdout)
+    : undefined;
+  if (native === undefined) {
     const detail = result.stderr.trim() || result.stdout.trim() || "no diagnostic output";
     throw new Error("mtm-codebase-memory: native runtime check failed: " + detail);
   }
+  return { command: native, args: [...runtimeArgs], bundled: true };
 }
 
 function contextFromJson(value: unknown): string | undefined {
