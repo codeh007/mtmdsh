@@ -62,10 +62,10 @@ security boundaries.
 
 ## Release
 
-The first release unit is `mtm-codebase-memory`; the hello package is a demo and
-is not published by the release workflow. `mtm-connect` is checked and packable in CI,
-but has no release workflow while its experimental contract is being validated. See
-[RELEASING.md](RELEASING.md) for package-specific tags, npm integrity read-back, and local DSH updates.
+The first release units are `mtm-codebase-memory`, `mtmcanvas`, `mtmharness`, and
+`mtm-connect`; the hello package is a demo and is not published by the release workflow.
+See [RELEASING.md](RELEASING.md) for package-specific tags, npm integrity read-back,
+and local DSH updates.
 
 ## License
 

@@ -2,11 +2,11 @@
 
 ## Current release units
 
-The release workflow owns `mtm-codebase-memory`, `mtmcanvas`, and `mtmharness` as separate package units. The demo package `mtmdsh-plugin-hello` is not part of the release workflow and must not be published by a recursive workspace command.
+The release workflow owns `mtm-codebase-memory`, `mtmcanvas`, `mtmharness`, and `mtm-connect` as separate package units. The demo package `mtmdsh-plugin-hello` is not part of the release workflow and must not be published by a recursive workspace command.
 
 `mtmcanvas` and `mtmharness` releases must pass the DSH manifest, lazy-CJS client artifact, profile patch, and isolated profile-install checks before publication.
 
-`mtm-connect` is an experimental workspace package. CI verifies its manifest, tarball, metadata, and isolated profile installation, but there is no release workflow or package-specific tag until the connection contract is validated against a real adapter.
+`mtm-connect` is an experimental workspace package, but its public npm release is gated by the same tarball, provenance, and registry read-back checks as the other installable plugins. Use the tag `mtm-connect-v<version>` and update the DSH Web profile with the published package after npm integrity read-back.
 
 For `mtmharness`, use the tag `mtmharness-v<version>` and update the DSH Web profile with the published package after npm integrity read-back.
 
@@ -16,7 +16,7 @@ The package version is the release identity. Tags use:
 mtm-codebase-memory-v<version>
 ~~~
 
-For example: `mtm-codebase-memory-v0.2.2` or `mtmharness-v0.1.0`.
+For example: `mtm-codebase-memory-v0.2.2`, `mtmharness-v0.1.0`, or `mtm-connect-v0.1.0`.
 
 ## Publish
 
@@ -36,6 +36,12 @@ registry integrity with the local SHA-512 value.
 ## Local read-back
 
 ~~~sh
+npm view mtm-connect@0.1.0 --json
+~~~
+
+Or inspect another package with its package-specific version:
+
+~~~sh
 npm view mtm-codebase-memory@0.2.2 --json
 ~~~
 
@@ -44,8 +50,12 @@ npm view mtm-codebase-memory@0.2.2 --json
 Back up the profile before replacing a local tarball or package spec. Then:
 
 ~~~sh
-dsh plugin --profile web remove mtm-codebase-memory
-dsh plugin --profile web add mtm-codebase-memory@0.2.2
+dsh plugin --profile web remove mtm-connect
+dsh plugin --profile web add mtm-connect@0.1.0
+
+# Or update the codebase-memory plugin:
+# dsh plugin --profile web remove mtm-codebase-memory
+# dsh plugin --profile web add mtm-codebase-memory@0.2.2
 dsh --profile web --dump-config
 ~~~
 
