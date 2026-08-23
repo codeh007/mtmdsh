@@ -26,7 +26,7 @@ const NATIVE_RESOLVER_SCRIPT = [
   "const root=path.resolve(entry,'..',packageName);",
   "try{",
   "const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));",
-  "if(pkg.name!==packageName||pkg.version!=='0.10.8')continue;",
+  "if(pkg.name!==packageName||pkg.version!==" + JSON.stringify(CBM_PACKAGE_VERSION) + ")continue;",
   "const probe=cp.spawnSync(process.execPath,[path.join(root,'bin.js'),'--version'],{stdio:'ignore',timeout:120000});",
   "const binary=path.join(root,'bin',binaryName);",
   "if(probe.status===0&&fs.existsSync(binary)){process.stdout.write(binary);process.exit(0);}",
