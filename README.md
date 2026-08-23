@@ -21,6 +21,16 @@ Hello from mtmdsh.
 
 - `mtmdsh-plugin-hello`: minimal plugin and static-mount demo.
 - `mtm-codebase-memory`: opt-in DSH bundle for the codebase-memory MCP server.
+- `mtmcanvas`: installable DSH Web Host/Client Canvas view plugin with a fixture provider.
+
+## DSH Web Canvas plugin
+
+`mtmcanvas` is installed into an official DSH Web profile as a standard dual-face plugin. Its profile patch inserts the Host row, while its `dsh.client` declaration publishes the session-scoped `conversation.view` bundle. The first release is fixture-only and does not claim a production image provider.
+
+```sh
+pnpm --filter mtmcanvas run check
+pnpm --filter mtmcanvas run pack:check
+```
 
 ## DSH bundle
 
