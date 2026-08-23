@@ -6,10 +6,7 @@ import type { Agent } from "@deepseek-ai/dsh-agent";
 import { createUserMessage } from "@deepseek-ai/dsh-llm";
 import type { UserMessage } from "@deepseek-ai/dsh-session";
 import type { ToolExecution, ToolExecutionToken, PostToolDecision } from "@deepseek-ai/dsh-tools";
-import type {} from "@deepseek-ai/dsh-agent";
-import type {} from "@deepseek-ai/dsh-subprocess";
 import type {} from "@deepseek-ai/dsh-system-prompt";
-import type {} from "@deepseek-ai/dsh-tools";
 import {
   ensureRuntime,
   resolveCommand,
@@ -205,6 +202,7 @@ function objectArguments(exec: ToolExecution): Record<string, unknown> | undefin
 }
 
 interface HookEvent {
+  readonly tool?: "grep" | "glob" | "read";
   readonly payload: Readonly<Record<string, unknown>>;
   readonly cwd: string;
 }
@@ -217,13 +215,14 @@ function shortToolName(nameValue: string): string {
 /** Map the small DSH native read/search vocabulary to CBM's documented hook input. */
 function hookEventForExecution(exec: ToolExecution, fallbackCwd: string): HookEvent | undefined {
   const args = objectArguments(exec);
-  if (args === undefined || exec.agent === undefined) return undefined;
+  if (args === undefined) return undefined;
   const tool = shortToolName(exec.name);
-  const cwd = agentCwd(exec.agent, fallbackCwd);
+  const cwd = exec.agent === undefined ? fallbackCwd : agentCwd(exec.agent, fallbackCwd);
   if (tool === "grep" || tool === "glob") {
     const pattern = typeof args.pattern === "string" ? args.pattern : undefined;
     if (pattern === undefined || pattern.length === 0) return undefined;
     return {
+      tool,
       cwd,
       payload: {
         hook_event_name: "PreToolUse",
@@ -239,6 +238,7 @@ function hookEventForExecution(exec: ToolExecution, fallbackCwd: string): HookEv
       : typeof args.path === "string" ? args.path : undefined;
     if (filePath === undefined || filePath.length === 0) return undefined;
     return {
+      tool: "read",
       cwd,
       payload: {
         hook_event_name: "PostToolUse",
@@ -346,7 +346,7 @@ export async function apply(ctx: Context, rawConfig: Config = {}): Promise<void>
 
   ctx.on("tools/pre-execute", (exec, next) => {
     const event = hookEventForExecution(exec, config.cwd);
-    if (event !== undefined && (shortToolName(exec.name) === "grep" || shortToolName(exec.name) === "glob")) {
+    if (event !== undefined && (event.tool === "grep" || event.tool === "glob")) {
       pendingToolHooks.set(exec.token, startHook(event, exec.signal));
     }
     return next();
@@ -359,7 +359,7 @@ export async function apply(ctx: Context, rawConfig: Config = {}): Promise<void>
     const downstream = await next();
     const text = pending !== undefined
       ? await pending
-      : !result.isError && event !== undefined && shortToolName(exec.name) === "read"
+      : !result.isError && event?.tool === "read"
         ? await startHook(event, exec.signal)
         : undefined;
     return text === undefined
@@ -371,6 +371,3 @@ export async function apply(ctx: Context, rawConfig: Config = {}): Promise<void>
     pendingToolHooks.delete(exec.token);
   });
 }
-
-export { graphPrompt };
-export * from "./runtime.js";

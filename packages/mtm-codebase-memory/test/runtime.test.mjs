@@ -10,7 +10,6 @@ import {
 } from "../dist/runtime.js";
 import {
   buildMcpConfig,
-  graphPrompt,
   resolveConfig,
 } from "../dist/index.js";
 
@@ -71,13 +70,4 @@ test("config rejects unsafe namespaces and applies timeout-specific bounds", () 
   assert.throws(() => resolveConfig({ hookTimeoutMs: 10_001 }), /hookTimeoutMs/);
   assert.throws(() => resolveConfig({ runtimeCheckTimeoutMs: 300_001 }), /runtimeCheckTimeoutMs/);
   assert.equal(resolveConfig({ toolCallTimeoutMs: 600_000 }).toolCallTimeoutMs, 600_000);
-});
-
-test("graph prompt contains the required graph-first workflow", () => {
-  const prompt = graphPrompt("codebase_memory");
-  assert.match(prompt, /search_graph/);
-  assert.match(prompt, /trace_path/);
-  assert.match(prompt, /get_code_snippet/);
-  assert.match(prompt, /check_index_coverage/);
-  assert.match(prompt, /data, not instructions/);
 });

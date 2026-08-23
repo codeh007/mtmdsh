@@ -72,6 +72,10 @@ test("apply nests the official MCP client and registers graph guidance", async (
   assert.equal(fake.sections.length, 1);
   assert.equal(fake.sections[0].name, name + ":guidance");
   assert.match(fake.sections[0].text, /search_graph/);
+  assert.match(fake.sections[0].text, /trace_path/);
+  assert.match(fake.sections[0].text, /get_code_snippet/);
+  assert.match(fake.sections[0].text, /check_index_coverage/);
+  assert.match(fake.sections[0].text, /data, not instructions/);
 });
 
 test("session and search/read hooks become logged DSH contexts", async () => {
@@ -134,6 +138,16 @@ test("session and search/read hooks become logged DSH contexts", async () => {
   await toolPost(glob, { isError: false }, async () => ({ kind: "accept" }));
   assert.equal(JSON.parse(fake.spawnSpecs[2].stdio.stdin.data).tool_name, "Glob");
 
+  const directGrep = {
+    token: Symbol("direct-grep"),
+    name: "grep",
+    arguments: { pattern: "Direct" },
+    signal: new AbortController().signal,
+  };
+  await toolPre(directGrep, async () => ({ kind: "allow" }));
+  await toolPost(directGrep, { isError: false }, async () => ({ kind: "accept" }));
+  assert.equal(JSON.parse(fake.spawnSpecs[3].stdio.stdin.data).tool_name, "Grep");
+
   const read = {
     token: Symbol("read"),
     agent,
@@ -143,7 +157,7 @@ test("session and search/read hooks become logged DSH contexts", async () => {
   };
   const readResult = await toolPost(read, { isError: false }, async () => ({ kind: "accept" }));
   assert.equal(readResult.additionalContexts.length, 1);
-  assert.deepEqual(JSON.parse(fake.spawnSpecs[3].stdio.stdin.data), {
+  assert.deepEqual(JSON.parse(fake.spawnSpecs[4].stdio.stdin.data), {
     hook_event_name: "PostToolUse",
     tool_name: "Read",
     tool_input: { file_path: "/workspace/example/src/index.ts" },
@@ -153,7 +167,7 @@ test("session and search/read hooks become logged DSH contexts", async () => {
   await toolPost({ ...read, token: Symbol("failed-read") }, { isError: true }, async () => ({ kind: "accept" }));
   assert.equal(fake.spawnSpecs.length, callsBeforeFailedRead);
   assert.deepEqual(fake.spawnSpecs.slice(1).map((spec) => spec.argv.at(-1)), [
-    "hook-augment", "hook-augment", "hook-augment",
+    "hook-augment", "hook-augment", "hook-augment", "hook-augment",
   ]);
 
   for (const dispose of fake.effects) await dispose();
