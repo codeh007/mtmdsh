@@ -108,7 +108,7 @@ From the repository root:
 pnpm check:mtm-codebase-memory
 pnpm --filter mtm-codebase-memory pack --pack-destination dist/npm
 node scripts/verify-package.mjs packages/mtm-codebase-memory dist/npm/mtm-codebase-memory-0.2.0.tgz
-pnpm smoke:mtm-codebase-memory -- dist/npm/mtm-codebase-memory-0.2.0.tgz
+pnpm run smoke:mtm-codebase-memory -- dist/npm/mtm-codebase-memory-0.2.0.tgz
 ~~~
 
 ## Scope
