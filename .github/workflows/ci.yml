@@ -69,4 +69,37 @@ jobs:
         run: pnpm dlx publint run "${{ steps.pack.outputs.tarball }}" --strict
 
       - name: Rehearse npm publication
+        if: ${{ matrix.node == '22.19.0' }}
         run: npm publish "${{ steps.pack.outputs.tarball }}" --dry-run --access public --ignore-scripts
+
+      - name: Pack mtmcanvas plugin
+        id: pack_mtmcanvas
+        run: |
+          set -euo pipefail
+          pack_dir="$RUNNER_TEMP/mtmcanvas"
+          mkdir -p "$pack_dir"
+          pnpm --filter mtmcanvas pack --pack-destination "$pack_dir"
+          tarball="$(find "$pack_dir" -maxdepth 1 -type f -name 'mtmcanvas-*.tgz' -print -quit)"
+          test -n "$tarball"
+          printf 'tarball=%s\n' "$tarball" >> "$GITHUB_OUTPUT"
+
+      - name: Verify mtmcanvas tarball contract
+        run: node packages/mtmcanvas/scripts/verify-package.mjs "${{ steps.pack_mtmcanvas.outputs.tarball }}"
+
+      - name: Lint mtmcanvas package metadata
+        run: pnpm dlx publint run "${{ steps.pack_mtmcanvas.outputs.tarball }}"
+
+      - name: Install mtmcanvas into an isolated DSH Web profile
+        if: ${{ matrix.node == '22.19.0' }}
+        env:
+          DSH_HOME: ${{ runner.temp }}/dsh-mtmcanvas
+        run: |
+          set -euo pipefail
+          pnpm dlx @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web add "${{ steps.pack_mtmcanvas.outputs.tarball }}"
+          pnpm dlx @deepseek-ai/dsh@0.1.1-rc.2 --profile web --dump-config > "$RUNNER_TEMP/mtmcanvas-dump-config.txt"
+          grep -F '# == mtmcanvas' "$RUNNER_TEMP/mtmcanvas-dump-config.txt"
+          grep -F 'name: mtmcanvas' "$RUNNER_TEMP/mtmcanvas-dump-config.txt"
+
+      - name: Rehearse mtmcanvas npm publication
+        if: ${{ matrix.node == '22.19.0' }}
+        run: npm publish "${{ steps.pack_mtmcanvas.outputs.tarball }}" --dry-run --access public --ignore-scripts

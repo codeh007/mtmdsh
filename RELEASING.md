@@ -1,10 +1,10 @@
 # Releasing mtmdsh packages
 
-## Current release unit
+## Current release units
 
-The first release unit is `mtm-codebase-memory`. The demo package
-`mtmdsh-plugin-hello` is not part of the release workflow and must not be
-published by a recursive workspace command.
+The release workflow owns `mtm-codebase-memory` and `mtmcanvas` as separate package units. The demo package `mtmdsh-plugin-hello` is not part of the release workflow and must not be published by a recursive workspace command.
+
+`mtmcanvas` releases must pass the DSH manifest, lazy-CJS client artifact, profile patch, and isolated profile-install checks before publication.
 
 The package version is the release identity. Tags use:
 
