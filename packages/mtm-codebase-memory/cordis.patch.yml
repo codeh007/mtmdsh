@@ -1,12 +1,7 @@
-# Opt-in profile bundle for the local codebase-memory-mcp stdio server.
-# The server is installed and maintained separately from this package.
+# Opt-in profile bundle for the source-loadable CBM Cordis plugin.
+# The plugin owns provisioning, prompts, hooks, and the MCP client lifecycle.
 - insert:
     - id: mtm-codebase-memory
-      name: '@deepseek-ai/dsh-mcp-client'
+      name: 'mtm-codebase-memory'
       config:
         serverName: codebase_memory
-        transport: stdio
-        command: codebase-memory-mcp
-        args: []
-        env: {}
-        cwd: !!js process.cwd()

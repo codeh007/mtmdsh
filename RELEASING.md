@@ -12,19 +12,17 @@ The package version is the release identity. Tags use:
 mtm-codebase-memory-v<version>
 ~~~
 
-For example: `mtm-codebase-memory-v0.1.0`.
+For example: `mtm-codebase-memory-v0.2.0`.
 
-## First publish
+## Publish
 
-1. Create an npm granular access token with publish permission for the package.
-2. Add it to the `codeh007/mtmdsh` repository as the `NPM_TOKEN` Actions secret.
-3. Merge the release workflow into `main`.
-4. Confirm the package version is not already present on npm.
-5. Create and push the package tag from the merged main commit:
+1. Confirm the npm publishing credential or trusted publisher is available.
+2. Confirm the package version is not already present on npm.
+3. Create and push the package tag from the merged main commit:
 
 ~~~sh
-git tag -a mtm-codebase-memory-v0.1.0 -m 'release mtm-codebase-memory 0.1.0'
-git push origin mtm-codebase-memory-v0.1.0
+git tag -a mtm-codebase-memory-v0.2.0 -m 'release mtm-codebase-memory 0.2.0'
+git push origin mtm-codebase-memory-v0.2.0
 ~~~
 
 The workflow packs one tarball, verifies its exact files and metadata, runs
@@ -34,7 +32,7 @@ registry integrity with the local SHA-512 value.
 ## Local read-back
 
 ~~~sh
-npm view mtm-codebase-memory@0.1.0 --json
+npm view mtm-codebase-memory@0.2.0 --json
 ~~~
 
 ## Update the DSH profile
@@ -43,7 +41,7 @@ Back up the profile before replacing a local tarball or package spec. Then:
 
 ~~~sh
 dsh plugin --profile web remove mtm-codebase-memory
-dsh plugin --profile web add mtm-codebase-memory@0.1.0
+dsh plugin --profile web add mtm-codebase-memory@0.2.0
 dsh --profile web --dump-config
 ~~~
 
