@@ -7,16 +7,17 @@
     "node": ">=22.19.0"
   },
   "scripts": {
-    "build": "pnpm run build:mtm-codebase-memory && tsc -p packages/plugin-hello/tsconfig.json && pnpm --filter mtmcanvas run build && pnpm --filter mtmharness run build",
+    "build": "pnpm run build:mtm-codebase-memory && tsc -p packages/plugin-hello/tsconfig.json && pnpm --filter mtmcanvas run build && pnpm --filter mtmharness run build && pnpm --filter mtm-connect run build",
     "build:mtm-codebase-memory": "pnpm --filter mtm-codebase-memory run build",
     "demo": "node packages/plugin-hello/dist/demo.js",
-    "check": "pnpm run build:mtm-codebase-memory && pnpm --filter mtm-codebase-memory run test && tsc -p packages/plugin-hello/tsconfig.json && node packages/plugin-hello/dist/demo.js && node scripts/verify-package.mjs && pnpm --filter mtmcanvas run check && pnpm --filter mtmharness run check",
+    "check": "pnpm run build:mtm-codebase-memory && pnpm --filter mtm-codebase-memory run test && tsc -p packages/plugin-hello/tsconfig.json && node packages/plugin-hello/dist/demo.js && node scripts/verify-package.mjs && pnpm --filter mtmcanvas run check && pnpm --filter mtmharness run check && pnpm --filter mtm-connect run check",
     "check:mtm-codebase-memory": "pnpm run build:mtm-codebase-memory && pnpm --filter mtm-codebase-memory run test && node scripts/verify-package.mjs",
     "smoke:mtm-codebase-memory": "node scripts/verify-dsh-web.mjs",
     "verify:package": "node scripts/verify-package.mjs",
     "pack:mtm-codebase-memory": "pnpm --filter mtm-codebase-memory pack --pack-destination dist/npm",
     "pack:mtmcanvas": "pnpm --filter mtmcanvas pack:check",
-    "pack:mtmharness": "pnpm --filter mtmharness pack:check"
+    "pack:mtmharness": "pnpm --filter mtmharness pack:check",
+    "pack:mtm-connect": "pnpm --filter mtm-connect pack:check"
   },
   "devDependencies": {
     "typescript": "6.0.3"

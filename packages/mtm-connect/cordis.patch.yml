@@ -1,0 +1,4 @@
+# Installable profile layer for the experimental mtm-connect plugin.
+- insert:
+    - id: mtm-connect
+      name: mtm-connect
