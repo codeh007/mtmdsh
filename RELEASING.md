@@ -2,9 +2,11 @@
 
 ## Current release units
 
-The release workflow owns `mtm-codebase-memory` and `mtmcanvas` as separate package units. The demo package `mtmdsh-plugin-hello` is not part of the release workflow and must not be published by a recursive workspace command.
+The release workflow owns `mtm-codebase-memory`, `mtmcanvas`, and `mtmharness` as separate package units. The demo package `mtmdsh-plugin-hello` is not part of the release workflow and must not be published by a recursive workspace command.
 
-`mtmcanvas` releases must pass the DSH manifest, lazy-CJS client artifact, profile patch, and isolated profile-install checks before publication.
+`mtmcanvas` and `mtmharness` releases must pass the DSH manifest, lazy-CJS client artifact, profile patch, and isolated profile-install checks before publication.
+
+For `mtmharness`, use the tag `mtmharness-v<version>` and update the DSH Web profile with the published package after npm integrity read-back.
 
 The package version is the release identity. Tags use:
 
@@ -12,13 +14,13 @@ The package version is the release identity. Tags use:
 mtm-codebase-memory-v<version>
 ~~~
 
-For example: `mtm-codebase-memory-v0.2.0`.
+For example: `mtm-codebase-memory-v0.2.0` or `mtmharness-v0.1.0`.
 
 ## Publish
 
 1. Confirm the npm publishing credential or trusted publisher is available.
 2. Confirm the package version is not already present on npm.
-3. Create and push the package tag from the merged main commit:
+3. Create and push the package-specific tag from the merged main commit:
 
 ~~~sh
 git tag -a mtm-codebase-memory-v0.2.0 -m 'release mtm-codebase-memory 0.2.0'
