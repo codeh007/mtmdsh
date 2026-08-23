@@ -10,7 +10,7 @@ import type {
 
 const require = createRequire(import.meta.url);
 
-export const CBM_PACKAGE_VERSION = "0.10.8";
+const CBM_PACKAGE_VERSION = "0.10.8";
 const OUTPUT_LIMIT_BYTES = 16 * 1024;
 const ERROR_LIMIT_BYTES = 4 * 1024;
 
@@ -41,7 +41,7 @@ export interface CommandSpec {
   readonly bundled: boolean;
 }
 
-export interface CollectedRun {
+interface CollectedRun {
   readonly outcome: SubprocessOutcome;
   readonly stdout: string;
   readonly stderr: string;
@@ -110,7 +110,7 @@ function combinedSignal(parent: AbortSignal | undefined, timeout: AbortSignal): 
 }
 
 /** Run one bounded, non-shell child through the DSH subprocess seam. */
-export async function runCollected(
+async function runCollected(
   ctx: Context,
   argv: readonly string[],
   cwd: string,
