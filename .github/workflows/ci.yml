@@ -39,9 +39,6 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
 
-      - name: Enable Corepack
-        run: corepack enable
-
       - name: Verify pnpm version
         run: test "$(pnpm --version)" = 11.7.0
 
