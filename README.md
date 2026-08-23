@@ -22,6 +22,7 @@ Hello from mtmdsh.
 - `mtmdsh-plugin-hello`: minimal plugin and static-mount demo.
 - `mtm-codebase-memory`: source-loadable, opt-in DSH plugin and profile bundle for codebase-memory-mcp.
 - `mtmcanvas`: installable DSH Web Host/Client Canvas view plugin with a fixture provider.
+- `mtmharness`: minimal installable DSH Web panel plugin proving the additive sidebar contract.
 
 ## DSH Web Canvas plugin
 
@@ -30,6 +31,15 @@ Hello from mtmdsh.
 ```sh
 pnpm --filter mtmcanvas run check
 pnpm --filter mtmcanvas run pack:check
+```
+
+## DSH Web MTM Harness plugin
+
+`mtmharness` is the minimal first-stage MTM Harness plugin. It registers one sidebar footer action and an in-page panel without creating a second application root or transport.
+
+```sh
+pnpm --filter mtmharness run check
+pnpm --filter mtmharness run pack:check
 ```
 
 ## DSH bundle

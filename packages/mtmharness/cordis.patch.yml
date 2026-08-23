@@ -1,0 +1,4 @@
+# Installable profile layer for the mtmharness Host/Client plugin.
+- insert:
+    - id: mtmharness
+      name: mtmharness
