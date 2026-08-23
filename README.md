@@ -20,7 +20,7 @@ Hello from mtmdsh.
 ## Packages
 
 - `mtmdsh-plugin-hello`: minimal plugin and static-mount demo.
-- `mtm-codebase-memory`: opt-in DSH bundle for the codebase-memory MCP server.
+- `mtm-codebase-memory`: source-loadable, opt-in DSH plugin and profile bundle for codebase-memory-mcp.
 - `mtmcanvas`: installable DSH Web Host/Client Canvas view plugin with a fixture provider.
 
 ## DSH Web Canvas plugin
@@ -34,10 +34,11 @@ pnpm --filter mtmcanvas run pack:check
 
 ## DSH bundle
 
-Install `mtm-codebase-memory` into a DSH profile to expose the official MCP
-bridge for a local `codebase-memory-mcp` executable. The package owns only the
-profile patch; the MCP server remains an external prerequisite. See the package
-README for installation, workspace indexing, and security configuration.
+Install `mtm-codebase-memory` into the official local DSH Web profile. The
+plugin uses the official MCP bridge, provisions a pinned CBM runtime through its
+package-owned npm CLI on first use, and adds graph-first prompt and lifecycle
+context. See the package README for installation, configuration, indexing, and
+security boundaries.
 
 ## Release
 
