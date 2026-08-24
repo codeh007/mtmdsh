@@ -1,25 +1,44 @@
 export const MTM_CONNECT_CSS = String.raw`
+.mtm-modal {
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  gap: 0;
+  padding-bottom: 16px;
+  border-radius: 16px;
+}
+
+.mtm-modal-content {
+  min-height: 0;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.mtm-trigger-rail {
+  width: 36px;
+  min-width: 36px;
+  height: 28px;
+  padding: 0 2px;
+  font-size: 11px;
+  line-height: 14px;
+}
+
 [data-mtm-connect] {
   width: 100%;
   min-width: 0;
-  max-width: 760px;
   box-sizing: border-box;
   container-type: inline-size;
   color: var(--dsw-alias-label-primary);
   font-family: var(--dsw-font-family, sans-serif);
   font-size: 12px;
   line-height: 18px;
-  max-height: calc(100vh - 180px);
-  overflow-y: auto;
-  scrollbar-gutter: stable;
 }
 
 [data-mtm-connect] .mtmc-header {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 [data-mtm-connect] .mtmc-header h3 {
@@ -30,48 +49,29 @@ export const MTM_CONNECT_CSS = String.raw`
 }
 
 [data-mtm-connect] .mtmc-header p {
-  margin: 3px 0 0;
+  margin: 2px 0 0;
   color: var(--dsw-alias-label-tertiary);
   font-size: 11px;
   line-height: 16px;
 }
 
-[data-mtm-connect] .mtmc-metadata {
-  flex: none;
-  color: var(--dsw-alias-label-tertiary);
-  font-family: var(--ds-font-family-code, ui-monospace, SFMono-Regular, monospace);
-  font-size: 10px;
-  line-height: 14px;
-  text-align: right;
-}
-
-[data-mtm-connect] .mtmc-summary {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+[data-mtm-connect] .mtmc-summary-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
   margin-bottom: 12px;
-}
-
-[data-mtm-connect] .mtmc-summary-item {
-  min-width: 0;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 6px;
-  padding: 8px 9px;
-  background: var(--dsw-alias-bg-layer-1);
-}
-
-[data-mtm-connect] .mtmc-summary-item strong {
-  display: block;
-  font-size: 16px;
-  line-height: 18px;
-}
-
-[data-mtm-connect] .mtmc-summary-item span {
-  display: block;
-  margin-top: 3px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  padding: 7px 0;
   color: var(--dsw-alias-label-tertiary);
   font-size: 10px;
   line-height: 14px;
+}
+
+[data-mtm-connect] .mtmc-summary-line strong {
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 [data-mtm-connect] .mtmc-layout {
@@ -84,7 +84,7 @@ export const MTM_CONNECT_CSS = String.raw`
 [data-mtm-connect] .mtmc-section {
   min-width: 0;
   border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--dsw-alias-bg-layer-3);
 }
 
@@ -105,16 +105,12 @@ export const MTM_CONNECT_CSS = String.raw`
   font-weight: 700;
 }
 
-[data-mtm-connect] .mtmc-section-header span {
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 10px;
-  line-height: 14px;
-}
-
 [data-mtm-connect] .mtmc-connection-list {
   display: flex;
+  max-height: 250px;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  overflow-y: auto;
   padding: 6px;
 }
 
@@ -124,7 +120,7 @@ export const MTM_CONNECT_CSS = String.raw`
   align-items: center;
   gap: 8px;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: 6px;
   padding: 8px;
   background: transparent;
   color: inherit;
@@ -141,7 +137,8 @@ export const MTM_CONNECT_CSS = String.raw`
 
 [data-mtm-connect] .mtmc-connection:focus-visible,
 [data-mtm-connect] .mtmc-action-button:focus-visible,
-[data-mtm-connect] .mtmc-field select:focus-visible {
+[data-mtm-connect] .mtmc-field select:focus-visible,
+[data-mtm-connect] .mtmc-capability-settings summary:focus-visible {
   outline: 2px solid var(--dsw-alias-state-business-primary);
   outline-offset: 2px;
 }
@@ -181,7 +178,6 @@ export const MTM_CONNECT_CSS = String.raw`
   font-size: 9px;
   line-height: 14px;
   font-weight: 700;
-  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -224,6 +220,7 @@ export const MTM_CONNECT_CSS = String.raw`
 }
 
 [data-mtm-connect] .mtmc-detail-title strong {
+  display: block;
   overflow: hidden;
   font-size: 13px;
   line-height: 20px;
@@ -241,29 +238,29 @@ export const MTM_CONNECT_CSS = String.raw`
 [data-mtm-connect] .mtmc-detail-meta {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 6px;
-  margin: 10px 0;
+  gap: 0 12px;
+  margin: 9px 0;
 }
 
 [data-mtm-connect] .mtmc-meta-row {
+  display: flex;
   min-width: 0;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 5px;
-  padding: 7px;
-  background: var(--dsw-alias-bg-layer-1);
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  padding: 5px 0;
 }
 
 [data-mtm-connect] .mtmc-meta-row span {
-  display: block;
   color: var(--dsw-alias-label-tertiary);
   font-size: 10px;
   line-height: 14px;
 }
 
 [data-mtm-connect] .mtmc-meta-row strong {
-  display: block;
+  min-width: 0;
   overflow: hidden;
-  margin-top: 2px;
   font-size: 11px;
   line-height: 16px;
   text-overflow: ellipsis;
@@ -274,7 +271,7 @@ export const MTM_CONNECT_CSS = String.raw`
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 10px 0;
+  margin: 9px 0;
 }
 
 [data-mtm-connect] .mtmc-action-button {
@@ -311,13 +308,8 @@ export const MTM_CONNECT_CSS = String.raw`
 }
 
 [data-mtm-connect] .mtmc-capability {
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 6px;
-  padding: 8px;
-}
-
-[data-mtm-connect] .mtmc-capability + .mtmc-capability {
-  margin-top: 6px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+  padding: 8px 0;
 }
 
 [data-mtm-connect] .mtmc-capability-heading {
@@ -328,6 +320,7 @@ export const MTM_CONNECT_CSS = String.raw`
 }
 
 [data-mtm-connect] .mtmc-capability-heading strong {
+  min-width: 0;
   font-size: 11px;
   line-height: 16px;
 }
@@ -337,6 +330,18 @@ export const MTM_CONNECT_CSS = String.raw`
   font-size: 10px;
   line-height: 14px;
   text-align: right;
+}
+
+[data-mtm-connect] .mtmc-capability-settings {
+  margin-top: 5px;
+}
+
+[data-mtm-connect] .mtmc-capability-settings summary {
+  width: fit-content;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 14px;
 }
 
 [data-mtm-connect] .mtmc-capability-controls {
@@ -384,46 +389,8 @@ export const MTM_CONNECT_CSS = String.raw`
   line-height: 14px;
 }
 
-[data-mtm-connect] .mtmc-event,
-[data-mtm-connect] .mtmc-invocation,
-[data-mtm-connect] .mtmc-unavailable {
-  margin-top: 8px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 6px;
-  padding: 8px;
-  background: var(--dsw-alias-bg-layer-1);
-}
-
-[data-mtm-connect] .mtmc-event strong,
-[data-mtm-connect] .mtmc-invocation strong,
-[data-mtm-connect] .mtmc-unavailable strong {
-  display: block;
-  font-size: 10px;
-  line-height: 14px;
-}
-
-[data-mtm-connect] .mtmc-event p,
-[data-mtm-connect] .mtmc-invocation p,
-[data-mtm-connect] .mtmc-unavailable p {
-  margin: 3px 0 0;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 10px;
-  line-height: 14px;
-}
-
-[data-mtm-connect] .mtmc-code {
-  overflow: auto;
-  max-height: 120px;
-  margin: 6px 0 0;
-  color: var(--dsw-alias-label-secondary);
-  font-family: var(--ds-font-family-code, ui-monospace, SFMono-Regular, monospace);
-  font-size: 10px;
-  line-height: 14px;
-  white-space: pre-wrap;
-}
-
 [data-mtm-connect] .mtmc-notice {
-  margin: 10px 0 0;
+  margin: 9px 0 0;
   border-left: 3px solid var(--dsw-alias-state-business-primary);
   padding: 6px 8px;
   background: var(--dsw-alias-state-business-tertiary);
@@ -439,17 +406,19 @@ export const MTM_CONNECT_CSS = String.raw`
   line-height: 16px;
 }
 
-@container (min-width: 680px) {
-  [data-mtm-connect] .mtmc-summary {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
+@container (min-width: 620px) {
   [data-mtm-connect] .mtmc-layout {
-    grid-template-columns: minmax(0, .72fr) minmax(0, 1.28fr);
+    grid-template-columns: minmax(190px, .72fr) minmax(0, 1.28fr);
   }
 
   [data-mtm-connect] .mtmc-detail-meta {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-mtm-connect] * {
+    scroll-behavior: auto;
   }
 }
 `.trim();

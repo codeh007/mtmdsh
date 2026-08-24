@@ -47,10 +47,10 @@ if (!patch.includes("id: mtmharness") || !patch.includes("name: mtmharness")) fa
 
 const client = read("lib/client.js");
 if (!client.includes("window.__ModuleLoader__.load") || !client.includes('id: "mtmharness"')) fail("client artifact is not a DSH lazy-CJS bundle");
-for (const required of ['id: "mtm-connect"', "/mtm-connect"]) {
+for (const required of ["/mtm-connect"]) {
   if (!client.includes(required)) fail("client artifact is missing unified feature surface: " + required);
 }
-for (const forbidden of ["createRoot", "RouterProvider", "new WebSocket", 'credentials: "include"', "MtmHarnessRuntime", "standalone/src"]) {
+for (const forbidden of ["createRoot", "RouterProvider", "new WebSocket", 'credentials: "include"', "MtmHarnessRuntime", "standalone/src", 'id: "mtm-connect"']) {
   if (client.includes(forbidden)) fail("client artifact contains standalone behavior: " + forbidden);
 }
 

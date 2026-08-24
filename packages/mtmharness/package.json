@@ -1,6 +1,6 @@
 {
   "name": "mtmharness",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "DeepSeek Harness Web plugin suite with Connect and independent static/embed client.",
   "type": "module",
   "engines": { "node": ">=22.19.0", "pnpm": ">=11.7.0" },
