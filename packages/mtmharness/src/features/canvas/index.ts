@@ -5,7 +5,7 @@ import type {} from "@deepseek-ai/dsh-host-directory-picker";
 import { MTM_CANVAS_CHANNEL, parseCanvasRpcRequest } from "./contract/rpc.ts";
 import { validateCanvasDocument, type CanvasDocument } from "./contract/canvas.ts";
 
-const ROOT = "/workspace/.mtmcanvas";
+const CANVAS_DIRECTORY = ".mtmcanvas";
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.canvas$/u;
 
 type RpcResult<T> =
@@ -34,8 +34,14 @@ function assertDocumentName(name: string, document: CanvasDocument): void {
   if (document.canvasId !== canvasIdForName(name)) throw new Error("canvas document id does not match its file name");
 }
 
+function childPath(parent: string, name: string): string {
+  return parent.endsWith("/") ? parent + name : parent + "/" + name;
+}
+
 async function ensureDirectory(ctx: Context, signal: AbortSignal): Promise<Awaited<ReturnType<typeof ctx.fs.resolve>>> {
-  const target = await ctx.fs.resolve(ROOT);
+  const workspace = await ctx.fs.resolve(".", { signal });
+  const rootPath = childPath(workspace.displayPath, CANVAS_DIRECTORY);
+  const target = await ctx.fs.resolve(rootPath, { signal });
   const current = await ctx.fs.stat(target, signal);
   if (current?.type === "directory") return target;
   if (current !== undefined) throw new Error("canvas storage path is not a directory");
@@ -43,8 +49,8 @@ async function ensureDirectory(ctx: Context, signal: AbortSignal): Promise<Await
   const capability = ctx.directoryPicker.capability();
   if (capability.kind !== "browse") throw new Error("canvas storage directory cannot be created by this Host");
   try {
-    const createdPath = await capability.createDirectory("/workspace", ".mtmcanvas");
-    if (createdPath !== ROOT) throw new Error("canvas storage directory was created at an unexpected path");
+    const createdPath = await capability.createDirectory(workspace.displayPath, CANVAS_DIRECTORY);
+    if (createdPath !== rootPath) throw new Error("canvas storage directory was created at an unexpected path");
   } catch (error) {
     const raced = await ctx.fs.stat(target, signal);
     if (raced?.type !== "directory") throw error;
@@ -52,9 +58,9 @@ async function ensureDirectory(ctx: Context, signal: AbortSignal): Promise<Await
   return target;
 }
 
-async function readDocument(ctx: Context, name: string, signal: AbortSignal): Promise<{ version: string; document: CanvasDocument }> {
+async function readDocument(ctx: Context, directory: Awaited<ReturnType<typeof ctx.fs.resolve>>, name: string, signal: AbortSignal): Promise<{ version: string; document: CanvasDocument }> {
   checkName(name);
-  const target = await ctx.fs.resolve(ROOT + "/" + name);
+  const target = await ctx.fs.resolve(childPath(directory.displayPath, name), { signal });
   const before = await ctx.fs.stat(target, signal);
   if (before === undefined) throw new FsError("canvas document was not found", "FS_NOT_FOUND");
   if (before.type !== "file") throw new FsError("canvas document is not a regular file", "FS_NOT_REGULAR_FILE");
@@ -84,8 +90,8 @@ export function createCanvasRpcHandler(ctx: Context) {
         };
       }
 
-      const target = await ctx.fs.resolve(ROOT + "/" + request.name);
-      if (request.kind === "read") return { ok: true, value: { name: request.name, ...(await readDocument(ctx, request.name, signal)) } };
+      const target = await ctx.fs.resolve(childPath(directory.displayPath, request.name), { signal });
+      if (request.kind === "read") return { ok: true, value: { name: request.name, ...(await readDocument(ctx, directory, request.name, signal)) } };
 
       const document = validateCanvasDocument(request.document);
       assertDocumentName(request.name, document);
