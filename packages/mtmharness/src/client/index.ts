@@ -2,8 +2,10 @@
 import type { ClientContext } from "@deepseek-ai/dsh-client-runtime/client";
 import type {} from "@deepseek-ai/dsh-client-ui-sidebar/client";
 import { apply as applyConnect } from "../features/connect/client/index.ts";
+import { apply as applyCanvas } from "../features/canvas/client/index.ts";
 import type { MtmConnectPanelActions } from "../features/connect/client/MtmConnectPanel.tsx";
 import { MtmHarnessAction, type MtmHarnessActionInjected } from "./MtmHarnessAction.tsx";
+import { MtmCanvasAction } from "./MtmCanvasAction.tsx";
 
 export const inject = ["slots", "sessions", "connection"];
 
@@ -11,6 +13,7 @@ export const inject = ["slots", "sessions", "connection"];
 export function apply(ctx: ClientContext): void {
   if (ctx.get("connection") === undefined) throw new Error("mtmharness: DSH connection service is unavailable");
   const runtime = applyConnect(ctx);
+  const canvasRuntime = applyCanvas(ctx);
   const actions: MtmConnectPanelActions = {
     selectConnection: (connectionId) => { runtime.selectConnection(connectionId); },
     refresh: () => { runtime.refresh(); },
@@ -30,4 +33,10 @@ export function apply(ctx: ClientContext): void {
     order: 10,
     inject: (): MtmHarnessActionInjected => ({ actions, hooks: { connect: runtime } }),
   }, MtmHarnessAction));
+  ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
+    name: "sidebar.footer.action",
+    id: "mtmcanvas",
+    order: 11,
+    inject: () => ({ actions: canvasRuntime, hooks: { canvas: canvasRuntime } }),
+  }, MtmCanvasAction));
 }
