@@ -1,0 +1,11 @@
+{
+    "schema_version": 2,
+    "commit": "136950d1e6d5acfb7908d0320ce1ba9815807a7c",
+    "indexed_at": "2026-08-24T03:26:24Z",
+    "project": "workspace-mtmdsh",
+    "nodes": 542,
+    "edges": 1657,
+    "original_size": 3080192,
+    "compressed_size": 438420,
+    "compression_level": 9
+}
