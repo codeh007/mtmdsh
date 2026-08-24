@@ -114,7 +114,10 @@ describe("mtmharness browser half", () => {
     expect(registered).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: "sidebar.footer.action", options: expect.objectContaining({ id: "mtmharness", order: 10 }) }),
     ]));
-    expect(registered.filter((entry) => entry.name === "sidebar.footer.action")).toHaveLength(1);
+    expect(registered.filter((entry) => entry.name === "sidebar.footer.action")).toHaveLength(2);
+    expect(registered).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "sidebar.footer.action", options: expect.objectContaining({ id: "mtmcanvas", order: 11 }) }),
+    ]));
     for (const cleanup of cleanups.reverse()) void cleanup();
     expect(registered).toHaveLength(0);
   });
