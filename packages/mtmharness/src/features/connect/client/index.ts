@@ -7,24 +7,11 @@ import { MtmConnectAction } from "./MtmConnectAction.tsx";
 import { createMtmConnectTransport, MtmConnectClientRuntime } from "./runtime.ts";
 import { MTM_CONNECT_CSS } from "./styles.ts";
 
-export type { MtmConnectClientActions, MtmConnectViewState } from "./runtime.ts";
-export { MtmConnectClientRuntime } from "./runtime.ts";
-export { MtmConnectAction } from "./MtmConnectAction.tsx";
-
-export const inject = ["slots", "connection"];
-
-declare module "@deepseek-ai/cordis" {
-  interface Context {
-    mtmConnectClient: MtmConnectClientRuntime;
-  }
-}
-
 /** Mount the browser control surface and keep its fixture registry fiber-scoped. */
 export function apply(ctx: ClientContext): void {
-  const connection = ctx.get("connection") as unknown as ConnectionHandle | undefined;
+  const connection = ctx.get("connection") as ConnectionHandle | undefined;
   if (connection === undefined) throw new Error("mtm-connect: DSH connection service is unavailable");
   const runtime = new MtmConnectClientRuntime({ transport: createMtmConnectTransport(connection.rpc) });
-  ctx.provide("mtmConnectClient", runtime);
   ctx.effect(() => () => { runtime.dispose(); }, "mtm-connect: client runtime");
   ctx.effect(() => {
     if (typeof document === "undefined") return () => {};

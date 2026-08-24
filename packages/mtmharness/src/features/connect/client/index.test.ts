@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { createDemoRegistry } from "../core/registry.ts";
-import { apply, inject } from "./index.ts";
+import { apply } from "./index.ts";
 
 interface Registered {
   readonly options: Record<string, unknown>;
@@ -12,7 +12,6 @@ describe("mtm-connect browser half", () => {
   it("declares the connection dependency, hydrates Host state, and cleans up", async () => {
     const registered: Registered[] = [];
     const cleanups: Array<() => void | Promise<void>> = [];
-    const provided: Record<string, unknown> = {};
     const snapshot = createDemoRegistry().getSnapshot();
     const calls: unknown[] = [];
     const ctx = {
@@ -27,7 +26,6 @@ describe("mtm-connect browser half", () => {
           },
         };
       },
-      provide(key: string, value: unknown) { provided[key] = value; },
       effect(effect: () => (() => void | Promise<void>) | void) {
         const cleanup = effect();
         if (typeof cleanup === "function") cleanups.push(cleanup);
@@ -48,9 +46,7 @@ describe("mtm-connect browser half", () => {
         },
       },
     };
-    expect(inject).toEqual(["slots", "connection"]);
     apply(ctx as never);
-    expect(provided.mtmConnectClient).toBeDefined();
     expect(registered).toHaveLength(1);
     expect(registered[0]?.options).toMatchObject({ name: "sidebar.footer.action", id: "mtm-connect", order: 20 });
     const style = document.head.querySelector<HTMLStyleElement>('style[data-plugin="mtm-connect"]');

@@ -4,28 +4,14 @@ import { MtmConnectRegistry, type MtmConnectRegistryOptions } from "./core/regis
 import type { MtmConnectSnapshot } from "./contract/connection.ts";
 import { MTM_CONNECT_CHANNEL, parseMtmConnectRpcRequest } from "./contract/rpc.ts";
 
-export { createAdapterCatalog, installedAdapters } from "./adapters/catalog.ts";
-export { invokeMockCapability } from "./adapters/mock/invoke.ts";
-export * from "./contract/adapter.ts";
-export * from "./contract/connection.ts";
-export * from "./contract/event.ts";
-export * from "./contract/json.ts";
-export * from "./contract/rpc.ts";
-export * from "./contract/snapshot.ts";
-export { MtmConnectRegistry, createDemoRegistry } from "./core/registry.ts";
-export type { InvocationActor, MtmConnectRegistryOptions } from "./core/registry.ts";
-
-export const name = "mtm-connect";
-export const inject = ["connection"];
-
 type RpcResult<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: { readonly code: "internal"; readonly message: string; readonly details: Record<string, never> } };
 
-export interface MtmConnectHostConfig {
+interface MtmConnectHostConfig {
   readonly ownerId?: string;
   readonly seed?: boolean;
 }
 
-export interface MtmConnectHostService {
+interface MtmConnectHostService {
   readonly registry: MtmConnectRegistry;
   getSnapshot(): MtmConnectSnapshot;
   restoreSnapshot(snapshot: MtmConnectSnapshot): void;

@@ -1,8 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
-import { createDemoRegistry, createMtmConnectRpcHandler } from "../index.ts";
+import { createMtmConnectRpcHandler } from "../index.ts";
+import { createDemoRegistry } from "../core/registry.ts";
 import { createMtmConnectTransport, MtmConnectClientRuntime } from "./runtime.ts";
 
 describe("mtm-connect Host/Client transport", () => {
+  it("requires an explicit fixture mode when no Host transport is supplied", () => {
+    expect(() => new MtmConnectClientRuntime()).toThrow("mtm-connect: Host transport is required");
+  });
+
+  it("rejects an invalid initial remote snapshot before exposing it", () => {
+    expect(() => new MtmConnectClientRuntime({ transport: {} as never, snapshot: { schemaVersion: 1 } as never })).toThrow("snapshot");
+  });
+
   it("hydrates the Client from Host state and sends mutations back to the same registry", async () => {
     const host = createDemoRegistry();
     const handler = createMtmConnectRpcHandler(host);

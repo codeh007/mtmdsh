@@ -16,15 +16,15 @@ if (manifest.name !== "mtmharness") fail("unexpected package name");
 if (!/^\d+\.\d+\.\d+$/.test(manifest.version)) fail("version must be stable SemVer");
 if (manifest.dsh?.bundle?.patch !== "./cordis.patch.yml") fail("dsh.bundle.patch must point to cordis.patch.yml");
 if (manifest.dsh?.client?.platform !== "web") fail("dsh.client.platform must be web");
-if (!Array.isArray(manifest.dsh?.client?.inject)) fail("dsh.client.inject must be an array");
-for (const required of [
+const expectedInject = [
   "@deepseek-ai/dsh-client-connection",
   "@deepseek-ai/dsh-client-runtime",
   "@deepseek-ai/dsh-client-ui-conversation",
   "@deepseek-ai/dsh-client-ui-primitives",
   "@deepseek-ai/dsh-client-ui-sidebar",
-]) {
-  if (!manifest.dsh.client.inject.includes(required)) fail("dsh.client.inject is missing " + required);
+];
+if (JSON.stringify(manifest.dsh?.client?.inject) !== JSON.stringify(expectedInject)) {
+  fail("dsh.client.inject must exactly match " + JSON.stringify(expectedInject));
 }
 if (manifest.exports?.["./client"]?.default !== "./lib/client.js") fail("exports ./client must point to lib/client.js");
 if (manifest.exports?.["./embed"]?.import !== "./dist/embed/mtmharness.js") fail("exports ./embed must point to the ESM artifact");

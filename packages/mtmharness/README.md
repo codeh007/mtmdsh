@@ -27,7 +27,8 @@ These P0 domains retain their fixture/loopback behavior. They do not yet call th
 
 If the profile previously installed the standalone packages, remove them before adding the unified package so their old rows do not remain alongside the `mtmharness` row:
 
-    dsh plugin --profile web remove mtmcanvas mtm-connect
+    dsh plugin --profile web remove mtmcanvas
+    dsh plugin --profile web remove mtm-connect
     dsh plugin --profile web add mtmharness
 
 The same hard-cut sequence is covered by the committed isolated profile smoke, including duplicate install, removal, and reinstall:

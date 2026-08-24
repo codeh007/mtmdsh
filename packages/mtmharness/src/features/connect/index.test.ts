@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { apply, name } from "./index.ts";
+import { apply } from "./index.ts";
 
 describe("mtm-connect Host half", () => {
   it("provides the owner registry and serves snapshot/mutation RPCs", async () => {
@@ -23,7 +23,6 @@ describe("mtm-connect Host half", () => {
       },
     };
     apply(ctx as never, { ownerId: "owner-1", seed: true });
-    expect(name).toBe("mtm-connect");
     expect(provided.mtmConnect).toBeDefined();
     const service = provided.mtmConnect as { getSnapshot: () => { ownerId: string; revision: number; connections: readonly { instance: { id: string }; observation: { status: string } }[] } };
     expect(service.getSnapshot()).toMatchObject({ ownerId: "owner-1", revision: 0 });

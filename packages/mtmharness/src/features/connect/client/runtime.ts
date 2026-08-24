@@ -86,6 +86,9 @@ export class MtmConnectClientRuntime implements ObservableSnapshot<MtmConnectVie
   constructor(options: MtmConnectClientRuntimeOptions = {}) {
     this.now = options.now ?? (() => Date.now());
     this.transport = options.transport;
+    if (this.transport === undefined && options.fixture !== true) {
+      throw new Error("mtm-connect: Host transport is required");
+    }
     if (this.transport === undefined) {
       const ownerId = options.snapshot?.ownerId ?? "demo-user";
       this.registry = new MtmConnectRegistry(options.snapshot === undefined
@@ -96,7 +99,10 @@ export class MtmConnectClientRuntime implements ObservableSnapshot<MtmConnectVie
       this.unsubscribeRegistry = this.registry.subscribe(() => { this.adoptSnapshot(this.registry?.getSnapshot()); });
     } else {
       this.registry = undefined;
-      this.view = { snapshot: options.snapshot ?? { schemaVersion: 1, revision: 0, ownerId: "pending", adapters: [], connections: [], eventHistory: [], updatedAt: 0 }, loading: true };
+      const initialSnapshot = options.snapshot === undefined
+        ? { schemaVersion: 1 as const, revision: 0, ownerId: "pending", adapters: [], connections: [], eventHistory: [], updatedAt: 0 }
+        : validateSnapshot(options.snapshot);
+      this.view = { snapshot: initialSnapshot, loading: true };
       this.unsubscribeRegistry = () => {};
       void this.loadSnapshot();
     }
