@@ -1,6 +1,6 @@
 import { useState, useSyncExternalStore, type ReactElement } from "react";
 import type { PropsRuntime } from "@deepseek-ai/dsh-client-ui-slots";
-import { Button, IconCodeOutline16, Modal } from "@deepseek-ai/dsh-client-ui-primitives";
+import { Button, IconCodeOutline16, Modal, Pill } from "@deepseek-ai/dsh-client-ui-primitives";
 import type {} from "@deepseek-ai/dsh-client-ui-sidebar/client";
 import { EVENT_POLICIES, type EventPolicy } from "../contract/event.ts";
 import type { CapabilityBinding, ConnectionRecord } from "../contract/connection.ts";
@@ -28,7 +28,7 @@ function statusLabel(status: string): string {
 }
 
 function StatusBadge({ status }: { status: string }): ReactElement {
-  return <span className={"mtmc-status mtmc-status-" + status}>{statusLabel(status)}</span>;
+  return <Pill className={"mtmc-status mtmc-status-" + status}>{statusLabel(status)}</Pill>;
 }
 
 function selectedRecord(state: MtmConnectViewState): ConnectionRecord | undefined {
@@ -92,7 +92,7 @@ function InvocationResult({ state, runtime }: { state: MtmConnectViewState; runt
     <div className="mtmc-invocation">
       <strong>{result.ok ? "Sample operation" : "Operation blocked"}</strong>
       <p>{result.ok ? result.summary : result.message}</p>
-      {approvalRequired ? <button type="button" className="mtmc-button mtmc-button-primary" onClick={() => { runtime.approveFirstCapability(); }}>Approve and run</button> : null}
+      {approvalRequired ? <Button size="sm" variant="primary" className="mtmc-action-button mtmc-action-button-primary" onClick={() => { runtime.approveFirstCapability(); }}>Approve and run</Button> : null}
       {result.ok ? <pre className="mtmc-code">{JSON.stringify(result.data, null, 2)}</pre> : null}
     </div>
   );
@@ -133,16 +133,16 @@ function ConnectionDetail({ state, runtime }: { state: MtmConnectViewState; runt
         <div className="mtmc-meta-row"><span>Target</span><strong>{String(root ?? adapter.capabilities[0]?.supportedTargets[0] ?? "fixture")}</strong></div>
       </div>
       <div className="mtmc-actions">
-        <button type="button" className="mtmc-button mtmc-button-primary" disabled={online || revoked} onClick={() => { runtime.enableSelected(); }}>{online ? "Online" : "Enable"}</button>
-        <button type="button" className="mtmc-button" disabled={!online} onClick={() => { runtime.disableSelected(); }}>Disable</button>
-        <button type="button" className="mtmc-button" disabled={!online} onClick={() => { runtime.reconnectSelected(); }}>Reconnect</button>
-        <button type="button" className="mtmc-button mtmc-button-danger" disabled={revoked} onClick={() => { runtime.revokeSelected(); }}>Revoke</button>
+        <Button size="sm" variant="primary" className="mtmc-action-button mtmc-action-button-primary" disabled={online || revoked} onClick={() => { runtime.enableSelected(); }}>{online ? "Online" : "Enable"}</Button>
+        <Button size="sm" variant="outline" className="mtmc-action-button" disabled={!online} onClick={() => { runtime.disableSelected(); }}>Disable</Button>
+        <Button size="sm" variant="outline" className="mtmc-action-button" disabled={!online} onClick={() => { runtime.reconnectSelected(); }}>Reconnect</Button>
+        <Button size="sm" variant="outline" className="mtmc-action-button mtmc-action-button-danger" disabled={revoked} onClick={() => { runtime.revokeSelected(); }}>Revoke</Button>
       </div>
       <div className="mtmc-subheading"><h5>Capabilities</h5><span>{adapter.capabilities.length} declared</span></div>
       {adapter.capabilities.map((capability) => <CapabilityCard key={capability.id} capabilityId={capability.id} adapter={adapter} record={record} runtime={runtime} />)}
       <div className="mtmc-actions">
-        <button type="button" className="mtmc-button" disabled={!online} onClick={() => { runtime.invokeFirstCapability(); }}>Run sample operation</button>
-        <button type="button" className="mtmc-button" disabled={!online} onClick={() => { runtime.simulateEvent(); }}>Emit fixture event</button>
+        <Button size="sm" variant="outline" className="mtmc-action-button" disabled={!online} onClick={() => { runtime.invokeFirstCapability(); }}>Run sample operation</Button>
+        <Button size="sm" variant="outline" className="mtmc-action-button" disabled={!online} onClick={() => { runtime.simulateEvent(); }}>Emit fixture event</Button>
       </div>
       <InvocationResult state={state} runtime={runtime} />
       <EventResult state={state} />
@@ -167,7 +167,7 @@ function MtmConnectPanel({ state, runtime }: { state: MtmConnectViewState; runti
   const enabled = state.snapshot.connections.filter((record) => record.instance.desired === "enabled").length;
   const unavailable = state.snapshot.adapters.filter((adapter) => adapter.status === "unavailable").length;
   return (
-    <div className="mtmc-panel" data-testid="mtm-connect-panel">
+    <div data-mtm-connect="true" data-testid="mtm-connect-panel">
       <div className="mtmc-header">
         <div><h3>Connection control plane</h3><p>Explicit bindings, observable channels, and fixture adapters.</p></div>
         <div className="mtmc-metadata">snapshot v1 · rev {state.snapshot.revision}<br />owner {state.snapshot.ownerId}</div>
@@ -181,7 +181,7 @@ function MtmConnectPanel({ state, runtime }: { state: MtmConnectViewState; runti
       {state.loading ? <div className="mtmc-notice" role="status">Loading Host snapshot...</div> : null}
       <div className="mtmc-layout">
         <section className="mtmc-section">
-          <div className="mtmc-section-header"><h4>Connections</h4><div className="mtmc-actions"><button type="button" className="mtmc-button" onClick={() => { runtime.refresh(); }}>Refresh</button><button type="button" className="mtmc-button" disabled={state.loading} onClick={() => { runtime.createMockConnection(); }}>Add fixture</button></div></div>
+          <div className="mtmc-section-header"><h4>Connections</h4><div className="mtmc-actions"><Button size="sm" variant="outline" className="mtmc-action-button" onClick={() => { runtime.refresh(); }}>Refresh</Button><Button size="sm" variant="outline" className="mtmc-action-button" disabled={state.loading} onClick={() => { runtime.createMockConnection(); }}>Add fixture</Button></div></div>
           <div className="mtmc-connection-list">
             {state.snapshot.connections.length === 0 ? <div className="mtmc-empty">No connections configured.</div> : state.snapshot.connections.map((record) => (
               <button type="button" className={"mtmc-connection" + (record.instance.id === state.selectedConnectionId ? " mtmc-connection-selected" : "")} key={record.instance.id} onClick={() => { runtime.selectConnection(record.instance.id); }}>

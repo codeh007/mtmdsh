@@ -29,7 +29,8 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => {
     if (typeof document === "undefined") return () => {};
     const style = document.createElement("style");
-    style.dataset.mtmConnect = "true";
+    style.dataset.plugin = "mtm-connect";
+    style.dataset.pluginCss = "mtm-connect/inline.css";
     style.textContent = MTM_CONNECT_CSS;
     document.head.append(style);
     return () => { style.remove(); };

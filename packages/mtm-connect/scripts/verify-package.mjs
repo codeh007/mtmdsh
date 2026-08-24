@@ -26,6 +26,9 @@ if (!patch.includes("id: mtm-connect") || !patch.includes("name: mtm-connect")) 
 const client = readFileSync(resolve(packageRoot, "lib/client.js"), "utf8");
 if (!client.includes("window.__ModuleLoader__.load") || !client.includes('id: "mtm-connect"')) fail("client artifact is not a DSH lazy-CJS bundle");
 if (!client.includes("/mtm-connect")) fail("client artifact does not include the Host Connection RPC channel");
+if (!client.includes("--dsw-alias-label-primary")) fail("client artifact does not consume DSH semantic style tokens");
+if (client.includes("--mtmc-") || client.includes(":root {")) fail("client artifact contains a private global theme declaration");
+if (!client.includes("mtm-connect/inline.css")) fail("client artifact does not mark the plugin-owned stylesheet");
 for (const forbidden of ["createRoot", "RouterProvider", "new WebSocket", 'credentials: "include"', "dynamic-import"]) {
   if (client.includes(forbidden)) fail("client artifact contains forbidden standalone behavior: " + forbidden);
 }
