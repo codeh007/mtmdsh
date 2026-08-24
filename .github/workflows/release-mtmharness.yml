@@ -103,10 +103,16 @@ jobs:
       - name: Read back npm integrity
         run: |
           set -euo pipefail
-          published_integrity="$(npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" dist.integrity --json | jq -r .)"
-          test "$published_integrity" = "$LOCAL_INTEGRITY"
-          published_version="$(npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version --json | jq -r .)"
-          test "$published_version" = "$PACKAGE_VERSION"
+          for attempt in $(seq 1 12); do
+            if published_integrity="$(npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" dist.integrity --json 2>/dev/null | jq -r .)" && published_version="$(npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version --json 2>/dev/null | jq -r .)" && test "$published_integrity" = "$LOCAL_INTEGRITY" && test "$published_version" = "$PACKAGE_VERSION"; then
+              break
+            fi
+            if test "$attempt" -eq 12; then
+              echo "npm registry read-back did not converge after ${attempt} attempts" >&2
+              exit 1
+            fi
+            sleep 5
+          done
           {
             echo '### npm release evidence'
             echo
