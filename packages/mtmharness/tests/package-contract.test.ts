@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const packageRoot = resolve(import.meta.dirname, "..");
 
-describe("mtmcanvas package contract", () => {
+describe("mtmharness package contract", () => {
   it("declares both the profile bundle and Web client faces", () => {
     const manifest = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8")) as {
       exports: Record<string, { default?: string }>;
