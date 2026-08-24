@@ -9,6 +9,9 @@ export const MTM_CONNECT_CSS = String.raw`
   font-family: var(--dsw-font-family, sans-serif);
   font-size: 12px;
   line-height: 18px;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 [data-mtm-connect] .mtmc-header {
