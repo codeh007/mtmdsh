@@ -1,5 +1,5 @@
 import type { Context } from "@deepseek-ai/cordis";
-import { FsVersion } from "@deepseek-ai/dsh-fs";
+import { FsError, FsVersion } from "@deepseek-ai/dsh-fs";
 import type {} from "@deepseek-ai/dsh-fs";
 import type {} from "@deepseek-ai/dsh-host-directory-picker";
 import { MTM_CANVAS_CHANNEL, parseCanvasRpcRequest } from "./contract/rpc.ts";
@@ -43,7 +43,8 @@ async function ensureDirectory(ctx: Context, signal: AbortSignal): Promise<Await
   const capability = ctx.directoryPicker.capability();
   if (capability.kind !== "browse") throw new Error("canvas storage directory cannot be created by this Host");
   try {
-    await capability.createDirectory("/workspace", ".mtmcanvas");
+    const createdPath = await capability.createDirectory("/workspace", ".mtmcanvas");
+    if (createdPath !== ROOT) throw new Error("canvas storage directory was created at an unexpected path");
   } catch (error) {
     const raced = await ctx.fs.stat(target, signal);
     if (raced?.type !== "directory") throw error;
@@ -54,12 +55,16 @@ async function ensureDirectory(ctx: Context, signal: AbortSignal): Promise<Await
 async function readDocument(ctx: Context, name: string, signal: AbortSignal): Promise<{ version: string; document: CanvasDocument }> {
   checkName(name);
   const target = await ctx.fs.resolve(ROOT + "/" + name);
+  const before = await ctx.fs.stat(target, signal);
+  if (before === undefined) throw new FsError("canvas document was not found", "FS_NOT_FOUND");
+  if (before.type !== "file") throw new FsError("canvas document is not a regular file", "FS_NOT_REGULAR_FILE");
   const raw = JSON.parse(await ctx.fs.readText(target, signal)) as unknown;
   const document = validateCanvasDocument(raw);
   assertDocumentName(name, document);
-  const info = await ctx.fs.stat(target, signal);
-  if (info?.type !== "file") throw new Error("canvas document disappeared while reading");
-  return { version: String(info.version), document };
+  const after = await ctx.fs.stat(target, signal);
+  if (after?.type !== "file") throw new FsError("canvas document disappeared while reading", "FS_NOT_FOUND");
+  if (String(before.version) !== String(after.version)) throw new FsError("canvas document changed while reading", "FS_STALE_VERSION");
+  return { version: String(after.version), document };
 }
 
 export function createCanvasRpcHandler(ctx: Context) {
@@ -67,9 +72,10 @@ export function createCanvasRpcHandler(ctx: Context) {
     if (endpoint !== "request") return failure(new Error("unknown canvas endpoint"));
     try {
       const request = parseCanvasRpcRequest((payload as { args?: unknown } | null)?.args);
+      if (request.kind !== "list") checkName(request.name);
       const directory = await ensureDirectory(ctx, signal);
-      const entries = await ctx.fs.listDir(directory, signal);
       if (request.kind === "list") {
+        const entries = await ctx.fs.listDir(directory, signal);
         return {
           ok: true,
           value: entries
@@ -78,7 +84,6 @@ export function createCanvasRpcHandler(ctx: Context) {
         };
       }
 
-      checkName(request.name);
       const target = await ctx.fs.resolve(ROOT + "/" + request.name);
       if (request.kind === "read") return { ok: true, value: { name: request.name, ...(await readDocument(ctx, request.name, signal)) } };
 

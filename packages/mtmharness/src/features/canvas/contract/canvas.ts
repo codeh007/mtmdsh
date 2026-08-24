@@ -26,6 +26,10 @@ function boundedText(value: unknown, label: string, max = 256): string {
   if (text.length === 0 || text.length > max) throw new Error(label + " is invalid");
   return text;
 }
+function boundedPrompt(value: unknown, label: string): string {
+  if (typeof value !== "string" || value.length > MAX_TEXT) throw new Error(label + " is invalid");
+  return value;
+}
 function coordinate(value: unknown, label: string): number {
   if (!isFiniteNumber(value) || Math.abs(value) > MAX_COORDINATE) throw new Error(label + " is invalid");
   return value;
@@ -66,7 +70,7 @@ export function validateCanvasDocument(value: unknown): CanvasDocument {
       title: boundedText(raw.title, "canvas node " + index + " title"),
       position: parsePosition(raw.position, "canvas node " + index + " position"),
       size: parseSize(raw.size, "canvas node " + index + " size"),
-      prompt: typeof raw.prompt === "string" ? raw.prompt.slice(0, MAX_TEXT) : "",
+      prompt: boundedPrompt(raw.prompt, "canvas node " + index + " prompt"),
     };
   });
 

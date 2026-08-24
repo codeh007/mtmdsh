@@ -14,7 +14,7 @@ Install the package into a web profile:
     dsh plugin --profile web add mtmharness
     dsh --profile web --dump-config
 
-Restart the DSH Web host after changing profile composition. The `MTM` and `Canvas` actions appear in the sidebar footer. The host owns the React root, session connection, and lifecycle.
+Restart the DSH Web host after changing profile composition. The `MTM` and `Canvas` actions appear in the sidebar footer. The host owns the React root, session connection, and lifecycle. Canvas initialization requires the Host's `directoryPicker` to expose the `browse` capability so it can create the fixed `/workspace/.mtmcanvas` directory; a native-only picker cannot create this workspace directory.
 
 The plugin enables the Connect control panel by default and keeps its registry and `/mtm-connect` RPC on the DSH Host loopback boundary. The independent static/embed client remains a separate application surface and is not part of the DSH plugin.
 

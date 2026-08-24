@@ -17,4 +17,10 @@ describe("Canvas document contract", () => {
     const document = createCanvasDocument("demo");
     expect(() => validateCanvasDocument({ ...document, nodes: [{ ...document.nodes[0], size: { width: 0, height: 10 } }, document.nodes[1]] })).toThrow("size");
   });
+
+  it("rejects non-string and oversized prompts", () => {
+    const document = createCanvasDocument("demo");
+    expect(() => validateCanvasDocument({ ...document, nodes: [{ ...document.nodes[0], prompt: 42 }, document.nodes[1]] })).toThrow("prompt");
+    expect(() => validateCanvasDocument({ ...document, nodes: [{ ...document.nodes[0], prompt: "x".repeat(20_001) }, document.nodes[1]] })).toThrow("prompt");
+  });
 });
