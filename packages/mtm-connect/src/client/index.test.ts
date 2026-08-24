@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { createDemoRegistry } from "../core/registry.ts";
 import { apply, inject } from "./index.ts";
@@ -52,10 +53,14 @@ describe("mtm-connect browser half", () => {
     expect(provided.mtmConnectClient).toBeDefined();
     expect(registered).toHaveLength(1);
     expect(registered[0]?.options).toMatchObject({ name: "sidebar.footer.action", id: "mtm-connect", order: 20 });
+    const style = document.head.querySelector<HTMLStyleElement>('style[data-plugin="mtm-connect"]');
+    expect(style?.dataset.pluginCss).toBe("mtm-connect/inline.css");
+    expect(style?.textContent).toContain("--dsw-alias-label-primary");
     await new Promise<void>((resolve) => { queueMicrotask(resolve); });
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({ channel: "/mtm-connect", endpoint: "request" });
     for (const cleanup of cleanups.reverse()) await cleanup();
     expect(registered).toHaveLength(0);
+    expect(document.head.querySelector('style[data-plugin="mtm-connect"]')).toBeNull();
   });
 });

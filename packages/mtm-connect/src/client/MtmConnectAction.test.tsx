@@ -44,7 +44,7 @@ describe("MtmConnectAction", () => {
     runtime = new MtmConnectClientRuntime();
     act(() => { root?.render(<MtmConnectAction wide runtime={runtime} />); });
     act(() => { document.querySelector<HTMLButtonElement>("button[aria-label=\"Open MTM Connect\"]")?.click(); });
-    act(() => { document.querySelector<HTMLButtonElement>("button.mtmc-button-primary")?.click(); });
+    act(() => { document.querySelector<HTMLButtonElement>("button.mtmc-action-button-primary")?.click(); });
     expect(document.body.textContent).toContain("Online");
     expect(runtime.getSnapshot().snapshot.connections[0]?.observation.status).toBe("online");
   });

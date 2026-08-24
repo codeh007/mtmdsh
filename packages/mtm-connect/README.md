@@ -13,6 +13,8 @@ The first release keeps the contract in one installable package and uses honest 
 
 The package does not create a React root, router, ShadowRoot, WebSocket, or separate API transport. DSH owns the host connection, session lifecycle, rendering root, and teardown. Write-capable fixture operations fail closed until the user explicitly approves them; model requests cannot self-approve.
 
+The Web client follows DSH styling ownership: it reuses DSH UI primitives, consumes the host theme through `--dsw-*` semantic tokens, and scopes its plugin stylesheet below the MTM Connect panel. It does not install Tailwind, a second global theme, or an application-level component runtime. The inline stylesheet is tagged as plugin-owned so DSH Web HMR can remove it during reload. Migrating the package to CSS Modules remains a later build-only improvement once the external plugin build can consume the same DSH CSS asset contract.
+
 ## Install Into DSH Web
 
     dsh plugin --profile web add mtm-connect
