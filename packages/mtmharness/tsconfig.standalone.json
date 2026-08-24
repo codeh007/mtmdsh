@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "declaration": true,
+    "declarationMap": false,
+    "emitDeclarationOnly": true,
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "outDir": "dist/types/standalone",
+    "rootDir": "standalone/src",
+    "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
+    "paths": { "@/*": ["standalone/src/*"] },
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2022",
+    "types": ["vite/client"]
+  },
+  "include": ["standalone/src/**/*.ts", "standalone/src/**/*.tsx"],
+  "exclude": ["standalone/src/**/*.test.ts", "standalone/src/**/*.test.tsx"]
+}
