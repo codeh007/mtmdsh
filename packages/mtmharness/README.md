@@ -2,10 +2,10 @@
 
 `mtmharness` is one public npm package with one unified DSH plugin and two explicit client identities:
 
-- **DSH Web plugin**: the package root and `./client` export use the official `dsh.client` lazy-CJS contract. One installation provides the MTM sidebar action, the Canvas conversation view, and the Connect control panel.
+- **DSH Web plugin**: the package root and `./client` export use the official `dsh.client` lazy-CJS contract. One installation provides the MTM sidebar action and the Connect control panel.
 - **Independent web client**: the package also publishes a BrowserHistory static app and a MemoryHistory script/embed entry. These artifacts own their React root, router, styles, and teardown.
 
-The DSH plugin is assembled from Canvas and Connect feature domains under one Host/Client lifecycle. The standalone app has separate build entrypoints and never imports the DSH plugin runtime or its feature domains.
+The DSH plugin is assembled from the Connect feature domain under one Host/Client lifecycle. The standalone app has separate build entrypoints and never imports the DSH plugin runtime or its feature domains.
 
 ## DSH Web Plugin
 
@@ -16,12 +16,7 @@ Install the package into a web profile:
 
 Restart the DSH Web host after changing profile composition. The `MTM` action appears in the sidebar footer and opens the unified in-page panel. The host owns the React root, session connection, and lifecycle.
 
-The plugin currently enables both feature domains by default:
-
-- **Canvas** registers the `conversation.view` surface and keeps the fixture generation runtime scoped to each session.
-- **Connect** supplies the unified panel and keeps its registry and `/mtm-connect` RPC on the DSH Host loopback boundary.
-
-These P0 domains retain their fixture/loopback behavior. They do not yet call the remote gomtmui API; that integration and feature-level settings are later work.
+The plugin enables the Connect control panel by default and keeps its registry and `/mtm-connect` RPC on the DSH Host loopback boundary. The independent static/embed client remains a separate application surface and is not part of the DSH plugin.
 
 ### Migrating an existing profile
 

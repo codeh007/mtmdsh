@@ -19,7 +19,6 @@ if (manifest.dsh?.client?.platform !== "web") fail("dsh.client.platform must be 
 const expectedInject = [
   "@deepseek-ai/dsh-client-connection",
   "@deepseek-ai/dsh-client-runtime",
-  "@deepseek-ai/dsh-client-ui-conversation",
   "@deepseek-ai/dsh-client-ui-primitives",
   "@deepseek-ai/dsh-client-ui-sidebar",
 ];
@@ -48,7 +47,7 @@ if (!patch.includes("id: mtmharness") || !patch.includes("name: mtmharness")) fa
 
 const client = read("lib/client.js");
 if (!client.includes("window.__ModuleLoader__.load") || !client.includes('id: "mtmharness"')) fail("client artifact is not a DSH lazy-CJS bundle");
-for (const required of ['id: "mtmharness"', 'id: "mtmcanvas"', "conversation.view", "/mtm-connect"]) {
+for (const required of ["/mtm-connect"]) {
   if (!client.includes(required)) fail("client artifact is missing unified feature surface: " + required);
 }
 for (const forbidden of ["createRoot", "RouterProvider", "new WebSocket", 'credentials: "include"', "MtmHarnessRuntime", "standalone/src", 'id: "mtm-connect"']) {
