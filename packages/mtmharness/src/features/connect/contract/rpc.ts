@@ -2,13 +2,15 @@ import type { CapabilityBinding, BindingScope, MtmConnectMutation, MtmConnectSna
 import { EVENT_POLICIES, validateExternalEvent, type EventPolicy, type ExternalConnectionEvent } from "./event.ts";
 import { isJsonValue, isRecord, type JsonObject } from "./json.ts";
 import type { CapabilityInvocationResult } from "./connection.ts";
+import { validateMtmControlSnapshot, type MtmControlSnapshot } from "./control-plane.ts";
 
 export const MTM_CONNECT_CHANNEL = "/mtm-connect";
 
 export type MtmConnectRpcRequest =
   | { readonly kind: "snapshot" }
   | { readonly kind: "mutate"; readonly mutation: MtmConnectMutation }
-  | { readonly kind: "invoke"; readonly request: MtmConnectInvocationRequest };
+  | { readonly kind: "invoke"; readonly request: MtmConnectInvocationRequest }
+  | { readonly kind: "reconcile"; readonly snapshot: MtmControlSnapshot };
 
 export interface MtmConnectMutationResponse {
   readonly snapshot: MtmConnectSnapshot;
@@ -144,6 +146,10 @@ export function parseMtmConnectRpcRequest(value: unknown): MtmConnectRpcRequest 
     case "invoke":
       exactKeys(value, ["kind", "request"], "invoke request");
       return { kind: "invoke", request: parseInvocation(value.request) };
+    case "reconcile":
+      exactKeys(value, ["kind", "snapshot"], "reconcile request");
+      validateMtmControlSnapshot(value.snapshot);
+      return { kind: "reconcile", snapshot: value.snapshot };
     default:
       throw new Error("unsupported mtm-connect RPC request");
   }

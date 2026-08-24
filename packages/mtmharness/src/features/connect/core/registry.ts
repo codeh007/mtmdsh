@@ -5,6 +5,7 @@ import { projectExternalEvent, validateExternalEvent, type EventPolicy, type Eve
 import { assertPublicConfig, jsonByteLength, type JsonObject } from "../contract/json.ts";
 import { cloneSnapshot, validateSnapshot } from "../contract/snapshot.ts";
 import { validateAdapterDescriptor, type AdapterDescriptor } from "../contract/adapter.ts";
+import { validateMtmControlSnapshot, type MtmControlAdapterDescriptor, type MtmControlInstallationStatus, type MtmControlObservedStatus, type MtmControlScope, type MtmControlSnapshot } from "../contract/control-plane.ts";
 
 export type InvocationActor = "model" | "user";
 
@@ -14,6 +15,8 @@ export interface MtmConnectRegistryOptions {
   readonly adapters?: readonly AdapterDescriptor[];
   readonly seed?: boolean;
   readonly snapshot?: MtmConnectSnapshot;
+  /** Immutable sandbox scope used when projecting the remote control authority. */
+  readonly scope?: MtmControlScope;
 }
 
 export type RegistryListener = () => void;
@@ -93,14 +96,18 @@ export class MtmConnectRegistry {
   private readonly now: () => number;
   private disposed = false;
   private sequence = 1;
+  private controlScope: MtmControlScope | undefined;
+  private controlRevision = -1;
 
   constructor(options: MtmConnectRegistryOptions) {
     if (options.ownerId.trim().length === 0) throw new Error("mtm-connect ownerId is required");
     this.now = options.now ?? (() => Date.now());
+    this.controlScope = options.scope === undefined ? undefined : cloneControlScope(options.scope);
     if (options.snapshot !== undefined) {
       const restored = validateSnapshot(options.snapshot);
       if (restored.ownerId !== options.ownerId) throw new Error("snapshot owner does not match registry owner");
       this.snapshot = cloneSnapshot(restored);
+      this.controlRevision = restored.controlRevision ?? -1;
       this.syncSequence();
       return;
     }
@@ -127,6 +134,41 @@ export class MtmConnectRegistry {
   getConnection(connectionId: string): ConnectionRecord | undefined {
     const record = this.snapshot.connections.find((candidate) => candidate.instance.id === connectionId);
     return record === undefined ? undefined : copy(record);
+  }
+
+  getControlRevision(): number {
+    return this.controlRevision;
+  }
+
+  /** Apply a remote sandbox snapshot to the local adapter registry. */
+  reconcileControlSnapshot(input: MtmControlSnapshot): MtmConnectSnapshot {
+    this.ensureActive();
+    validateMtmControlSnapshot(input);
+    if (this.controlScope === undefined) throw new Error("control snapshot scope is not bound to registry");
+    if (input.scope.owner.subject !== this.snapshot.ownerId) throw new Error("control snapshot owner does not match registry owner");
+    if (this.controlScope !== undefined && !sameControlScope(this.controlScope, input.scope)) throw new Error("control snapshot scope does not match registry scope");
+    if (input.revision <= this.controlRevision) return this.getSnapshot();
+    const connections = input.desiredWorlds.map((world) => this.projectControlWorld(input, world.worldId));
+    for (const incoming of connections) {
+      const current = this.snapshot.connections.find((record) => record.instance.id === incoming.instance.id);
+      if (current === undefined) continue;
+      if (incoming.observation.generation < current.observation.generation) throw new Error("control projection generation is stale");
+      if (current.observation.status === "online" && incoming.observation.status === "online"
+        && incoming.observation.generation === current.observation.generation
+        && incoming.observation.channelId !== current.observation.channelId) {
+        throw new Error("control projection replaces an active channel without a new generation");
+      }
+    }
+    const connectionIds = new Set(connections.map((record) => record.instance.id));
+    this.commit((snapshot) => ({
+      ...snapshot,
+      controlRevision: input.revision,
+      connections,
+      eventHistory: snapshot.eventHistory.filter((record) => connectionIds.has(record.event.connectionId)),
+    }));
+    this.controlScope = cloneControlScope(input.scope);
+    this.controlRevision = input.revision;
+    return this.getSnapshot();
   }
 
   subscribe(listener: RegistryListener): () => void {
@@ -234,6 +276,66 @@ export class MtmConnectRegistry {
     }));
   }
 
+  private projectControlWorld(input: MtmControlSnapshot, worldId: string): ConnectionRecord {
+    const world = input.desiredWorlds.find((candidate) => candidate.worldId === worldId);
+    if (world === undefined) throw new Error("control projection world is missing");
+    const controlAdapter = input.adapters.find((candidate) => candidate.adapterId === world.adapterId);
+    const adapter = this.snapshot.adapters.find((candidate) => candidate.id === world.adapterId);
+    if (controlAdapter === undefined || adapter === undefined) throw new Error("control projection adapter is unavailable");
+    if (!controlAdapter.available || adapter.status !== "installed") throw new Error("control projection adapter is unavailable");
+    assertControlAdapterCompatibility(controlAdapter, adapter);
+    const policyIds = Object.keys(world.capabilities);
+    if (policyIds.length !== adapter.capabilities.length || adapter.capabilities.some((capability) => world.capabilities[capability.id] === undefined)) {
+      throw new Error("control projection capability policy is incomplete");
+    }
+    const existing = this.snapshot.connections.find((candidate) => candidate.instance.id === world.worldId);
+    const createdAt = existing?.instance.createdAt ?? this.now();
+    const updatedAt = this.now();
+    const bindings: Record<string, ConnectionRecord["instance"]["bindings"][string]> = {};
+    for (const capability of adapter.capabilities) {
+      const policy = world.capabilities[capability.id];
+      if (policy === undefined) throw new Error("control projection capability policy is incomplete");
+      bindings[capability.id] = {
+        capabilityId: capability.id,
+        enabled: policy.enabled,
+        modelInvocable: policy.modelInvocable,
+        userInvocable: policy.userInvocable,
+        eventPolicy: policy.eventPolicy,
+      };
+    }
+    const primary = adapter.capabilities.find((capability) => capability.role === "primary-world");
+    const observed = input.observedWorlds.find((candidate) => candidate.worldId === world.worldId);
+    const generation = input.installation?.generation ?? observed?.generation ?? 0;
+    if (observed !== undefined && observed.generation !== generation) throw new Error("control projection generation mismatch");
+    const observedStatus = controlObservedStatus(observed?.status ?? "configured", input.installation?.status, input.installation?.expiresAt, this.now());
+    return {
+      instance: {
+        id: world.worldId,
+        ownerId: this.snapshot.ownerId,
+        adapterId: adapter.id,
+        label: existing?.instance.label ?? world.worldId,
+        config: copy(world.config),
+        desired: world.enabled ? "enabled" : "disabled",
+        bindings,
+        ...(primary === undefined ? {} : { worldBinding: { capabilityId: primary.id, scope: existing?.instance.worldBinding?.scope ?? "sandbox", status: "selected" as const } }),
+        fixture: existing?.instance.fixture ?? true,
+        createdAt,
+        updatedAt,
+      },
+      observation: observed === undefined
+        ? { status: observedStatus, generation, ...(input.installation?.expiresAt === undefined ? {} : { expiresAt: input.installation.expiresAt }) }
+        : {
+            status: observedStatus,
+            generation,
+            ...(input.installation?.expiresAt === undefined ? {} : { expiresAt: input.installation.expiresAt }),
+            ...(observedStatus === "online" && observed.channelId !== undefined && observed.lastSeenAt !== undefined
+              ? { channelId: observed.channelId, lastSeenAt: observed.lastSeenAt }
+              : {}),
+            ...(observed.lastError === undefined ? {} : { lastError: observed.lastError }),
+          },
+    };
+  }
+
   dispatchExternalEvent(connectionId: string, eventInput: ExternalConnectionEvent): EventProjection {
     this.ensureActive();
     const event = validateExternalEvent(eventInput);
@@ -243,6 +345,7 @@ export class MtmConnectRegistry {
     let projection: EventProjection;
     if (event.connectionId !== connectionId) projection = droppedProjection(event, policy, "connection-id-mismatch");
     else if (record.observation.status !== "online") projection = droppedProjection(event, policy, "connection-offline");
+    else if (record.observation.expiresAt !== undefined && record.observation.expiresAt <= this.now()) projection = droppedProjection(event, policy, "connection-offline");
     else if (event.generation !== record.observation.generation) projection = droppedProjection(event, policy, "stale-generation");
     else if (binding === undefined || !binding.enabled) projection = droppedProjection(event, policy, "capability-disabled");
     else {
@@ -294,6 +397,7 @@ export class MtmConnectRegistry {
     const record = this.snapshot.connections.find((candidate) => candidate.instance.id === connectionId);
     if (record === undefined) return { ok: false, code: "connection-not-found", message: "Connection does not exist" };
     if (record.observation.status !== "online") return { ok: false, code: "connection-offline", message: "Connection is not online" };
+    if (record.observation.expiresAt !== undefined && record.observation.expiresAt <= this.now()) return { ok: false, code: "connection-offline", message: "Connection installation has expired" };
     if (generation !== record.observation.generation) return { ok: false, code: "stale-generation", message: "Connection channel generation is stale" };
     const binding = record.instance.bindings[capabilityId];
     if (binding === undefined) return { ok: false, code: "capability-not-found", message: "Capability is not declared by this connection" };
@@ -339,6 +443,7 @@ export class MtmConnectRegistry {
     this.ensureActive();
     const snapshot = validateSnapshot(snapshotInput);
     if (snapshot.ownerId !== this.snapshot.ownerId) throw new Error("snapshot owner does not match registry owner");
+    if (snapshot.controlRevision !== undefined && snapshot.controlRevision < this.controlRevision) throw new Error("stale mtm-connect control revision");
     if (snapshot.revision <= this.snapshot.revision) throw new Error("stale mtm-connect snapshot revision");
     for (const current of this.snapshot.connections) {
       const incoming = snapshot.connections.find((record) => record.instance.id === current.instance.id);
@@ -350,6 +455,7 @@ export class MtmConnectRegistry {
       }
     }
     this.snapshot = cloneSnapshot(snapshot);
+    if (snapshot.controlRevision !== undefined) this.controlRevision = snapshot.controlRevision;
     this.syncSequence();
     this.notify();
   }
@@ -399,10 +505,46 @@ export class MtmConnectRegistry {
   }
 }
 
+function cloneControlScope(scope: MtmControlScope): MtmControlScope {
+  return copy(scope);
+}
+
+function sameControlScope(left: MtmControlScope, right: MtmControlScope): boolean {
+  return left.sandboxId === right.sandboxId
+    && left.workspaceId === right.workspaceId
+    && left.owner.issuer === right.owner.issuer
+    && left.owner.subject === right.owner.subject;
+}
+
+function controlObservedStatus(
+  status: MtmControlObservedStatus,
+  installationStatus: MtmControlInstallationStatus | undefined,
+  expiresAt: number | undefined,
+  now: number,
+): ConnectionRecord["observation"]["status"] {
+  if (status === "revoked" || installationStatus === "revoked") return "revoked";
+  if (status === "stale") return "offline";
+  if (status === "online" && (installationStatus !== "active" || expiresAt === undefined || expiresAt <= now)) return "offline";
+  return status;
+}
+
+function assertControlAdapterCompatibility(control: MtmControlAdapterDescriptor, local: AdapterDescriptor): void {
+  if (control.adapterId !== local.id || control.version !== local.version) throw new Error("control projection adapter descriptor mismatch");
+  if (control.capabilities.length !== local.capabilities.length) throw new Error("control projection adapter capabilities do not match");
+  for (const capability of local.capabilities) {
+    const remote = control.capabilities.find((candidate) => candidate.capabilityId === capability.id);
+    if (remote === undefined || remote.version !== capability.version || remote.role !== capability.role || remote.operations.length !== capability.operations.length) throw new Error("control projection capability descriptor mismatch");
+    for (const operation of capability.operations) {
+      const remoteOperation = remote.operations.find((candidate) => candidate.operationId === operation.id);
+      if (remoteOperation === undefined || remoteOperation.sideEffect !== operation.sideEffect || remoteOperation.requiresApproval !== operation.requiresApproval) throw new Error("control projection operation descriptor mismatch");
+    }
+  }
+}
+
 function recordedDedupeKeys(history: readonly EventRecord[]): string[] {
   return history.map((record) => record.event.dedupeKey);
 }
 
-export function createDemoRegistry(now?: () => number): MtmConnectRegistry {
-  return new MtmConnectRegistry({ ownerId: "demo-user", now, seed: true });
+export function createDemoRegistry(now?: () => number, scope?: MtmControlScope): MtmConnectRegistry {
+  return new MtmConnectRegistry({ ownerId: "demo-user", now, seed: true, scope });
 }
