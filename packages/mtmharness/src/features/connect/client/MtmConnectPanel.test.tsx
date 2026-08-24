@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 import { MtmConnectClientRuntime } from "./runtime.ts";
-import { MtmConnectAction } from "./MtmConnectAction.tsx";
+import { MtmConnectPanel } from "./MtmConnectPanel.tsx";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -21,20 +21,22 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-describe("MtmConnectAction", () => {
-  it("opens the control panel and exposes realistic fixture state", () => {
+function renderPanel(): void {
+  act(() => { root?.render(<MtmConnectPanel state={runtime!.getSnapshot()} actions={runtime!} />); });
+}
+
+describe("MtmConnectPanel", () => {
+  it("renders the compact fixture control surface", () => {
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
     runtime = new MtmConnectClientRuntime({ fixture: true });
-    act(() => { root?.render(<MtmConnectAction wide runtime={runtime} />); });
+    renderPanel();
 
-    const trigger = document.querySelector<HTMLButtonElement>("button[aria-label=\"Open MTM Connect\"]");
-    expect(trigger?.textContent).toContain("MTM Connect");
-    act(() => { trigger?.click(); });
-    expect(document.body.textContent).toContain("Connection control plane");
+    expect(document.body.textContent).toContain("连接");
     expect(document.body.textContent).toContain("Local workstation (fixture)");
-    expect(document.body.textContent).toContain("Unavailable adapters");
+    expect(document.body.textContent).not.toContain("Unavailable adapters");
+    expect(document.body.textContent).not.toContain("Connection control plane");
   });
 
   it("updates the snapshot when a fixture connection is enabled", () => {
@@ -42,10 +44,11 @@ describe("MtmConnectAction", () => {
     document.body.append(container);
     root = createRoot(container);
     runtime = new MtmConnectClientRuntime({ fixture: true });
-    act(() => { root?.render(<MtmConnectAction wide runtime={runtime} />); });
-    act(() => { document.querySelector<HTMLButtonElement>("button[aria-label=\"Open MTM Connect\"]")?.click(); });
+    renderPanel();
+
     act(() => { document.querySelector<HTMLButtonElement>("button.mtmc-action-button-primary")?.click(); });
-    expect(document.body.textContent).toContain("Online");
+    renderPanel();
+    expect(document.body.textContent).toContain("在线");
     expect(runtime.getSnapshot().snapshot.connections[0]?.observation.status).toBe("online");
   });
 });

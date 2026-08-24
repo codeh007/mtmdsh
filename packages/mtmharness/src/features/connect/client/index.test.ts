@@ -32,9 +32,8 @@ describe("mtm-connect browser half", () => {
         return cleanup;
       },
       slots: {
-        inject(name: string, callback: () => () => void) {
-          expect(name).toBe("sidebar.footer.action");
-          cleanups.push(callback());
+        inject() {
+          return () => {};
         },
         register(options: Record<string, unknown>, component: unknown) {
           const entry = { options, component };
@@ -47,8 +46,7 @@ describe("mtm-connect browser half", () => {
       },
     };
     apply(ctx as never);
-    expect(registered).toHaveLength(1);
-    expect(registered[0]?.options).toMatchObject({ name: "sidebar.footer.action", id: "mtm-connect", order: 20 });
+    expect(registered).toHaveLength(0);
     const style = document.head.querySelector<HTMLStyleElement>('style[data-plugin="mtm-connect"]');
     expect(style?.dataset.pluginCss).toBe("mtm-connect/inline.css");
     expect(style?.textContent).toContain("--dsw-alias-label-primary");
