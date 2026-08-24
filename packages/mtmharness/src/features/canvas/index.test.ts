@@ -12,7 +12,10 @@ function bench(options: { listFails?: boolean; changeDuringRead?: boolean } = {}
   let rootExists = false;
   let revision = 0;
   const fs = {
-    async resolve(displayPath: string) { return { targetKey: displayPath, displayPath }; },
+    async resolve(displayPath: string) {
+      const resolved = displayPath === "." ? "/workspace" : displayPath;
+      return { targetKey: resolved, displayPath: resolved };
+    },
     async stat(target: { displayPath: string }) {
       if (target.displayPath === ROOT) return rootExists ? { type: "directory", version: FsVersion("root") } : undefined;
       const stored = files.get(target.displayPath);
