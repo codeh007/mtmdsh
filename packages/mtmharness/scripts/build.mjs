@@ -32,10 +32,11 @@ await build({
   logLevel: "info",
 });
 
-await build({
+const clientBuild = await build({
   entryPoints: [resolve(packageRoot, "src/client/index.ts")],
   outfile: clientTemp,
   bundle: true,
+  metafile: true,
   format: "cjs",
   platform: "browser",
   target: "es2020",
@@ -43,6 +44,11 @@ await build({
   legalComments: "none",
   logLevel: "info",
 });
+const clientInputs = Object.keys(clientBuild.metafile?.inputs ?? {});
+const standaloneInputs = clientInputs.filter((input) => input.includes("standalone/") || input.includes("standalone\\"));
+if (standaloneInputs.length > 0) {
+  throw new Error("mtmharness build: DSH client entry imports standalone sources: " + standaloneInputs.join(", "));
+}
 
 const clientSource = readFileSync(clientTemp, "utf8");
 const indented = clientSource.split("\n").map((line) => "    " + line).join("\n");

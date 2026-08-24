@@ -26,7 +26,7 @@ describe("MtmConnectAction", () => {
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
-    runtime = new MtmConnectClientRuntime();
+    runtime = new MtmConnectClientRuntime({ fixture: true });
     act(() => { root?.render(<MtmConnectAction wide runtime={runtime} />); });
 
     const trigger = document.querySelector<HTMLButtonElement>("button[aria-label=\"Open MTM Connect\"]");
@@ -41,7 +41,7 @@ describe("MtmConnectAction", () => {
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
-    runtime = new MtmConnectClientRuntime();
+    runtime = new MtmConnectClientRuntime({ fixture: true });
     act(() => { root?.render(<MtmConnectAction wide runtime={runtime} />); });
     act(() => { document.querySelector<HTMLButtonElement>("button[aria-label=\"Open MTM Connect\"]")?.click(); });
     act(() => { document.querySelector<HTMLButtonElement>("button.mtmc-action-button-primary")?.click(); });

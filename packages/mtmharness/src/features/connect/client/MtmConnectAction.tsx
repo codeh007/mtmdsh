@@ -178,7 +178,7 @@ function MtmConnectPanel({ state, runtime }: { state: MtmConnectViewState; runti
         <div className="mtmc-summary-item"><strong>{online}</strong><span>Online</span></div>
         <div className="mtmc-summary-item"><strong>{unavailable}</strong><span>Unavailable</span></div>
       </div>
-      {state.loading ? <div className="mtmc-notice" role="status">Loading Host snapshot...</div> : null}
+      {state.loading ? <div className="mtmc-notice" role="status">Loading Host snapshot</div> : null}
       <div className="mtmc-layout">
         <section className="mtmc-section">
           <div className="mtmc-section-header"><h4>Connections</h4><div className="mtmc-actions"><Button size="sm" variant="outline" className="mtmc-action-button" onClick={() => { runtime.refresh(); }}>Refresh</Button><Button size="sm" variant="outline" className="mtmc-action-button" disabled={state.loading} onClick={() => { runtime.createMockConnection(); }}>Add fixture</Button></div></div>
