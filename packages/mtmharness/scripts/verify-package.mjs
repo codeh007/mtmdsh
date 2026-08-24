@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 const manifest = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8"));
 const fail = (message) => { throw new Error("mtmharness package: " + message); };
+const read = (path) => readFileSync(resolve(packageRoot, path), "utf8");
+const requirePath = (path) => { if (!existsSync(resolve(packageRoot, path))) fail("missing build output " + path); };
 
 if (manifest.private === true) fail("package must be publishable");
 if (manifest.name !== "mtmharness") fail("unexpected package name");
@@ -16,24 +18,48 @@ if (manifest.dsh?.bundle?.patch !== "./cordis.patch.yml") fail("dsh.bundle.patch
 if (manifest.dsh?.client?.platform !== "web") fail("dsh.client.platform must be web");
 if (!Array.isArray(manifest.dsh?.client?.inject)) fail("dsh.client.inject must be an array");
 if (manifest.exports?.["./client"]?.default !== "./lib/client.js") fail("exports ./client must point to lib/client.js");
-if (manifest.exports?.["."]?.default !== "./lib/index.js") fail("exports root must point to lib/index.js");
-for (const path of ["cordis.patch.yml", "lib/index.js", "lib/client.js", "lib/types/index.d.ts", "lib/types/client/index.d.ts"]) {
-  if (!existsSync(resolve(packageRoot, path))) fail("missing build output " + path);
-}
-const patch = readFileSync(resolve(packageRoot, "cordis.patch.yml"), "utf8");
+if (manifest.exports?.["./embed"]?.import !== "./dist/embed/mtmharness.js") fail("exports ./embed must point to the ESM artifact");
+if (manifest.exports?.["./app"] !== "./dist/standalone/index.html") fail("exports ./app must point to the static app");
+if (manifest.unpkg !== "./dist/embed/mtmharness.iife.js") fail("unpkg must point to the IIFE embed artifact");
+
+for (const path of [
+  "cordis.patch.yml",
+  "lib/index.js",
+  "lib/client.js",
+  "lib/types/index.d.ts",
+  "lib/types/client/index.d.ts",
+  "dist/standalone/index.html",
+  "dist/embed/mtmharness.js",
+  "dist/embed/mtmharness.iife.js",
+  "dist/types/standalone/index.d.ts",
+]) requirePath(path);
+
+const patch = read("cordis.patch.yml");
 if (!patch.includes("id: mtmharness") || !patch.includes("name: mtmharness")) fail("profile patch must insert the mtmharness Loader row");
-const client = readFileSync(resolve(packageRoot, "lib/client.js"), "utf8");
+
+const client = read("lib/client.js");
 if (!client.includes("window.__ModuleLoader__.load") || !client.includes('id: "mtmharness"')) fail("client artifact is not a DSH lazy-CJS bundle");
-for (const forbidden of ["createRoot", "RouterProvider", "new WebSocket", 'credentials: "include"']) {
-  if (client.includes(forbidden)) fail("client artifact contains forbidden standalone transport: " + forbidden);
+for (const forbidden of ["createRoot", "RouterProvider", "new WebSocket", 'credentials: "include"', "MtmHarnessRuntime", "standalone/src"]) {
+  if (client.includes(forbidden)) fail("client artifact contains standalone behavior: " + forbidden);
+}
+
+const app = read("dist/standalone/index.html");
+if (!app.includes("<script") || !app.includes("assets/")) fail("static app entry does not reference built assets");
+const embed = read("dist/embed/mtmharness.js");
+const embedIife = read("dist/embed/mtmharness.iife.js");
+if (!embed.includes("window.MtmHarnessClient") || !embed.includes("initialEntries") || !embed.includes("attachShadow")) fail("ESM embed artifact is missing its public entry contract");
+if (!embedIife.includes("window.MtmHarnessClient") || !embedIife.includes("attachShadow") || !embedIife.includes("mtmharnessMounted")) fail("IIFE embed artifact is missing its global mount contract");
+for (const artifact of [app, embed, embedIife]) {
+  for (const forbidden of ['credentials: "include"', "/api/auth/sign-in/anonymous", "authLoginUrl", "authRegisterUrl"]) {
+    if (artifact.includes(forbidden)) fail("standalone artifact contains retired cookie-auth path: " + forbidden);
+  }
 }
 
 const tarball = process.argv[2];
 if (tarball !== undefined) {
   const entries = execFileSync("tar", ["-tzf", resolve(tarball)], { encoding: "utf8" })
     .split("\n")
-    .filter((entry) => entry.startsWith("package/") && !entry.endsWith("/"))
-    .sort();
+    .filter((entry) => entry.startsWith("package/") && !entry.endsWith("/"));
   const required = [
     "package/LICENSE",
     "package/README.md",
@@ -42,10 +68,17 @@ if (tarball !== undefined) {
     "package/lib/index.js",
     "package/lib/types/client/index.d.ts",
     "package/lib/types/index.d.ts",
+    "package/dist/standalone/index.html",
+    "package/dist/embed/mtmharness.js",
+    "package/dist/embed/mtmharness.iife.js",
+    "package/dist/types/standalone/index.d.ts",
     "package/package.json",
   ];
   for (const entry of required) if (!entries.includes(entry)) fail("tarball is missing " + entry);
+  if (!entries.some((entry) => entry.startsWith("package/dist/standalone/assets/") && entry.endsWith(".js"))) fail("tarball is missing static app JavaScript");
+  if (!entries.some((entry) => entry.startsWith("package/dist/standalone/assets/") && entry.endsWith(".css"))) fail("tarball is missing static app CSS");
   if (entries.some((entry) => entry.includes(".test."))) fail("tarball must not contain test declarations");
+  if (entries.some((entry) => entry.includes("standalone/src/"))) fail("tarball must not contain standalone source files");
 }
 
 console.log("verified mtmharness@" + manifest.version + (tarball === undefined ? "" : " tarball"));

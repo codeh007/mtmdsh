@@ -31,7 +31,7 @@ export function MtmHarnessAction({ wide }: MtmHarnessActionProps) {
       >
         <dl>
           <div><dt>Plugin</dt><dd>mtmharness</dd></div>
-          <div><dt>Release</dt><dd>0.1.0</dd></div>
+          <div><dt>Release</dt><dd>0.2.0</dd></div>
           <div><dt>Transport</dt><dd>Provided by DSH Host</dd></div>
         </dl>
       </Modal>
