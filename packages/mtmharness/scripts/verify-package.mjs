@@ -17,6 +17,15 @@ if (!/^\d+\.\d+\.\d+$/.test(manifest.version)) fail("version must be stable SemV
 if (manifest.dsh?.bundle?.patch !== "./cordis.patch.yml") fail("dsh.bundle.patch must point to cordis.patch.yml");
 if (manifest.dsh?.client?.platform !== "web") fail("dsh.client.platform must be web");
 if (!Array.isArray(manifest.dsh?.client?.inject)) fail("dsh.client.inject must be an array");
+for (const required of [
+  "@deepseek-ai/dsh-client-connection",
+  "@deepseek-ai/dsh-client-runtime",
+  "@deepseek-ai/dsh-client-ui-conversation",
+  "@deepseek-ai/dsh-client-ui-primitives",
+  "@deepseek-ai/dsh-client-ui-sidebar",
+]) {
+  if (!manifest.dsh.client.inject.includes(required)) fail("dsh.client.inject is missing " + required);
+}
 if (manifest.exports?.["./client"]?.default !== "./lib/client.js") fail("exports ./client must point to lib/client.js");
 if (manifest.exports?.["./embed"]?.import !== "./dist/embed/mtmharness.js") fail("exports ./embed must point to the ESM artifact");
 if (manifest.exports?.["./app"] !== "./dist/standalone/index.html") fail("exports ./app must point to the static app");
@@ -39,6 +48,9 @@ if (!patch.includes("id: mtmharness") || !patch.includes("name: mtmharness")) fa
 
 const client = read("lib/client.js");
 if (!client.includes("window.__ModuleLoader__.load") || !client.includes('id: "mtmharness"')) fail("client artifact is not a DSH lazy-CJS bundle");
+for (const required of ['id: "mtmcanvas"', 'id: "mtm-connect"', "conversation.view", "/mtm-connect"]) {
+  if (!client.includes(required)) fail("client artifact is missing unified feature surface: " + required);
+}
 for (const forbidden of ["createRoot", "RouterProvider", "new WebSocket", 'credentials: "include"', "MtmHarnessRuntime", "standalone/src"]) {
   if (client.includes(forbidden)) fail("client artifact contains standalone behavior: " + forbidden);
 }
@@ -72,6 +84,7 @@ if (tarball !== undefined) {
     "package/dist/embed/mtmharness.js",
     "package/dist/embed/mtmharness.iife.js",
     "package/dist/types/standalone/index.d.ts",
+    "package/scripts/profile-migration.mjs",
     "package/package.json",
   ];
   for (const entry of required) if (!entries.includes(entry)) fail("tarball is missing " + entry);

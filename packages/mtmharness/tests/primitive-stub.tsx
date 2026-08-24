@@ -8,6 +8,10 @@ export function Button({ icon, variant: _variant, size: _size, children, ...prop
   return <button type="button" {...props}>{icon}{children}</button>;
 }
 
+export function Pill({ className, children }: { className?: string; children?: ReactNode }) {
+  return <span className={className}>{children}</span>;
+}
+
 export function IconCodeOutline16() {
   return <span aria-hidden="true" data-testid="mtmharness-icon" />;
 }

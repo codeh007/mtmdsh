@@ -1,11 +1,11 @@
 # mtmharness
 
-`mtmharness` is one public npm package with two explicit client identities:
+`mtmharness` is one public npm package with one unified DSH plugin and two explicit client identities:
 
-- **DSH Web plugin**: the package root and `./client` export use the official `dsh.client` lazy-CJS contract. The plugin adds an MTM Harness sidebar action to an existing DSH Web host.
+- **DSH Web plugin**: the package root and `./client` export use the official `dsh.client` lazy-CJS contract. One installation provides the MTM Harness sidebar action, the Canvas conversation view, and the MTM Connect control panel.
 - **Independent web client**: the package also publishes a BrowserHistory static app and a MemoryHistory script/embed entry. These artifacts own their React root, router, styles, and teardown.
 
-The two identities have separate build entrypoints. The DSH plugin never imports the standalone app, router, runtime, or transport.
+The DSH plugin is assembled from Canvas and Connect feature domains under one Host/Client lifecycle. The standalone app has separate build entrypoints and never imports the DSH plugin runtime or its feature domains.
 
 ## DSH Web Plugin
 
@@ -15,6 +15,26 @@ Install the package into a web profile:
     dsh --profile web --dump-config
 
 Restart the DSH Web host after changing profile composition. The `MTM Harness` action appears in the sidebar footer and opens an in-page panel. The host owns the React root, session connection, and lifecycle.
+
+The plugin currently enables both feature domains by default:
+
+- **Canvas** registers the `conversation.view` surface and keeps the fixture generation runtime scoped to each session.
+- **Connect** registers the control panel and keeps its registry and `/mtm-connect` RPC on the DSH Host loopback boundary.
+
+These P0 domains retain their fixture/loopback behavior. They do not yet call the remote gomtmui API; that integration and feature-level settings are later work.
+
+### Migrating an existing profile
+
+If the profile previously installed the standalone packages, remove them before adding the unified package so their old rows do not remain alongside the `mtmharness` row:
+
+    dsh plugin --profile web remove mtmcanvas mtm-connect
+    dsh plugin --profile web add mtmharness
+
+The same hard-cut sequence is covered by the committed isolated profile smoke, including duplicate install, removal, and reinstall:
+
+    pnpm --filter mtmharness run profile:check -- /path/to/mtmharness.tgz
+
+Historical `mtmcanvas` and `mtm-connect` npm versions remain available as history, but the mtmdsh workspace no longer publishes new versions of those package names. Imports from the retired package names are intentionally not compatibility aliases; this release is a hard cut to the unified plugin entry.
 
 ## Static App
 

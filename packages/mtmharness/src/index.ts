@@ -1,6 +1,12 @@
-/** Host loader entry for the mtmharness browser plugin. */
+/** Host assembly entry for the mtmharness DSH plugin. */
+import type { Context } from "@deepseek-ai/cordis";
+import { apply as applyConnectHost } from "./features/connect/index.ts";
 
 export const name = "mtmharness";
+export const inject = ["connection"];
 
-/** The first release has no Host-side behavior; the client half owns the panel. */
-export function apply(): void {}
+/** Mount the Host-owned Connect control plane; Canvas remains client-owned in P0. */
+export function apply(ctx: Context): void {
+  if (ctx.connection === undefined) throw new Error("mtmharness: DSH connection service is unavailable");
+  applyConnectHost(ctx);
+}
