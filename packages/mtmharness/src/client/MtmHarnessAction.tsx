@@ -1,38 +1,47 @@
-import { useState } from "react";
-import type { PropsRuntime } from "@deepseek-ai/dsh-client-ui-slots";
-import { Button, IconCodeOutline16, Modal } from "@deepseek-ai/dsh-client-ui-primitives";
+import { useState, type ReactElement } from "react";
+import type { PropsRuntime, InjectFace } from "@deepseek-ai/dsh-client-ui-slots";
+import { Button, Modal } from "@deepseek-ai/dsh-client-ui-primitives";
 import type {} from "@deepseek-ai/dsh-client-ui-sidebar/client";
+import { MtmConnectPanel, type MtmConnectPanelActions } from "../features/connect/client/MtmConnectPanel.tsx";
+import type { MtmConnectClientRuntime, MtmConnectViewState } from "../features/connect/client/runtime.ts";
 
-export type MtmHarnessActionProps = PropsRuntime<"sidebar.footer.action">;
+export interface MtmHarnessActionInjected {
+  readonly actions: MtmConnectPanelActions;
+  readonly hooks: {
+    readonly connect: MtmConnectClientRuntime;
+  };
+}
 
-export function MtmHarnessAction({ wide }: MtmHarnessActionProps) {
+export type MtmHarnessActionProps = PropsRuntime<"sidebar.footer.action"> & InjectFace<MtmHarnessActionInjected>;
+
+export function MtmHarnessAction({ wide, actions, useConnect }: MtmHarnessActionProps): ReactElement {
   const [open, setOpen] = useState(false);
-  const label = "Open MTM Harness";
+  const state = useConnect((snapshot): MtmConnectViewState => snapshot);
+  const label = "打开 MTM";
 
   return (
     <>
       <Button
+        className={wide ? "mtm-trigger mtm-trigger-wide" : "mtm-trigger mtm-trigger-rail"}
         aria-label={label}
+        aria-haspopup="dialog"
+        aria-expanded={open}
         title={label}
         variant="ghost"
         size={wide ? "md" : "sm"}
-        icon={<IconCodeOutline16 size={wide ? 16 : 18} />}
         onClick={() => { setOpen(true); }}
       >
-        {wide ? "MTM Harness" : null}
+        MTM
       </Button>
       <Modal
         open={open}
         onClose={() => { setOpen(false); }}
-        title="MTM Harness"
-        closeLabel="Close MTM Harness panel"
-        description="The MTM Harness plugin is active in this DSH Web host."
-        footer={<Button variant="primary" onClick={() => { setOpen(false); }}>Close</Button>}
+        title="MTM"
+        closeLabel="关闭 MTM"
+        className="mtm-modal"
+        contentClassName="mtm-modal-content"
       >
-        <dl>
-          <div><dt>Plugin</dt><dd>mtmharness</dd></div>
-          <div><dt>Transport</dt><dd>Provided by DSH Host</dd></div>
-        </dl>
+        <MtmConnectPanel state={state} actions={actions} />
       </Modal>
     </>
   );

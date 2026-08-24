@@ -1,7 +1,7 @@
 {
   "name": "mtmharness",
-  "version": "0.3.0",
-  "description": "DeepSeek Harness Web plugin suite with Canvas, Connect, and independent static/embed client.",
+  "version": "0.3.1",
+  "description": "DeepSeek Harness Web plugin with unified MTM, Canvas, Connect, and independent static/embed client.",
   "type": "module",
   "engines": { "node": ">=22.19.0", "pnpm": ">=11.7.0" },
   "main": "./lib/index.js",
