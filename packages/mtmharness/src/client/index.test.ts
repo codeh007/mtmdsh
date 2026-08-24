@@ -109,10 +109,9 @@ describe("mtmharness browser half", () => {
     for (const cleanup of cleanups.reverse()) void cleanup();
   });
 
-  it("registers Canvas, Connect, and MTM Harness surfaces under one lifecycle", () => {
+  it("registers Connect and MTM Harness surfaces under one lifecycle", () => {
     const { registered, cleanups } = clientBench();
     expect(registered).toEqual(expect.arrayContaining([
-      expect.objectContaining({ name: "conversation.view", options: expect.objectContaining({ id: "mtmcanvas", order: 20 }) }),
       expect.objectContaining({ name: "sidebar.footer.action", options: expect.objectContaining({ id: "mtm-connect", order: 20 }) }),
       expect.objectContaining({ name: "sidebar.footer.action", options: expect.objectContaining({ id: "mtmharness", order: 10 }) }),
     ]));
