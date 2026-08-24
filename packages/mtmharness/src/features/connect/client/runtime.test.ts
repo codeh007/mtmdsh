@@ -12,6 +12,33 @@ describe("mtm-connect Host/Client transport", () => {
     expect(() => new MtmConnectClientRuntime({ transport: {} as never, snapshot: { schemaVersion: 1 } as never })).toThrow("snapshot");
   });
 
+  it("routes a sandbox control snapshot through the Host transport", async () => {
+    const host = createDemoRegistry(() => Date.now(), {
+      sandboxId: "sbx_00000000-0000-4000-8000-000000000607",
+      workspaceId: "ws_00000000-0000-4000-8000-000000000607",
+      owner: { issuer: "https://auth.example.test", subject: "demo-user" },
+    });
+    const handler = createMtmConnectRpcHandler(host, { allowControlReconcile: true });
+    const rpc = { call: (channel: string, endpoint: string, payload: unknown, signal?: AbortSignal) => handler(endpoint, payload, signal ?? new AbortController().signal) };
+    const transport = createMtmConnectTransport(rpc);
+    const response = await transport.reconcile({
+      contractVersion: 1,
+      scope: {
+        sandboxId: "sbx_00000000-0000-4000-8000-000000000607",
+        workspaceId: "ws_00000000-0000-4000-8000-000000000607",
+        owner: { issuer: "https://auth.example.test", subject: "demo-user" },
+      },
+      revision: 1,
+      adapters: [],
+      desiredWorlds: [],
+      observedWorlds: [],
+      installation: null,
+    });
+    expect(response.snapshot.ownerId).toBe("demo-user");
+    expect(host.getControlRevision()).toBe(1);
+    host.dispose();
+  });
+
   it("hydrates the Client from Host state and sends mutations back to the same registry", async () => {
     const host = createDemoRegistry();
     const handler = createMtmConnectRpcHandler(host);

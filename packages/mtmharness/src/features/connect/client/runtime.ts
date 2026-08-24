@@ -2,6 +2,7 @@ import type { ObservableSnapshot } from "@deepseek-ai/dsh-client-runtime/client"
 import type { ClientConnectionRpc } from "@deepseek-ai/dsh-client-connection/client";
 import type { EventProjection, EventPolicy, ExternalConnectionEvent } from "../contract/event.ts";
 import type { CapabilityInvocationResult, MtmConnectInvocationRequest, MtmConnectMutation, MtmConnectSnapshot } from "../contract/connection.ts";
+import type { MtmControlSnapshot } from "../contract/control-plane.ts";
 import { MTM_CONNECT_CHANNEL, assertMtmConnectInvocationResult, assertMtmConnectMutationResponse, assertMtmConnectSnapshot, type MtmConnectMutationResponse, type MtmConnectRpcRequest } from "../contract/rpc.ts";
 import type { JsonObject } from "../contract/json.ts";
 import { validateSnapshot } from "../contract/snapshot.ts";
@@ -10,6 +11,7 @@ import { MtmConnectRegistry } from "../core/registry.ts";
 export interface MtmConnectTransport {
   snapshot(signal?: AbortSignal): Promise<MtmConnectSnapshot>;
   mutate(mutation: MtmConnectMutation, signal?: AbortSignal): Promise<MtmConnectMutationResponse>;
+  reconcile(snapshot: MtmControlSnapshot, signal?: AbortSignal): Promise<MtmConnectMutationResponse>;
   invoke(request: MtmConnectInvocationRequest, signal?: AbortSignal): Promise<CapabilityInvocationResult>;
 }
 
@@ -27,6 +29,11 @@ export function createMtmConnectTransport(rpc: ClientConnectionRpc): MtmConnectT
     },
     async mutate(mutation, signal) {
       const value = await call({ kind: "mutate", mutation }, signal);
+      assertMtmConnectMutationResponse(value);
+      return { snapshot: validateSnapshot(value.snapshot), ...(value.projection === undefined ? {} : { projection: value.projection }) };
+    },
+    async reconcile(snapshot, signal) {
+      const value = await call({ kind: "reconcile", snapshot }, signal);
       assertMtmConnectMutationResponse(value);
       return { snapshot: validateSnapshot(value.snapshot), ...(value.projection === undefined ? {} : { projection: value.projection }) };
     },

@@ -39,6 +39,7 @@ export interface ConnectionObservation {
   readonly generation: number;
   readonly channelId?: string;
   readonly lastSeenAt?: number;
+  readonly expiresAt?: number;
   readonly lastError?: { readonly code: string; readonly message: string };
 }
 
@@ -50,6 +51,7 @@ export interface ConnectionRecord {
 export interface MtmConnectSnapshot {
   readonly schemaVersion: 1;
   readonly revision: number;
+  readonly controlRevision?: number;
   readonly ownerId: string;
   readonly adapters: readonly AdapterDescriptor[];
   readonly connections: readonly ConnectionRecord[];

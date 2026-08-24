@@ -66,11 +66,12 @@ function validateWorldBinding(value: unknown, capabilityIds: ReadonlySet<string>
 
 function validateObservation(value: unknown, instance: ConnectionInstance): ConnectionObservation {
   if (!isRecord(value)) throw new Error("connection observation must be an object");
-  exactKeys(value, ["status", "generation", "channelId", "lastSeenAt", "lastError"], "connection observation");
+  exactKeys(value, ["status", "generation", "channelId", "lastSeenAt", "expiresAt", "lastError"], "connection observation");
   const status = oneOf(value.status, OBSERVED_STATES, "connection observation status");
   const generation = integerValue(value.generation, "connection generation");
   const channelId = value.channelId === undefined ? undefined : stringValue(value.channelId, "connection channelId", ID_PATTERN);
   const lastSeenAt = value.lastSeenAt === undefined ? undefined : integerValue(value.lastSeenAt, "connection lastSeenAt");
+  const expiresAt = value.expiresAt === undefined ? undefined : integerValue(value.expiresAt, "connection expiresAt");
   if (status === "online" && (instance.desired !== "enabled" || channelId === undefined || lastSeenAt === undefined)) throw new Error("online connection must have enabled desired state and channel facts");
   if (status !== "online" && channelId !== undefined) throw new Error("offline connection cannot retain a channelId");
   if (status === "revoked" && instance.desired !== "disabled") throw new Error("revoked connection must be disabled");
@@ -80,7 +81,7 @@ function validateObservation(value: unknown, instance: ConnectionInstance): Conn
     exactKeys(value.lastError, ["code", "message"], "connection lastError");
     lastError = { code: stringValue(value.lastError.code, "connection error code", ID_PATTERN), message: stringValue(value.lastError.message, "connection error message") };
   }
-  return { status, generation, ...(channelId === undefined ? {} : { channelId }), ...(lastSeenAt === undefined ? {} : { lastSeenAt }), ...(lastError === undefined ? {} : { lastError }) };
+  return { status, generation, ...(channelId === undefined ? {} : { channelId }), ...(lastSeenAt === undefined ? {} : { lastSeenAt }), ...(expiresAt === undefined ? {} : { expiresAt }), ...(lastError === undefined ? {} : { lastError }) };
 }
 
 function validateConnection(value: unknown, index: number, ownerId: string, adapters: readonly AdapterDescriptor[]): ConnectionRecord {
@@ -160,9 +161,10 @@ export function cloneSnapshot(snapshot: MtmConnectSnapshot): MtmConnectSnapshot 
 
 export function validateSnapshot(value: unknown): MtmConnectSnapshot {
   if (!isRecord(value)) throw new Error("mtm-connect snapshot must be an object");
-  exactKeys(value, ["schemaVersion", "revision", "ownerId", "adapters", "connections", "eventHistory", "updatedAt"], "mtm-connect snapshot");
+  exactKeys(value, ["schemaVersion", "revision", "controlRevision", "ownerId", "adapters", "connections", "eventHistory", "updatedAt"], "mtm-connect snapshot");
   if (value.schemaVersion !== 1) throw new Error("unsupported mtm-connect snapshot version");
   const revision = integerValue(value.revision, "snapshot revision");
+  const controlRevision = value.controlRevision === undefined ? undefined : integerValue(value.controlRevision, "snapshot control revision");
   const ownerId = stringValue(value.ownerId, "snapshot ownerId", ID_PATTERN);
   if (!Array.isArray(value.adapters) || !Array.isArray(value.connections) || !Array.isArray(value.eventHistory)) throw new Error("snapshot collections are invalid");
   const adapters: AdapterDescriptor[] = value.adapters.map(validateAdapterDescriptor);
@@ -178,7 +180,7 @@ export function validateSnapshot(value: unknown): MtmConnectSnapshot {
     connectionIds.add(connection.instance.id);
   }
   const eventHistory = value.eventHistory.map((event, index) => validateEventRecord(event, index, connections));
-  return { schemaVersion: 1, revision, ownerId, adapters, connections, eventHistory, updatedAt: integerValue(value.updatedAt, "snapshot updatedAt") };
+  return { schemaVersion: 1, revision, ...(controlRevision === undefined ? {} : { controlRevision }), ownerId, adapters, connections, eventHistory, updatedAt: integerValue(value.updatedAt, "snapshot updatedAt") };
 }
 
 export function asJsonSnapshot(snapshot: MtmConnectSnapshot): import("./json.ts").JsonValue {
