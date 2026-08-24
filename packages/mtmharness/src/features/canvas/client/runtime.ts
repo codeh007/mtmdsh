@@ -15,6 +15,7 @@ export interface CanvasViewState {
   document?: CanvasDocument;
   loading: boolean;
   error?: string;
+  conflict?: boolean;
 }
 
 export interface CanvasActions {
@@ -49,11 +50,23 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function errorCode(error: unknown): string | undefined {
+  const value = error as { code?: unknown };
+  return typeof value.code === "string" ? value.code : undefined;
+}
+
+function isStaleError(error: unknown): boolean {
+  return errorCode(error) === "FS_STALE_VERSION" || errorMessage(error).includes("FS_STALE_VERSION");
+}
+
 export class CanvasRuntime implements ObservableSnapshot<CanvasViewState>, CanvasActions {
   private view: CanvasViewState = { files: [], loading: true };
   private readonly listeners = new Set<() => void>();
   private readonly abortController = new AbortController();
   private disposed = false;
+  private listSequence = 0;
+  private selectionSequence = 0;
+  private saveSequence = 0;
 
   constructor(private readonly rpc: ClientConnectionRpc) {
     this.refresh();
@@ -74,34 +87,48 @@ export class CanvasRuntime implements ObservableSnapshot<CanvasViewState>, Canva
   }
 
   refresh(): void {
+    const sequence = ++this.listSequence;
+    const selectionSequence = this.selectionSequence;
     this.set({ loading: true, error: undefined });
     void this.call({ kind: "list" })
       .then((value) => {
+        if (sequence !== this.listSequence) return;
         const files = parseFiles(value);
         this.set({ files, loading: false });
-        if (this.view.document === undefined && files[0] !== undefined) this.open(files[0].name);
+        if (this.view.name === undefined && selectionSequence === this.selectionSequence && files[0] !== undefined) this.open(files[0].name);
       })
-      .catch((error) => this.set({ loading: false, error: errorMessage(error) }));
+      .catch((error) => {
+        if (sequence === this.listSequence) this.set({ loading: false, error: errorMessage(error) });
+      });
   }
 
   open(name: string): void {
+    const sequence = ++this.selectionSequence;
+    this.set({ error: undefined, conflict: undefined });
     void this.call({ kind: "read", name })
       .then((value) => {
+        if (sequence !== this.selectionSequence) return;
         const read = parseRead(value);
-        this.set({ name: read.name, version: read.version, document: read.document, error: undefined });
+        this.set({ name: read.name, version: read.version, document: read.document, error: undefined, conflict: undefined });
       })
-      .catch((error) => this.set({ error: errorMessage(error) }));
+      .catch((error) => {
+        if (sequence === this.selectionSequence) this.set({ error: errorMessage(error) });
+      });
   }
 
   create(name: string): void {
+    const sequence = ++this.selectionSequence;
     const document = createCanvasDocument(name.replace(/\.canvas$/u, ""));
+    this.set({ error: undefined, conflict: undefined });
     void this.call({ kind: "create", name, document })
       .then((value) => {
         const read = parseRead(value);
-        this.set({ name: read.name, version: read.version, document: read.document, error: undefined });
+        if (sequence === this.selectionSequence) this.set({ name: read.name, version: read.version, document: read.document, error: undefined, conflict: undefined });
         this.refresh();
       })
-      .catch((error) => this.set({ error: errorMessage(error) }));
+      .catch((error) => {
+        if (sequence === this.selectionSequence) this.set({ error: errorMessage(error) });
+      });
   }
 
   addPrompt(): void {
@@ -133,16 +160,20 @@ export class CanvasRuntime implements ObservableSnapshot<CanvasViewState>, Canva
   save(): void {
     const { document, name, version } = this.view;
     if (document === undefined || name === undefined || version === undefined) return;
-    void this.call({ kind: "write", name, version, document })
+    const sequence = ++this.saveSequence;
+    const selectionSequence = this.selectionSequence;
+    const savedDocument = structuredClone(document);
+    void this.call({ kind: "write", name, version, document: savedDocument })
       .then((value) => {
+        if (sequence !== this.saveSequence || selectionSequence !== this.selectionSequence || this.view.name !== name) return;
         const read = parseRead(value);
-        this.set({ version: read.version, document: read.document, error: undefined });
+        const localChanged = this.view.document?.revision !== savedDocument.revision;
+        this.set({ version: read.version, ...(localChanged ? {} : { document: read.document }), error: undefined, conflict: undefined });
         this.refresh();
       })
       .catch((error) => {
-        const message = errorMessage(error);
-        this.set({ error: message });
-        if (message.includes("FS_STALE_VERSION") || message.toLowerCase().includes("canvas conflict")) this.open(name);
+        if (sequence !== this.saveSequence || selectionSequence !== this.selectionSequence || this.view.name !== name) return;
+        this.set({ error: errorMessage(error), conflict: isStaleError(error) });
       });
   }
 
@@ -160,7 +191,11 @@ export class CanvasRuntime implements ObservableSnapshot<CanvasViewState>, Canva
   private async call(args: unknown): Promise<unknown> {
     if (this.disposed) throw new Error("Canvas runtime is disposed");
     const result = await this.rpc.call(MTM_CANVAS_CHANNEL, "request", { args }, this.abortController.signal);
-    if (!result.ok) throw new Error(result.error.message);
+    if (!result.ok) {
+      const error = new Error(result.error.message) as Error & { code?: string };
+      if (typeof result.error.code === "string") error.code = result.error.code;
+      throw error;
+    }
     return result.value;
   }
 

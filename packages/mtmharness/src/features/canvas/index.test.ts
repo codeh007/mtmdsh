@@ -7,7 +7,7 @@ const ROOT = "/workspace/.mtmcanvas";
 
 type Stored = { content: string; version: number };
 
-function bench() {
+function bench(options: { listFails?: boolean; changeDuringRead?: boolean } = {}) {
   const files = new Map<string, Stored>();
   let rootExists = false;
   let revision = 0;
@@ -19,12 +19,14 @@ function bench() {
       return stored === undefined ? undefined : { type: "file", version: FsVersion("v" + stored.version), size: stored.content.length };
     },
     async listDir(target: { displayPath: string }) {
+      if (options.listFails) throw new Error("directory listing unavailable");
       if (!rootExists || target.displayPath !== ROOT) throw new Error("directory missing");
       return [...files.entries()].map(([path, stored]) => ({ name: path.slice(ROOT.length + 1), type: "file", target: { targetKey: path, displayPath: path }, version: FsVersion("v" + stored.version), size: stored.content.length }));
     },
     async readText(target: { displayPath: string }) {
       const stored = files.get(target.displayPath);
       if (stored === undefined) throw new Error("file missing");
+      if (options.changeDuringRead) stored.version += 1;
       return stored.content;
     },
     async writeText(target: { displayPath: string }, content: string, expected?: { kind: string; version?: unknown }) {
@@ -54,12 +56,28 @@ describe("Canvas filesystem RPC", () => {
     await expect(request(handler, { kind: "read", name: "demo.canvas" })).resolves.toMatchObject({ ok: true, value: { name: "demo.canvas" } });
   });
 
-  it("returns an internal RPC failure for stale file versions", async () => {
+  it("returns a structured stale-version RPC failure", async () => {
     const { handler } = bench();
     const created = await request(handler, { kind: "create", name: "demo.canvas", document: createCanvasDocument("demo") });
     if (!created.ok) throw new Error("create failed");
     const document = createCanvasDocument("demo");
     await expect(request(handler, { kind: "write", name: "demo.canvas", version: "stale", document })).resolves.toMatchObject({ ok: false, error: { code: "internal", message: expect.stringContaining("FS_STALE_VERSION") } });
+  });
+
+  it("does not require directory listing for single-file operations", async () => {
+    const { handler } = bench({ listFails: true });
+    const created = await request(handler, { kind: "create", name: "demo.canvas", document: createCanvasDocument("demo") });
+    expect(created).toMatchObject({ ok: true, value: { name: "demo.canvas" } });
+    const version = created.ok ? String((created.value as { version: string }).version) : "";
+    await expect(request(handler, { kind: "read", name: "demo.canvas" })).resolves.toMatchObject({ ok: true, value: { name: "demo.canvas" } });
+    await expect(request(handler, { kind: "write", name: "demo.canvas", version, document: createCanvasDocument("demo", 2) })).resolves.toMatchObject({ ok: true, value: { name: "demo.canvas" } });
+  });
+
+  it("rejects a file that changes during read", async () => {
+    const { handler } = bench({ changeDuringRead: true });
+    const created = await request(handler, { kind: "create", name: "demo.canvas", document: createCanvasDocument("demo") });
+    expect(created).toMatchObject({ ok: true });
+    await expect(request(handler, { kind: "read", name: "demo.canvas" })).resolves.toMatchObject({ ok: false, error: { code: "internal", message: expect.stringContaining("FS_STALE_VERSION") } });
   });
 
   it("rejects path traversal names", async () => {

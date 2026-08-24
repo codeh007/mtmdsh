@@ -39,10 +39,11 @@ export function CanvasView({ state, actions }: { state: CanvasViewState; actions
 
   function moveNode(node: CanvasNode, event: DragEvent<HTMLElement>): void {
     const rect = stageRef.current?.getBoundingClientRect();
-    if (rect === undefined) return;
+    const viewport = document?.viewport;
+    if (rect === undefined || viewport === undefined) return;
     actions.moveNode(node.id, {
-      x: Math.max(0, event.clientX - rect.left - node.size.width / 2),
-      y: Math.max(0, event.clientY - rect.top - 24),
+      x: Math.max(0, (event.clientX - rect.left - viewport.x) / viewport.k - node.size.width / 2),
+      y: Math.max(0, (event.clientY - rect.top - viewport.y) / viewport.k - 24 / viewport.k),
     });
   }
 
@@ -101,6 +102,7 @@ export function CanvasView({ state, actions }: { state: CanvasViewState; actions
             </>
           ) : <span>Select a prompt node to edit it.</span>}
           {state.error ? <p className="mtmcanvas-error" role="alert">{state.error}</p> : null}
+          {state.conflict && state.name !== undefined ? <button type="button" onClick={() => { if (state.name !== undefined) actions.open(state.name); }}>Reload file</button> : null}
         </aside>
       </div>
     </section>
