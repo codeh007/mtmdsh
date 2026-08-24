@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, ty
 import type { ConvViewProps } from "@deepseek-ai/dsh-client-ui-conversation/client";
 import type { CanvasConnection, CanvasNode, CanvasPosition, CanvasViewport } from "../contract/canvas.ts";
 import type { CanvasViewState } from "./runtime.ts";
+import { resolvePrompt } from "./prompt.ts";
 
 type CanvasViewProps = ConvViewProps;
 
@@ -193,7 +194,7 @@ export function CanvasView({ sessionId, useCanvas, canvasActions }: CanvasViewPr
   async function submit(): Promise<void> {
     setSubmitError(undefined);
     try {
-      await generate(draft || selected?.prompt || "", promptId);
+      await generate(resolvePrompt(draft, selected?.prompt), promptId);
       setDraft("");
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : String(error));
