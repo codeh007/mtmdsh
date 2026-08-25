@@ -143,11 +143,12 @@ export class MtmConnectRegistry {
     const adapters = (options.adapters ?? createAdapterCatalog()).map((adapter) => validateAdapterDescriptor(copy(adapter)));
     const createdAt = this.now();
     this.snapshot = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       revision: 0,
       ownerId: options.ownerId,
       adapters,
       connections: options.seed === false ? [] : defaultSeeds(options.ownerId, adapters, createdAt),
+      activeModelProfile: null,
       eventHistory: [],
       updatedAt: createdAt,
     };
@@ -192,6 +193,7 @@ export class MtmConnectRegistry {
     this.commit((snapshot) => ({
       ...snapshot,
       controlRevision: input.revision,
+      activeModelProfile: input.activeModelProfile ?? null,
       connections,
       eventHistory: snapshot.eventHistory.filter((record) => connectionIds.has(record.event.connectionId)),
     }));
@@ -445,6 +447,9 @@ export class MtmConnectRegistry {
       capability: copy(capability),
       operation: copy(operation),
       connection: copy(record.instance),
+      ...(this.snapshot.activeModelProfile === undefined || this.snapshot.activeModelProfile === null
+        ? {}
+        : { modelProfile: copy(this.snapshot.activeModelProfile) }),
       input: copy(input),
     });
     if (!result.ok) return result;

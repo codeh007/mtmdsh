@@ -156,7 +156,7 @@ export function parseMtmConnectRpcRequest(value: unknown): MtmConnectRpcRequest 
 }
 
 export function assertMtmConnectSnapshot(value: unknown): asserts value is MtmConnectSnapshot {
-  if (!isRecord(value) || value.schemaVersion !== 1) throw new Error("mtm-connect RPC returned an invalid snapshot");
+  if (!isRecord(value) || value.schemaVersion !== 2) throw new Error("mtm-connect RPC returned an invalid snapshot");
 }
 
 export function assertMtmConnectMutationResponse(value: unknown): asserts value is MtmConnectMutationResponse {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { CapabilityInvoker } from "../adapters/invoker.ts";
 import { createAdapterCatalog } from "../adapters/catalog.ts";
 import type { AdapterDescriptor } from "../contract/adapter.ts";
 import type { MtmControlSnapshot } from "../contract/control-plane.ts";
@@ -37,13 +38,14 @@ function controlSnapshot(overrides: Partial<MtmControlSnapshot> = {}): MtmContro
     eventPolicy: "observe" as const,
   }]));
   return {
-    contractVersion: 1,
+    contractVersion: 2,
     scope,
     revision: 1,
     adapters: [controlAdapter],
     desiredWorlds: [{ worldId: "world-1", adapterId: adapter.id, config: { root: "/workspace" }, enabled: true, capabilities }],
     observedWorlds: [{ worldId: "world-1", adapterId: adapter.id, status: "online", generation: 4, channelId: "world-1:channel:4", lastSeenAt: 42 }],
     installation: { installationId: "installation-1", daemonId: "daemon-1", generation: 4, status: "active", boundAt: 1, heartbeatAt: 42, expiresAt: 9_000_000_000_000 },
+    activeModelProfile: { tenantId: "tenant-1", profileId: "yuepa8-default", revision: 3 },
     ...overrides,
   };
 }
@@ -54,6 +56,7 @@ describe("MtmConnectRegistry control projection", () => {
     registry.reconcileControlSnapshot(controlSnapshot());
     const connection = registry.getConnection("world-1");
     expect(registry.getControlRevision()).toBe(1);
+    expect(registry.getSnapshot().activeModelProfile).toEqual({ tenantId: "tenant-1", profileId: "yuepa8-default", revision: 3 });
     expect(connection).toMatchObject({
       instance: { desired: "enabled", adapterId: "mock-world" },
       observation: { status: "online", generation: 4, channelId: "world-1:channel:4" },
@@ -63,7 +66,22 @@ describe("MtmConnectRegistry control projection", () => {
 
     const restored = new MtmConnectRegistry({ ownerId: "user-1", seed: false, scope, snapshot: registry.getSnapshot() });
     expect(restored.getControlRevision()).toBe(1);
+    expect(restored.getSnapshot().activeModelProfile).toEqual({ tenantId: "tenant-1", profileId: "yuepa8-default", revision: 3 });
     expect(restored.reconcileControlSnapshot({ ...controlSnapshot(), revision: 0 })).toEqual(restored.getSnapshot());
+  });
+
+  it("passes the authoritative profile reference to the injected invoker", async () => {
+    const calls: Array<Parameters<CapabilityInvoker>[0]> = [];
+    const invoker: CapabilityInvoker = async (context) => {
+      calls.push(context);
+      return { ok: true, simulated: false, summary: "profile-aware read", data: {} };
+    };
+    const registry = new MtmConnectRegistry({ ownerId: "user-1", seed: false, scope, capabilityInvoker: invoker });
+    registry.reconcileControlSnapshot(controlSnapshot());
+
+    const result = await registry.invokeCapability("world-1", 4, "workspace.execution", "workspace.list", {}, "user");
+    expect(result).toMatchObject({ ok: true, summary: "profile-aware read" });
+    expect(calls[0]?.modelProfile).toEqual({ tenantId: "tenant-1", profileId: "yuepa8-default", revision: 3 });
   });
 
   it("ignores out-of-order control revisions and rejects foreign scope or generation", async () => {
@@ -109,6 +127,11 @@ describe("MtmConnectRegistry control projection", () => {
 
     const secret = controlSnapshot({ desiredWorlds: [{ ...controlSnapshot().desiredWorlds[0]!, config: { refresh_token: "no" } }] });
     expect(() => validateMtmControlSnapshot(secret)).toThrow("secret");
+    expect(() => validateMtmControlSnapshot(controlSnapshot({ activeModelProfile: { tenantId: "tenant-1", profileId: "yuepa8-default", revision: 0 } }))).toThrow("revision");
+    expect(() => validateMtmControlSnapshot(controlSnapshot({ activeModelProfile: { tenantId: "tenant-1", profileId: "yuepa8-default", revision: 3, credentialRef: "managed" } as never }))).toThrow("unsupported field");
+    const missingProfile = { ...controlSnapshot() } as Record<string, unknown>;
+    delete missingProfile.activeModelProfile;
+    expect(() => validateMtmControlSnapshot(missingProfile)).toThrow("mtm model profile");
     const mismatchedObserved = controlSnapshot({ observedWorlds: [{ ...controlSnapshot().observedWorlds[0]!, adapterId: "mock-device" }] });
     expect(() => validateMtmControlSnapshot(mismatchedObserved)).toThrow("observed world");
   });

@@ -107,7 +107,7 @@ export class MtmConnectClientRuntime implements ObservableSnapshot<MtmConnectVie
     } else {
       this.registry = undefined;
       const initialSnapshot = options.snapshot === undefined
-        ? { schemaVersion: 1 as const, revision: 0, ownerId: "pending", adapters: [], connections: [], eventHistory: [], updatedAt: 0 }
+        ? { schemaVersion: 2 as const, revision: 0, ownerId: "pending", adapters: [], connections: [], activeModelProfile: null, eventHistory: [], updatedAt: 0 }
         : validateSnapshot(options.snapshot);
       this.view = { snapshot: initialSnapshot, loading: true };
       this.unsubscribeRegistry = () => {};

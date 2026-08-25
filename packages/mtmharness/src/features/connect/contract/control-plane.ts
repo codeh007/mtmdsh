@@ -1,6 +1,6 @@
 import type { JsonObject } from "./json.ts";
 
-export const MTM_CONTROL_CONTRACT_VERSION = 1 as const;
+export const MTM_CONTROL_CONTRACT_VERSION = 2 as const;
 export const MTM_CONTROL_MAX_PUBLIC_CONFIG_BYTES = 8 * 1024;
 
 export type MtmControlObservedStatus = "configured" | "authorizing" | "enrolled" | "connecting" | "online" | "degraded" | "offline" | "stale" | "revoked";
@@ -11,6 +11,17 @@ export interface MtmControlScope {
   readonly sandboxId: string;
   readonly workspaceId: string;
   readonly owner: { readonly issuer: string; readonly subject: string };
+}
+
+/**
+ * Secret-free reference to one tenant-owned model configuration revision.
+ * Tenant authorization is established by the control authority before this
+ * reference crosses the trusted Host bridge; mtmharness treats it as opaque.
+ */
+export interface MtmModelProfileRef {
+  readonly tenantId: string;
+  readonly profileId: string;
+  readonly revision: number;
 }
 
 export interface MtmControlOperationDescriptor {
@@ -79,6 +90,7 @@ export interface MtmControlSnapshot {
   readonly desiredWorlds: readonly MtmControlDesiredWorld[];
   readonly observedWorlds: readonly MtmControlObservedWorld[];
   readonly installation: MtmControlInstallation | null;
+  readonly activeModelProfile: MtmModelProfileRef | null;
 }
 
 export function cloneMtmControlSnapshot(snapshot: MtmControlSnapshot): MtmControlSnapshot {
@@ -88,7 +100,7 @@ export function cloneMtmControlSnapshot(snapshot: MtmControlSnapshot): MtmContro
 
 export function validateMtmControlSnapshot(value: unknown): asserts value is MtmControlSnapshot {
   if (!isRecord(value)) throw new Error("mtm control snapshot must be an object");
-  exactKeys(value, ["contractVersion", "scope", "revision", "adapters", "desiredWorlds", "observedWorlds", "installation"], "mtm control snapshot");
+  exactKeys(value, ["contractVersion", "scope", "revision", "adapters", "desiredWorlds", "observedWorlds", "installation", "activeModelProfile"], "mtm control snapshot");
   if (value.contractVersion !== MTM_CONTROL_CONTRACT_VERSION || !isNonNegativeInteger(value.revision)) throw new Error("mtm control snapshot version or revision is invalid");
   validateScope(value.scope);
   if (!Array.isArray(value.adapters) || !Array.isArray(value.desiredWorlds) || !Array.isArray(value.observedWorlds)) throw new Error("mtm control snapshot collections are invalid");
@@ -114,6 +126,7 @@ export function validateMtmControlSnapshot(value: unknown): asserts value is Mtm
     observedIds.add(observed.worldId);
   }
   if (value.installation !== null) validateInstallation(value.installation);
+  if (value.activeModelProfile !== null) validateMtmModelProfileRef(value.activeModelProfile);
   assertSecretFree(value);
 }
 
@@ -199,6 +212,14 @@ function validateObservedWorld(value: unknown): MtmControlObservedWorld {
     text(value.lastError.message, "observed error message", 240);
   }
   return value as unknown as MtmControlObservedWorld;
+}
+
+export function validateMtmModelProfileRef(value: unknown): asserts value is MtmModelProfileRef {
+  if (!isRecord(value)) throw new Error("mtm model profile is invalid");
+  exactKeys(value, ["tenantId", "profileId", "revision"], "mtm model profile");
+  identifier(value.tenantId, "model profile tenant id");
+  identifier(value.profileId, "model profile id");
+  if (!isNonNegativeInteger(value.revision) || value.revision < 1) throw new Error("model profile revision is invalid");
 }
 
 function validateInstallation(value: unknown): void {

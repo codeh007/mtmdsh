@@ -1,4 +1,5 @@
 import { validateAdapterDescriptor, type AdapterDescriptor } from "./adapter.ts";
+import { validateMtmModelProfileRef, type MtmModelProfileRef } from "./control-plane.ts";
 import type {
   BindingScope,
   CapabilityBinding,
@@ -161,10 +162,13 @@ export function cloneSnapshot(snapshot: MtmConnectSnapshot): MtmConnectSnapshot 
 
 export function validateSnapshot(value: unknown): MtmConnectSnapshot {
   if (!isRecord(value)) throw new Error("mtm-connect snapshot must be an object");
-  exactKeys(value, ["schemaVersion", "revision", "controlRevision", "ownerId", "adapters", "connections", "eventHistory", "updatedAt"], "mtm-connect snapshot");
-  if (value.schemaVersion !== 1) throw new Error("unsupported mtm-connect snapshot version");
+  exactKeys(value, ["schemaVersion", "revision", "controlRevision", "ownerId", "adapters", "connections", "activeModelProfile", "eventHistory", "updatedAt"], "mtm-connect snapshot");
+  if (value.schemaVersion !== 2) throw new Error("unsupported mtm-connect snapshot version");
   const revision = integerValue(value.revision, "snapshot revision");
   const controlRevision = value.controlRevision === undefined ? undefined : integerValue(value.controlRevision, "snapshot control revision");
+  const activeModelProfile = value.activeModelProfile === null
+    ? null
+    : (validateMtmModelProfileRef(value.activeModelProfile), value.activeModelProfile as MtmModelProfileRef);
   const ownerId = stringValue(value.ownerId, "snapshot ownerId", ID_PATTERN);
   if (!Array.isArray(value.adapters) || !Array.isArray(value.connections) || !Array.isArray(value.eventHistory)) throw new Error("snapshot collections are invalid");
   const adapters: AdapterDescriptor[] = value.adapters.map(validateAdapterDescriptor);
@@ -180,7 +184,7 @@ export function validateSnapshot(value: unknown): MtmConnectSnapshot {
     connectionIds.add(connection.instance.id);
   }
   const eventHistory = value.eventHistory.map((event, index) => validateEventRecord(event, index, connections));
-  return { schemaVersion: 1, revision, ...(controlRevision === undefined ? {} : { controlRevision }), ownerId, adapters, connections, eventHistory, updatedAt: integerValue(value.updatedAt, "snapshot updatedAt") };
+  return { schemaVersion: 2, revision, ...(controlRevision === undefined ? {} : { controlRevision }), ownerId, adapters, connections, activeModelProfile, eventHistory, updatedAt: integerValue(value.updatedAt, "snapshot updatedAt") };
 }
 
 export function asJsonSnapshot(snapshot: MtmConnectSnapshot): import("./json.ts").JsonValue {
