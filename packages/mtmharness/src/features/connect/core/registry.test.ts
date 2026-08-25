@@ -53,20 +53,20 @@ describe("mtm-connect registry", () => {
     expect(registry.getSnapshot().eventHistory).toHaveLength(4);
   });
 
-  it("supports user-controlled lifecycle and fail-closed invocation policy", () => {
+  it("supports user-controlled lifecycle and fail-closed invocation policy", async () => {
     const registry = new MtmConnectRegistry({ ownerId: "user-1", seed: true, now: clock().now });
     registry.enable("mock-workstation");
     const online = registry.getConnection("mock-workstation");
     const generation = online?.observation.generation ?? 0;
-    const modelDenied = registry.invokeCapability("mock-workstation", generation, "workspace.execution", "workspace.list", { path: "/workspace/demo" }, "model");
+    const modelDenied = await registry.invokeCapability("mock-workstation", generation, "workspace.execution", "workspace.list", { path: "/workspace/demo" }, "model");
     expect(modelDenied).toMatchObject({ ok: false, code: "policy-denied" });
-    const userResult = registry.invokeCapability("mock-workstation", generation, "workspace.execution", "workspace.list", { path: "/workspace/demo" }, "user");
+    const userResult = await registry.invokeCapability("mock-workstation", generation, "workspace.execution", "workspace.list", { path: "/workspace/demo" }, "user");
     expect(userResult).toMatchObject({ ok: true, simulated: true });
 
     registry.setCapabilityPolicy("mock-workstation", "workspace.execution", { modelInvocable: true });
-    const modelResult = registry.invokeCapability("mock-workstation", generation, "workspace.execution", "workspace.list", { path: "/workspace/demo" }, "model");
+    const modelResult = await registry.invokeCapability("mock-workstation", generation, "workspace.execution", "workspace.list", { path: "/workspace/demo" }, "model");
     expect(modelResult).toMatchObject({ ok: true, simulated: true });
-    const stale = registry.invokeCapability("mock-workstation", generation - 1, "workspace.execution", "workspace.list", {}, "user");
+    const stale = await registry.invokeCapability("mock-workstation", generation - 1, "workspace.execution", "workspace.list", {}, "user");
     expect(stale).toMatchObject({ ok: false, code: "stale-generation" });
 
     registry.disable("mock-workstation");
@@ -75,15 +75,15 @@ describe("mtm-connect registry", () => {
     expect(registry.getConnection("mock-workstation")?.observation.status).toBe("revoked");
   });
 
-  it("requires user approval for writes and never accepts model approval", () => {
+  it("requires user approval for writes and never accepts model approval", async () => {
     const registry = new MtmConnectRegistry({ ownerId: "user-1", seed: true, now: clock().now });
     registry.enable("mock-android");
     const generation = registry.getConnection("mock-android")?.observation.generation ?? 0;
-    const denied = registry.invokeCapability("mock-android", generation, "device.control", "input.tap", { x: 10, y: 20 }, "user");
+    const denied = await registry.invokeCapability("mock-android", generation, "device.control", "input.tap", { x: 10, y: 20 }, "user");
     expect(denied).toMatchObject({ ok: false, code: "approval-required" });
-    const modelApproval = registry.invokeCapability("mock-android", generation, "device.control", "input.tap", { x: 10, y: 20 }, "model", true);
+    const modelApproval = await registry.invokeCapability("mock-android", generation, "device.control", "input.tap", { x: 10, y: 20 }, "model", true);
     expect(modelApproval).toMatchObject({ ok: false, code: "approval-required" });
-    const approved = registry.invokeCapability("mock-android", generation, "device.control", "input.tap", { x: 10, y: 20 }, "user", true);
+    const approved = await registry.invokeCapability("mock-android", generation, "device.control", "input.tap", { x: 10, y: 20 }, "user", true);
     expect(approved).toMatchObject({ ok: true, simulated: true });
   });
 

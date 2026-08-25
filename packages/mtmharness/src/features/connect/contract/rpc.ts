@@ -176,7 +176,7 @@ export function assertMtmConnectMutationResponse(value: unknown): asserts value 
 export function assertMtmConnectInvocationResult(value: unknown): asserts value is CapabilityInvocationResult {
   if (!isRecord(value) || typeof value.ok !== "boolean") throw new Error("mtm-connect RPC returned an invalid invocation result");
   if (value.ok) {
-    if (value.simulated !== true || typeof value.adapterId !== "string" || typeof value.connectionId !== "string"
+    if (typeof value.simulated !== "boolean" || typeof value.adapterId !== "string" || typeof value.connectionId !== "string"
       || !Number.isSafeInteger(value.generation) || typeof value.capabilityId !== "string" || typeof value.operationId !== "string"
       || typeof value.summary !== "string" || !isRecord(value.data) || !Object.values(value.data).every(isJsonValue)) {
       throw new Error("mtm-connect RPC returned an invalid successful invocation");

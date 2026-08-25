@@ -1,5 +1,6 @@
 import type { Context } from "@deepseek-ai/cordis";
 import type {} from "@deepseek-ai/dsh-client-connection";
+import type { CapabilityInvoker } from "./adapters/invoker.ts";
 import { MtmConnectRegistry, type MtmConnectRegistryOptions } from "./core/registry.ts";
 import type { MtmConnectSnapshot } from "./contract/connection.ts";
 import type { MtmControlScope, MtmControlSnapshot } from "./contract/control-plane.ts";
@@ -11,6 +12,8 @@ interface MtmConnectHostConfig {
   readonly ownerId?: string;
   readonly seed?: boolean;
   readonly scope?: MtmControlScope;
+  /** Supplies a local adapter executor; it must not bypass registry policy checks. */
+  readonly capabilityInvoker?: CapabilityInvoker;
   /** Only a trusted control-plane bridge may enable this privileged RPC. */
   readonly allowControlReconcile?: boolean;
 }
@@ -59,7 +62,7 @@ export function createMtmConnectRpcHandler(registry: MtmConnectRegistry, options
       if (options.allowControlReconcile !== true) throw new Error("mtm-connect control reconciliation is restricted");
       return { ok: true, value: { snapshot: registry.reconcileControlSnapshot(request.snapshot) } };
     }
-    return { ok: true, value: registry.invoke(request.request) };
+    return { ok: true, value: await registry.invoke(request.request) };
     } catch (error) {
       return failure(error);
     }
@@ -72,6 +75,7 @@ export function apply(ctx: Context, config: MtmConnectHostConfig = {}): void {
     ownerId: config.ownerId ?? "local-demo-user",
     seed: config.seed ?? true,
     scope: config.scope,
+    capabilityInvoker: config.capabilityInvoker,
   };
   const registry = new MtmConnectRegistry(options);
   ctx.provide("mtmConnect", hostService(registry));

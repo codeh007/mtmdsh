@@ -1,8 +1,9 @@
 import { createAdapterCatalog } from "../adapters/catalog.ts";
-import { invokeMockCapability, type MockInvocationResult } from "../adapters/mock/invoke.ts";
+import { mockCapabilityInvoker } from "../adapters/mock/invoke.ts";
+import type { CapabilityInvocationContext, CapabilityInvocationExecutionResult, CapabilityInvoker } from "../adapters/invoker.ts";
 import { adapterCapability, createConnectionRecord, type BindingScope, type CapabilityInvocationResult, type ConnectionRecord, type ConnectionSeed, type MtmConnectMutation, type MtmConnectInvocationRequest, type MtmConnectSnapshot } from "../contract/connection.ts";
 import { projectExternalEvent, validateExternalEvent, type EventPolicy, type EventProjection, type ExternalConnectionEvent, type EventRecord } from "../contract/event.ts";
-import { assertPublicConfig, jsonByteLength, type JsonObject } from "../contract/json.ts";
+import { assertPublicConfig, isJsonValue, isRecord, jsonByteLength, type JsonObject } from "../contract/json.ts";
 import { cloneSnapshot, validateSnapshot } from "../contract/snapshot.ts";
 import { validateAdapterDescriptor, type AdapterDescriptor } from "../contract/adapter.ts";
 import { validateMtmControlSnapshot, type MtmControlAdapterDescriptor, type MtmControlInstallationStatus, type MtmControlObservedStatus, type MtmControlScope, type MtmControlSnapshot } from "../contract/control-plane.ts";
@@ -13,6 +14,8 @@ export interface MtmConnectRegistryOptions {
   readonly ownerId: string;
   readonly now?: () => number;
   readonly adapters?: readonly AdapterDescriptor[];
+  /** Executes an already policy-checked capability without owning policy decisions. */
+  readonly capabilityInvoker?: CapabilityInvoker;
   readonly seed?: boolean;
   readonly snapshot?: MtmConnectSnapshot;
   /** Immutable sandbox scope used when projecting the remote control authority. */
@@ -23,6 +26,30 @@ export type RegistryListener = () => void;
 
 function copy<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function adapterFailure(): CapabilityInvocationExecutionResult {
+  return { ok: false, code: "adapter-unavailable", message: "Adapter execution failed" };
+}
+
+async function invokeCapabilitySafely(invoker: CapabilityInvoker, context: CapabilityInvocationContext): Promise<CapabilityInvocationExecutionResult> {
+  let raw: unknown;
+  try {
+    raw = await invoker(context);
+  } catch {
+    return adapterFailure();
+  }
+  if (!isRecord(raw) || typeof raw.ok !== "boolean") return adapterFailure();
+  if (raw.ok) {
+    if (typeof raw.simulated !== "boolean" || typeof raw.summary !== "string" || !isRecord(raw.data) || !Object.values(raw.data).every(isJsonValue)) {
+      return adapterFailure();
+    }
+    return { ok: true, simulated: raw.simulated, summary: raw.summary, data: raw.data as JsonObject };
+  }
+  if ((raw.code !== "adapter-unavailable" && raw.code !== "unsupported-operation" && raw.code !== "invalid-input") || typeof raw.message !== "string") {
+    return adapterFailure();
+  }
+  return { ok: false, code: raw.code, message: raw.message };
 }
 
 function requiredLabel(label: string): string {
@@ -94,6 +121,7 @@ export class MtmConnectRegistry {
   private snapshot: MtmConnectSnapshot;
   private readonly listeners = new Set<RegistryListener>();
   private readonly now: () => number;
+  private readonly capabilityInvoker: CapabilityInvoker;
   private disposed = false;
   private sequence = 1;
   private controlScope: MtmControlScope | undefined;
@@ -102,6 +130,7 @@ export class MtmConnectRegistry {
   constructor(options: MtmConnectRegistryOptions) {
     if (options.ownerId.trim().length === 0) throw new Error("mtm-connect ownerId is required");
     this.now = options.now ?? (() => Date.now());
+    this.capabilityInvoker = options.capabilityInvoker ?? mockCapabilityInvoker;
     this.controlScope = options.scope === undefined ? undefined : cloneControlScope(options.scope);
     if (options.snapshot !== undefined) {
       const restored = validateSnapshot(options.snapshot);
@@ -384,7 +413,7 @@ export class MtmConnectRegistry {
     }
   }
 
-  invokeCapability(
+  async invokeCapability(
     connectionId: string,
     generation: number,
     capabilityId: string,
@@ -392,7 +421,7 @@ export class MtmConnectRegistry {
     input: JsonObject,
     actor: InvocationActor,
     approved = false,
-  ): CapabilityInvocationResult {
+  ): Promise<CapabilityInvocationResult> {
     this.ensureActive();
     const record = this.snapshot.connections.find((candidate) => candidate.instance.id === connectionId);
     if (record === undefined) return { ok: false, code: "connection-not-found", message: "Connection does not exist" };
@@ -411,12 +440,18 @@ export class MtmConnectRegistry {
     if (capability === undefined || operation === undefined) return { ok: false, code: "unsupported-operation", message: "The selected operation is not declared" };
     if (operation.requiresApproval && (actor !== "user" || !approved)) return { ok: false, code: "approval-required", message: "This operation requires explicit user approval" };
     if (jsonByteLength(input) > capability.limits.maxInputBytes) return { ok: false, code: "input-too-large", message: "Invocation input exceeds the capability limit" };
-    const result: MockInvocationResult = invokeMockCapability(adapter.id, capabilityId, operationId, input);
+    const result = await invokeCapabilitySafely(this.capabilityInvoker, {
+      adapter: copy(adapter),
+      capability: copy(capability),
+      operation: copy(operation),
+      connection: copy(record.instance),
+      input: copy(input),
+    });
     if (!result.ok) return result;
     if (jsonByteLength(result.data) > capability.limits.maxOutputBytes) return { ok: false, code: "output-too-large", message: "Invocation output exceeds the capability limit" };
     return {
       ok: true,
-      simulated: true,
+      simulated: result.simulated,
       adapterId: adapter.id,
       connectionId,
       generation,
@@ -427,7 +462,7 @@ export class MtmConnectRegistry {
     };
   }
 
-  invoke(request: MtmConnectInvocationRequest): CapabilityInvocationResult {
+  async invoke(request: MtmConnectInvocationRequest): Promise<CapabilityInvocationResult> {
     return this.invokeCapability(
       request.connectionId,
       request.generation,
