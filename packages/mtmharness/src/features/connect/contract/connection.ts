@@ -62,7 +62,7 @@ export interface MtmConnectSnapshot {
 export type CapabilityInvocationResult =
   | {
     readonly ok: true;
-    readonly simulated: true;
+    readonly simulated: boolean;
     readonly adapterId: string;
     readonly connectionId: string;
     readonly generation: number;

@@ -1,8 +1,7 @@
 import type { JsonObject } from "../../contract/json.ts";
+import type { CapabilityInvocationExecutionResult, CapabilityInvoker } from "../invoker.ts";
 
-export type MockInvocationResult =
-  | { readonly ok: true; readonly simulated: true; readonly summary: string; readonly data: JsonObject }
-  | { readonly ok: false; readonly code: "unsupported-operation" | "invalid-input"; readonly message: string };
+export type MockInvocationResult = CapabilityInvocationExecutionResult;
 
 function numberInput(input: JsonObject, key: string): number | undefined {
   const value = input[key];
@@ -72,3 +71,6 @@ export function invokeMockCapability(
   }
   return { ok: false, code: "unsupported-operation", message: "The selected fixture does not implement this operation" };
 }
+
+export const mockCapabilityInvoker: CapabilityInvoker = ({ adapter, capability, operation, input }) =>
+  invokeMockCapability(adapter.id, capability.id, operation.id, input);

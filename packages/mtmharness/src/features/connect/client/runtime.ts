@@ -270,8 +270,11 @@ export class MtmConnectClientRuntime implements ObservableSnapshot<MtmConnectVie
       approved,
     };
     if (this.transport === undefined) {
-      const result = this.registry?.invoke(request);
-      if (result !== undefined) this.setView({ lastInvocation: result, notice: result.ok ? result.summary : result.message });
+      const registry = this.registry;
+      if (registry === undefined) return;
+      void registry.invoke(request)
+        .then((result) => { this.setView({ lastInvocation: result, notice: result.ok ? result.summary : result.message }); })
+        .catch((error) => { this.setView({ notice: error instanceof Error ? error.message : String(error) }); });
       return;
     }
     void this.enqueue(async () => {

@@ -66,7 +66,7 @@ describe("MtmConnectRegistry control projection", () => {
     expect(restored.reconcileControlSnapshot({ ...controlSnapshot(), revision: 0 })).toEqual(restored.getSnapshot());
   });
 
-  it("ignores out-of-order control revisions and rejects foreign scope or generation", () => {
+  it("ignores out-of-order control revisions and rejects foreign scope or generation", async () => {
     const registry = new MtmConnectRegistry({ ownerId: "user-1", seed: false, scope });
     registry.reconcileControlSnapshot(controlSnapshot());
     const before = registry.getSnapshot();
@@ -91,7 +91,7 @@ describe("MtmConnectRegistry control projection", () => {
     const primaryCapability = expiringRegistry.getConnection("world-1")?.instance.worldBinding?.capabilityId ?? "";
     const operationId = expiringRegistry.getAdapter("mock-world")?.capabilities.find((capability) => capability.id === primaryCapability)?.operations[0]?.id ?? "";
     clock = 101;
-    expect(expiringRegistry.invokeCapability("world-1", 4, primaryCapability, operationId, { path: "/workspace" }, "user")).toMatchObject({ ok: false, code: "connection-offline" });
+    expect(await expiringRegistry.invokeCapability("world-1", 4, primaryCapability, operationId, { path: "/workspace" }, "user")).toMatchObject({ ok: false, code: "connection-offline" });
   });
 
   it("fails closed for revoked installations and secret-bearing snapshots", () => {
