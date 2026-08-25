@@ -1,5 +1,6 @@
 import type { AdapterDescriptor, CapabilityDescriptor } from "./adapter.ts";
 import type { EventPolicy, EventRecord, EventProjection, ExternalConnectionEvent } from "./event.ts";
+import type { MtmModelProfileRef } from "./control-plane.ts";
 import { assertPublicConfig, type JsonObject } from "./json.ts";
 
 export type DesiredConnectionState = "disabled" | "enabled";
@@ -49,12 +50,13 @@ export interface ConnectionRecord {
 }
 
 export interface MtmConnectSnapshot {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 2;
   readonly revision: number;
   readonly controlRevision?: number;
   readonly ownerId: string;
   readonly adapters: readonly AdapterDescriptor[];
   readonly connections: readonly ConnectionRecord[];
+  readonly activeModelProfile: MtmModelProfileRef | null;
   readonly eventHistory: readonly EventRecord[];
   readonly updatedAt: number;
 }
@@ -119,7 +121,7 @@ export function defaultBindings(adapter: AdapterDescriptor): Readonly<Record<str
 }
 
 export function emptySnapshot(ownerId = "unknown"): MtmConnectSnapshot {
-  return { schemaVersion: 1, revision: 0, ownerId, adapters: [], connections: [], eventHistory: [], updatedAt: 0 };
+  return { schemaVersion: 2, revision: 0, ownerId, adapters: [], connections: [], activeModelProfile: null, eventHistory: [], updatedAt: 0 };
 }
 
 export function createConnectionRecord(

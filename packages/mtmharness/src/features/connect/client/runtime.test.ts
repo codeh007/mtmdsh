@@ -8,8 +8,18 @@ describe("mtm-connect Host/Client transport", () => {
     expect(() => new MtmConnectClientRuntime()).toThrow("mtm-connect: Host transport is required");
   });
 
-  it("rejects an invalid initial remote snapshot before exposing it", () => {
-    expect(() => new MtmConnectClientRuntime({ transport: {} as never, snapshot: { schemaVersion: 1 } as never })).toThrow("snapshot");
+  it("rejects a v1 initial remote snapshot after the schema hard cut", () => {
+    expect(() => new MtmConnectClientRuntime({
+      transport: {} as never,
+      snapshot: { schemaVersion: 1, revision: 0, ownerId: "demo-user", adapters: [], connections: [], eventHistory: [], updatedAt: 0 } as never,
+    })).toThrow("unsupported mtm-connect snapshot version");
+  });
+
+  it("rejects a v2 snapshot without the profile reference field", () => {
+    expect(() => new MtmConnectClientRuntime({
+      transport: {} as never,
+      snapshot: { schemaVersion: 2, revision: 0, ownerId: "demo-user", adapters: [], connections: [], eventHistory: [], updatedAt: 0 } as never,
+    })).toThrow("mtm model profile");
   });
 
   it("routes a sandbox control snapshot through the Host transport", async () => {
@@ -22,7 +32,7 @@ describe("mtm-connect Host/Client transport", () => {
     const rpc = { call: (channel: string, endpoint: string, payload: unknown, signal?: AbortSignal) => handler(endpoint, payload, signal ?? new AbortController().signal) };
     const transport = createMtmConnectTransport(rpc);
     const response = await transport.reconcile({
-      contractVersion: 1,
+      contractVersion: 2,
       scope: {
         sandboxId: "sbx_00000000-0000-4000-8000-000000000607",
         workspaceId: "ws_00000000-0000-4000-8000-000000000607",
@@ -33,6 +43,7 @@ describe("mtm-connect Host/Client transport", () => {
       desiredWorlds: [],
       observedWorlds: [],
       installation: null,
+      activeModelProfile: null,
     });
     expect(response.snapshot.ownerId).toBe("demo-user");
     expect(host.getControlRevision()).toBe(1);
