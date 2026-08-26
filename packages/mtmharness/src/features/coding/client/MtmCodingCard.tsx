@@ -96,7 +96,7 @@ export function MtmCodingCard(props: MtmCodingCardProps) {
           <BooleanField t={t} label="ponytailEnabled" hint="ponytailEnabledHint" field={state.fields.ponytailEnabled} disabled={disabled} onChange={(value) => { props.edit("ponytailEnabled", String(value)); }} onReset={() => { props.resetField("ponytailEnabled"); }} />
           <div style={fieldStyle}>
             {fieldLabel(t, "ponytailMode", mode, () => { props.resetField("ponytailMode"); }, disabled)}
-            <select value={mode.text} disabled={disabled} onChange={(event) => { props.edit("ponytailMode", event.target.value); }}>
+            <select aria-label={t("ponytailMode")} value={mode.text} disabled={disabled} onChange={(event) => { props.edit("ponytailMode", event.target.value); }}>
               {MODE_VALUES.map(value => <option key={value} value={value}>{t(("mode" + value[0].toUpperCase() + value.slice(1)) as MtmCodingLocaleKey)}</option>)}
             </select>
             <p style={hintStyle}>{t("ponytailModeHint")}</p>

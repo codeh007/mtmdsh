@@ -6,7 +6,7 @@ import type { AssembleContext } from "@deepseek-ai/dsh-system-prompt";
 import { renderSkillContent } from "@deepseek-ai/dsh-skill";
 import type { SkillDefinition } from "@deepseek-ai/dsh-skill";
 import type { CommandResult } from "@deepseek-ai/dsh-commands";
-import type { PonytailMode } from "../types.js";
+import type { PonytailMode } from "./types.js";
 
 export const name = "mtm-coding-ponytail";
 export const inject = ["systemPrompt", "skills", "commands"];

@@ -5,14 +5,11 @@
   "packageManager": "pnpm@11.7.0",
   "engines": { "node": ">=22.19.0" },
   "scripts": {
-    "build": "pnpm run build:mtm-coding && pnpm --filter mtmharness run build",
-    "build:mtm-coding": "pnpm --filter mtm-coding run build",
+    "build": "pnpm --filter mtmharness run build",
     "demo": "pnpm --filter mtmharness run dev",
-    "check": "pnpm run build:mtm-coding && pnpm --filter mtm-coding run test && pnpm --filter mtm-coding run verify:package && pnpm --filter mtmharness run check",
-    "check:mtm-coding": "pnpm run build:mtm-coding && pnpm --filter mtm-coding run test && pnpm --filter mtm-coding run verify:package",
-    "smoke:mtm-coding": "node scripts/verify-dsh-web.mjs",
-    "pack:mtm-coding": "pnpm --filter mtm-coding pack --pack-destination dist/npm",
-    "pack:mtmharness": "pnpm --filter mtmharness pack:check"
+    "check": "pnpm --filter mtmharness run check",
+    "smoke:mtmharness": "node scripts/verify-dsh-web.mjs",
+    "pack:mtmharness": "pnpm --filter mtmharness run pack:check"
   },
   "devDependencies": { "typescript": "6.0.3" }
 }

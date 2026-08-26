@@ -41,6 +41,7 @@ function createLegacyFixture(name) {
 
 const legacyCanvas = createLegacyFixture("mtmcanvas");
 const legacyConnect = createLegacyFixture("mtm-connect");
+const legacyCoding = createLegacyFixture("mtm-coding");
 const env = { ...process.env, DSH_HOME: dshHome };
 
 function runDsh(args, capture = false) {
@@ -57,7 +58,7 @@ function dumpConfig() {
 }
 
 function assertRows(dump, expected) {
-  const managed = new Set(["mtmcanvas", "mtm-connect", "mtmharness"]);
+  const managed = new Set(["mtmcanvas", "mtm-connect", "mtm-coding", "mtmharness"]);
   const rows = [...dump.matchAll(/^# == ([^\n]+)$/gmu)]
     .map((match) => match[1])
     .filter((name) => managed.has(name));
@@ -69,10 +70,12 @@ function assertRows(dump, expected) {
 try {
   runDsh(["plugin", "--profile", "web", "add", legacyCanvas]);
   runDsh(["plugin", "--profile", "web", "add", legacyConnect]);
-  assertRows(dumpConfig(), ["mtmcanvas", "mtm-connect"]);
+  runDsh(["plugin", "--profile", "web", "add", legacyCoding]);
+  assertRows(dumpConfig(), ["mtmcanvas", "mtm-connect", "mtm-coding"]);
 
   runDsh(["plugin", "--profile", "web", "remove", "mtmcanvas"]);
   runDsh(["plugin", "--profile", "web", "remove", "mtm-connect"]);
+  runDsh(["plugin", "--profile", "web", "remove", "mtm-coding"]);
   runDsh(["plugin", "--profile", "web", "add", tarball]);
   assertRows(dumpConfig(), ["mtmharness"]);
 

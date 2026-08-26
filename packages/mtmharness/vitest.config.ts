@@ -8,6 +8,7 @@ export default defineConfig({
     alias: {
       "@": fileURLToPath(new URL("./standalone/src", import.meta.url)),
       "@deepseek-ai/dsh-client-ui-primitives": fileURLToPath(new URL("./tests/primitive-stub.tsx", import.meta.url)),
+      "@deepseek-ai/dsh-client-runtime/client": fileURLToPath(new URL("./tests/client-runtime-stub.ts", import.meta.url)),
     },
   },
   test: {

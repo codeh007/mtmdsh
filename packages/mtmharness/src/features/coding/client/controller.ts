@@ -120,7 +120,7 @@ export class MtmCodingCardController {
     this.failed = false;
     this.publish();
     let landed = true;
-    for (const write of writes) {
+    for await (const write of writes) {
       try {
         landed = await write() && landed;
       } catch {

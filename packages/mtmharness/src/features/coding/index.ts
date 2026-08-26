@@ -1,7 +1,7 @@
 import type { Context, Fiber } from "@deepseek-ai/cordis";
 import { settingsNamespace } from "@deepseek-ai/dsh-settings";
-import { apply as applyCodebaseMemory, type Config as CodebaseMemoryConfig } from "./features/codebase-memory.js";
-import { apply as applyPonytail } from "./features/ponytail.js";
+import { apply as applyCodebaseMemory, type Config as CodebaseMemoryConfig } from "./codebase-memory.js";
+import { apply as applyPonytail } from "./ponytail.js";
 import {
   MtmCodingSettingsSchema,
   codebaseMemoryConfig,
@@ -9,8 +9,20 @@ import {
   type MtmCodingSettings,
 } from "./types.js";
 
-export { buildMcpConfig, resolveConfig } from "./features/codebase-memory.js";
+export { buildMcpConfig, resolveConfig } from "./codebase-memory.js";
 export { MtmCodingSettingsSchema, codebaseMemoryConfig } from "./types.js";
+export { PONYTAIL_SKILLS } from "./ponytail-skills.js";
+export {
+  ensureRuntime,
+  extractHookContext,
+  extractNativeCommand,
+  resolveBundledCommand,
+  resolveCommand,
+  resolveEnvironment,
+  resolveWorkingDirectory,
+} from "./runtime.js";
+export { apply as applyCodebaseMemory } from "./codebase-memory.js";
+export { apply as applyPonytail } from "./ponytail.js";
 export type { MtmCodingConfig, MtmCodingSettings, PonytailMode } from "./types.js";
 
 export const name = "mtm-coding";

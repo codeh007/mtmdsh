@@ -2,10 +2,10 @@
 
 `mtmharness` is one public npm package with one unified DSH plugin and two explicit client identities:
 
-- **DSH Web plugin**: the package root and `./client` export use the official `dsh.client` lazy-CJS contract. One installation provides the MTM and Canvas sidebar actions, the Connect control panel, and a file-backed Canvas editor over `ctx.fs`.
-- **Independent web client**: the package also publishes a BrowserHistory static app and a MemoryHistory script/embed entry. These artifacts own their React root, router, styles, and teardown.
+- **DSH Web plugin**: the package root and `./client` export use the official `dsh.client` lazy-CJS contract. One installation provides MTM and Canvas sidebar actions, the Connect control panel, a file-backed Canvas editor over `ctx.fs`, and the settings-controlled Codebase Memory/Ponytail coding features.
+- **Independent web client**: the package also publishes a BrowserHistory static app and a MemoryHistory script/embed entry. These artifacts own their React root, router, styles, and teardown and never load the local coding runtime.
 
-The DSH plugin is assembled from the Connect feature domain under one Host/Client lifecycle. The standalone app has separate build entrypoints and never imports the DSH plugin runtime or its feature domains.
+The DSH plugin is assembled from Connect, Canvas, and coding feature domains under one Host/Client lifecycle. Codebase Memory keeps its `codebase_memory` server namespace and `mcp__codebase_memory__*` tool names; Ponytail ships six skills inline, including `/ponytail` and its companion commands. The `mtm-coding` settings namespace remains the configuration contract inside the unified `mtmharness` package.
 
 ## DSH Web Plugin
 
@@ -20,17 +20,18 @@ The plugin enables the Connect control panel by default and keeps its registry a
 
 ### Migrating an existing profile
 
-If the profile previously installed the standalone packages, remove them before adding the unified package so their old rows do not remain alongside the `mtmharness` row:
+If the profile previously installed the retired packages, remove them before adding the unified package so their old rows do not remain alongside the `mtmharness` row:
 
     dsh plugin --profile web remove mtmcanvas
     dsh plugin --profile web remove mtm-connect
+    dsh plugin --profile web remove mtm-coding
     dsh plugin --profile web add mtmharness
 
-The same hard-cut sequence is covered by the committed isolated profile smoke, including duplicate install, removal, and reinstall:
+The same hard-cut sequence is covered by the committed isolated profile smoke, including removal of the retired `mtm-coding` row, duplicate install, removal, and reinstall:
 
     pnpm --filter mtmharness run profile:check -- /path/to/mtmharness.tgz
 
-Historical `mtmcanvas` and `mtm-connect` npm versions remain available as history, but the mtmdsh workspace no longer publishes new versions of those package names. Imports from the retired package names are intentionally not compatibility aliases; this release is a hard cut to the unified plugin entry.
+Historical `mtmcanvas`, `mtm-connect`, and `mtm-coding` npm versions remain available as history, but the mtmdsh workspace no longer publishes new versions of those package names. Imports from the retired package names are intentionally not compatibility aliases; this release is a hard cut to the unified plugin entry.
 
 ## Static App
 
