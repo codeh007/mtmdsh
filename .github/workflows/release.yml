@@ -1,23 +1,23 @@
-name: release-mtm-codebase-memory
-run-name: Release mtm-codebase-memory ${{ github.ref_name }}
+name: release-mtm-coding
+run-name: Release mtm-coding ${{ github.ref_name }}
 
 on:
   push:
     tags:
-      - 'mtm-codebase-memory-v[0-9]*.[0-9]*.[0-9]*'
+      - 'mtm-coding-v[0-9]*.[0-9]*.[0-9]*'
 
 permissions:
   contents: read
   id-token: write
 
 concurrency:
-  group: mtm-codebase-memory-npm-publish
+  group: mtm-coding-npm-publish
   cancel-in-progress: false
 
 env:
-  PACKAGE_NAME: mtm-codebase-memory
-  PACKAGE_DIR: packages/mtm-codebase-memory
-  TAG_PREFIX: mtm-codebase-memory-v
+  PACKAGE_NAME: mtm-coding
+  PACKAGE_DIR: packages/mtm-coding
+  TAG_PREFIX: mtm-coding-v
 
 jobs:
   publish:
@@ -57,7 +57,7 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          package_version="$(node -p "require('./packages/mtm-codebase-memory/package.json').version")"
+          package_version="$(node -p "require('./packages/mtm-coding/package.json').version")"
           test "$RELEASE_TAG" = "${TAG_PREFIX}${package_version}"
           git fetch --no-tags origin main
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main
@@ -70,9 +70,9 @@ jobs:
         id: pack
         run: |
           set -euo pipefail
-          pack_dir="$RUNNER_TEMP/mtm-codebase-memory"
+          pack_dir="$RUNNER_TEMP/mtm-coding"
           mkdir -p "$pack_dir"
-          pnpm --filter mtm-codebase-memory pack --pack-destination "$pack_dir"
+          pnpm --filter mtm-coding pack --pack-destination "$pack_dir"
           tarball="$(find "$pack_dir" -maxdepth 1 -type f -name "${PACKAGE_NAME}-*.tgz" -print -quit)"
           test -n "$tarball"
           local_integrity="sha512-$(openssl dgst -sha512 -binary "$tarball" | base64 -w0)"
@@ -84,6 +84,12 @@ jobs:
 
       - name: Lint package metadata
         run: pnpm dlx publint run "${{ steps.pack.outputs.tarball }}" --strict
+
+      - name: Install DSH CLI for Web smoke
+        run: npm install --global @deepseek-ai/dsh@0.1.1-rc.2
+
+      - name: Verify isolated DSH Web profile
+        run: pnpm run smoke:mtm-coding -- "${{ steps.pack.outputs.tarball }}"
 
       - name: Preflight registry and token
         env:

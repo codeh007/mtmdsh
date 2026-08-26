@@ -3,19 +3,16 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.7.0",
-  "engines": {
-    "node": ">=22.19.0"
-  },
+  "engines": { "node": ">=22.19.0" },
   "scripts": {
-    "build": "pnpm run build:mtm-codebase-memory && pnpm --filter mtmharness run build",
-    "build:mtm-codebase-memory": "pnpm --filter mtm-codebase-memory run build",
+    "build": "pnpm run build:mtm-coding && pnpm --filter mtmharness run build",
+    "build:mtm-coding": "pnpm --filter mtm-coding run build",
     "demo": "pnpm --filter mtmharness run dev",
-    "check": "pnpm run build:mtm-codebase-memory && pnpm --filter mtm-codebase-memory run test && node scripts/verify-package.mjs && pnpm --filter mtmharness run check",
-    "check:mtm-codebase-memory": "pnpm run build:mtm-codebase-memory && pnpm --filter mtm-codebase-memory run test && node scripts/verify-package.mjs",
-    "smoke:mtm-codebase-memory": "node scripts/verify-dsh-web.mjs",
+    "check": "pnpm run build:mtm-coding && pnpm --filter mtm-coding run test && pnpm --filter mtm-coding run verify:package && pnpm --filter mtmharness run check",
+    "check:mtm-coding": "pnpm run build:mtm-coding && pnpm --filter mtm-coding run test && pnpm --filter mtm-coding run verify:package",
+    "smoke:mtm-coding": "node scripts/verify-dsh-web.mjs",
+    "pack:mtm-coding": "pnpm --filter mtm-coding pack --pack-destination dist/npm",
     "pack:mtmharness": "pnpm --filter mtmharness pack:check"
   },
-  "devDependencies": {
-    "typescript": "6.0.3"
-  }
+  "devDependencies": { "typescript": "6.0.3" }
 }
