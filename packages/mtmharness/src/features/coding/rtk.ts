@@ -117,7 +117,7 @@ export function apply(ctx: Context, config: {
   ctx.commands.register({
     name: "rtk",
     description: "show RTK integration status",
-    input: { hint: "" },
+    input: { hint: "[skill]" },
     handler: (invocation): CommandResult => {
       if (invocation.rawInput.trim() === "") return result(statusText(status));
       if (invocation.rawInput.trim() === "skill") {
