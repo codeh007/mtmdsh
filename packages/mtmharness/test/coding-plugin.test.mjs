@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { apply, name } from "../dist/index.js";
-import { apply as applyCodebaseMemory } from "../dist/features/codebase-memory.js";
-import { apply as applyPonytail } from "../dist/features/ponytail.js";
-import { PONYTAIL_SKILLS } from "../dist/features/ponytail-skills.js";
+import {
+  applyCoding,
+  applyCodebaseMemory,
+  applyPonytail,
+  name,
+  PONYTAIL_SKILLS,
+} from "../lib/index.js";
 
 const DEFAULT_SETTINGS = {
   codebaseMemoryEnabled: true,
@@ -282,8 +285,8 @@ test("Codebase Memory hooks become bounded DSH context messages", async () => {
 
 test("unified settings reconcile both domains and unregisters its watcher", async () => {
   const fake = createContext({ codebaseMemoryEnabled: false, ponytailMode: "lite" });
-  await apply(fake.context, {});
-  assert.equal(name, "mtm-coding");
+  await applyCoding(fake.context, {});
+  assert.equal(name, "mtmharness");
   assert.equal(fake.skills.length, 6);
   assert.equal(fake.pluginCalls.filter((call) => call.config?.transport === "stdio").length, 0);
   await fake.trigger({ ...fake.getSettings(), codebaseMemoryEnabled: true });

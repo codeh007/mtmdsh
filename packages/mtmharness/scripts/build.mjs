@@ -11,7 +11,7 @@ const libRoot = resolve(packageRoot, "lib");
 const distRoot = resolve(packageRoot, "dist");
 const tsc = resolve(packageRoot, "node_modules/.bin/tsc");
 const vite = resolve(packageRoot, "node_modules/.bin/vite");
-const clientTemp = resolve(libRoot, "client.cjs");
+const clientTemp = resolve(libRoot, "client.bundle.cjs");
 const packageName = "mtmharness";
 
 rmSync(libRoot, { recursive: true, force: true });
@@ -28,6 +28,7 @@ await build({
   bundle: true,
   format: "esm",
   platform: "node",
+  packages: "external",
   target: "es2022",
   logLevel: "info",
 });
@@ -68,6 +69,7 @@ if (!artifact.includes("window.__ModuleLoader__.load") || !artifact.includes("id
   throw new Error("mtmharness build: generated client artifact does not have the DSH loader contract");
 }
 writeFileSync(resolve(libRoot, "client.js"), artifact);
+writeFileSync(resolve(libRoot, "client.cjs"), artifact);
 rmSync(clientTemp, { force: true });
 
 execFileSync(vite, ["build", "--config", resolve(packageRoot, "vite.standalone.config.ts")], { cwd: packageRoot, stdio: "inherit" });

@@ -14,7 +14,7 @@ import {
   resolveWorkingDirectory,
   runHookAugment,
   type CommandSpec,
-} from "../runtime.js";
+} from "./runtime.js";
 
 export const name = "mtm-coding-codebase-memory";
 export const inject = ["systemPrompt", "subprocess"];

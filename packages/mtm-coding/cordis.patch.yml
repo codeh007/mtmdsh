@@ -1,6 +1,0 @@
-# Unified coding profile bundle. Settings control both live domains.
-- insert:
-    - id: mtm-coding
-      name: 'mtm-coding'
-      config:
-        serverName: codebase_memory

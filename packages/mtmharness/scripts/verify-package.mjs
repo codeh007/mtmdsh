@@ -21,11 +21,15 @@ const expectedInject = [
   "@deepseek-ai/dsh-client-runtime",
   "@deepseek-ai/dsh-client-ui-primitives",
   "@deepseek-ai/dsh-client-ui-sidebar",
+  "@deepseek-ai/dsh-client-locale",
+  "@deepseek-ai/dsh-client-ui-settings",
+  "@deepseek-ai/dsh-client-ui-settings-plugins",
+  "@deepseek-ai/dsh-client-ui-slots",
 ];
 if (JSON.stringify(manifest.dsh?.client?.inject) !== JSON.stringify(expectedInject)) {
   fail("dsh.client.inject must exactly match " + JSON.stringify(expectedInject));
 }
-if (manifest.exports?.["./client"]?.default !== "./lib/client.js") fail("exports ./client must point to lib/client.js");
+if (manifest.exports?.["./client"]?.default !== "./lib/client.cjs") fail("exports ./client must point to lib/client.cjs");
 if (manifest.exports?.["./embed"]?.import !== "./dist/embed/mtmharness.js") fail("exports ./embed must point to the ESM artifact");
 if (manifest.exports?.["./app"] !== "./dist/standalone/index.html") fail("exports ./app must point to the static app");
 if (manifest.unpkg !== "./dist/embed/mtmharness.iife.js") fail("unpkg must point to the IIFE embed artifact");
@@ -34,8 +38,10 @@ for (const path of [
   "cordis.patch.yml",
   "lib/index.js",
   "lib/client.js",
+  "lib/client.cjs",
   "lib/types/index.d.ts",
   "lib/types/client/index.d.ts",
+  "lib/types/features/coding/index.d.ts",
   "dist/standalone/index.html",
   "dist/embed/mtmharness.js",
   "dist/embed/mtmharness.iife.js",
@@ -43,11 +49,18 @@ for (const path of [
 ]) requirePath(path);
 
 const patch = read("cordis.patch.yml");
-if (!patch.includes("id: mtmharness") || !patch.includes("name: mtmharness")) fail("profile patch must insert the mtmharness Loader row");
+if (!patch.includes("id: mtmharness") || !patch.includes("name: mtmharness") || !patch.includes("serverName: codebase_memory")) {
+  fail("profile patch must insert the mtmharness Loader row with the Codebase Memory namespace");
+}
+
+const host = read("lib/index.js");
+for (const required of ["mtm-coding", "codebase_memory", "mtm-coding-ponytail"]) {
+  if (!host.includes(required)) fail("Host artifact is missing coding feature: " + required);
+}
 
 const client = read("lib/client.js");
 if (!client.includes("window.__ModuleLoader__.load") || !client.includes('id: "mtmharness"')) fail("client artifact is not a DSH lazy-CJS bundle");
-for (const required of ["/mtm-connect"]) {
+for (const required of ["/mtm-connect", "mtm-coding", "mtm.coding", "ponytail"]) {
   if (!client.includes(required)) fail("client artifact is missing unified feature surface: " + required);
 }
 for (const forbidden of ["createRoot", "RouterProvider", "new WebSocket", 'credentials: "include"', "MtmHarnessRuntime", "standalone/src", 'id: "mtm-connect"']) {
@@ -76,9 +89,11 @@ if (tarball !== undefined) {
     "package/README.md",
     "package/cordis.patch.yml",
     "package/lib/client.js",
+    "package/lib/client.cjs",
     "package/lib/index.js",
     "package/lib/types/client/index.d.ts",
     "package/lib/types/index.d.ts",
+    "package/lib/types/features/coding/index.d.ts",
     "package/dist/standalone/index.html",
     "package/dist/embed/mtmharness.js",
     "package/dist/embed/mtmharness.iife.js",

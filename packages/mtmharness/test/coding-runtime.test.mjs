@@ -9,11 +9,11 @@ import {
   resolveCommand,
   resolveEnvironment,
   resolveWorkingDirectory,
-} from "../dist/runtime.js";
+} from "../lib/index.js";
 import {
   buildMcpConfig,
   resolveConfig,
-} from "../dist/index.js";
+} from "../lib/index.js";
 
 test("resolves the pinned lazy runtime without a PATH executable", () => {
   const command = resolveBundledCommand();

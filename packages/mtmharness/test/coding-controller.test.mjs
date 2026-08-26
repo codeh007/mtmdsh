@@ -71,7 +71,7 @@ function createSnapshotStore(initial) {
 }
 
 function loadClient() {
-  const source = readFileSync(new URL("../dist/client.cjs", import.meta.url), "utf8");
+  const source = readFileSync(new URL("../lib/client.cjs", import.meta.url), "utf8");
   let registration;
   const window = { __ModuleLoader__: { load(next) { registration = next; } } };
   runInNewContext(source, { window });
@@ -79,6 +79,11 @@ function loadClient() {
 
   const external = new Map([
     ["@deepseek-ai/dsh-client-runtime/client", { createSnapshotStore }],
+    ["@deepseek-ai/dsh-client-ui-primitives", {
+      Button: () => null,
+      Modal: () => null,
+      Pill: () => null,
+    }],
     ["react", { useState: (initial) => [initial, () => {}] }],
     ["react/jsx-runtime", { Fragment: Symbol("Fragment"), jsx: () => null, jsxs: () => null }],
   ]);
@@ -124,7 +129,7 @@ test("client artifact settings card retains drafts when one Host write is reject
   const fake = createScope("ponytailSubagents");
   const client = loadClient();
   const mounted = createClientContext(fake.scope);
-  client.apply(mounted.context);
+  client.applyCoding(mounted.context);
   const face = mounted.registrations[0].face;
 
   face.edit("ponytailMode", "ultra");
@@ -147,7 +152,7 @@ test("client artifact settings card clears an overridden field after Host readba
   const fake = createScope();
   const client = loadClient();
   const mounted = createClientContext(fake.scope);
-  client.apply(mounted.context);
+  client.applyCoding(mounted.context);
   const face = mounted.registrations[0].face;
 
   face.resetField("ponytailMode");

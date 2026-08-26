@@ -13,6 +13,6 @@ describe("mtmharness package contract", () => {
     expect(manifest.dsh?.bundle?.patch).toBe("./cordis.patch.yml");
     expect(manifest.dsh?.client?.platform).toBe("web");
     expect(manifest.exports["."]?.default).toBe("./lib/index.js");
-    expect(manifest.exports["./client"]?.default).toBe("./lib/client.js");
+    expect(manifest.exports["./client"]?.default).toBe("./lib/client.cjs");
   });
 });

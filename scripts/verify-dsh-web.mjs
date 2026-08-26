@@ -12,7 +12,7 @@ if (!tarballArg) fail("usage: node scripts/verify-dsh-web.mjs <package-tarball>"
 const tarball = resolve(tarballArg);
 
 const dsh = process.env.DSH_BIN ?? "dsh";
-const home = mkdtempSync(join(tmpdir(), "mtm-coding-dsh-"));
+const home = mkdtempSync(join(tmpdir(), "mtmharness-dsh-"));
 const port = Number(process.env.DSH_SMOKE_PORT ?? 0) || 3197;
 const env = { ...process.env, DSH_HOME: home };
 let child;
@@ -64,7 +64,7 @@ async function readInventory() {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       type: "client-request",
-      rpcId: "mtm-coding-inventory",
+      rpcId: "mtmharness-inventory",
       method: "pluginInventory/list",
       payload: { args: {} },
     }),
@@ -78,7 +78,7 @@ async function waitForPlugin() {
   while (Date.now() < deadline) {
     try {
       const inventory = await readInventory();
-      lastEntry = inventory.entries.find((entry) => entry.moduleName === "mtm-coding");
+      lastEntry = inventory.entries.find((entry) => entry.moduleName === "mtmharness");
       if (lastEntry?.fiberPhase === "active") return lastEntry;
       if (lastEntry?.fiberPhase === "failed") throw new Error("CBM plugin failed in the Web host");
     } catch (error) {
@@ -98,17 +98,31 @@ async function rpc(path, method, payload, rpcId) {
   return parseJsonResponse(await response.text(), method);
 }
 
+async function verifyCodingSettings() {
+  const settings = await rpc("/api/settings.describe", "settings.describe", {}, "mtmharness-settings-describe");
+  const namespace = settings.namespaces?.find((entry) => entry.ns === "mtm-coding");
+  if (namespace === undefined) fail("settings.describe did not include the mtm-coding namespace");
+  if (namespace.value?.serverName !== "codebase_memory") {
+    fail("mtm-coding settings did not preserve the codebase_memory server namespace");
+  }
+  return {
+    namespace: namespace.ns,
+    serverName: namespace.value.serverName,
+    ponytailMode: namespace.value.ponytailMode,
+  };
+}
+
 async function verifyToolCatalog(sessionId) {
   await rpc("/api/session.prompt", "session.prompt", {
     sessionId,
     mode: "queue",
     content: [{ type: "text", text: "Tool catalog smoke test. Reply READY without calling any tool." }],
-  }, "mtm-coding-tool-catalog-prompt");
+  }, "mtmharness-tool-catalog-prompt");
   const deadline = Date.now() + 120_000;
   let lastNames = [];
   while (Date.now() < deadline) {
     try {
-      const history = await rpc("/api/session.history", "session.history", { sessionId, maxMessages: 100 }, "mtm-coding-tool-catalog-history");
+      const history = await rpc("/api/session.history", "session.history", { sessionId, maxMessages: 100 }, "mtmharness-tool-catalog-history");
       const header = history.events
         .map((entry) => entry.event)
         .find((event) => event.type === "request/header")?.data?.header;
@@ -132,7 +146,7 @@ async function verifyToolCatalog(sessionId) {
 try {
   run(["plugin", "--profile", "web", "add", tarball]);
   const dump = run(["--profile", "web", "--dump-config"]);
-  if (!dump.includes("name: mtm-coding")) fail("profile dump did not include the CBM plugin row");
+  if (!dump.includes("name: mtmharness")) fail("profile dump did not include the unified mtmharness plugin row");
 
   child = spawn(dsh, ["web", "--no-open", "--port", String(port)], {
     cwd: process.cwd(),
@@ -144,13 +158,14 @@ try {
   child.stderr?.on("data", (chunk) => { logs += String(chunk); });
   await waitForWeb();
   const pluginEntry = await waitForPlugin();
+  const codingSettings = await verifyCodingSettings();
 
   const listResponse = await fetch("http://127.0.0.1:" + port + "/api/session.list", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       type: "client-request",
-      rpcId: "mtm-coding-session-list",
+      rpcId: "mtmharness-session-list",
       method: "session.list",
       payload: {},
     }),
@@ -163,7 +178,7 @@ try {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       type: "client-request",
-      rpcId: "mtm-coding-session-create",
+      rpcId: "mtmharness-session-create",
       method: "session.create",
       payload: { cwd: process.cwd() },
     }),
@@ -179,8 +194,9 @@ try {
     plugin: pluginEntry,
     sessionCount: sessions.items.length,
     createdSessionId: created.sessionId,
+    codingSettings,
     ...toolCatalog === undefined ? {} : { toolCatalog },
-    logs: logs.split("\n").filter((line) => line.includes("dsh web:") || line.includes("mtm-coding")).slice(-10),
+    logs: logs.split("\n").filter((line) => line.includes("dsh web:") || line.includes("mtmharness")).slice(-10),
   }));
 } finally {
   await stopWeb();

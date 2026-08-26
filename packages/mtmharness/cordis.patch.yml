@@ -1,4 +1,6 @@
-# Installable profile layer for the mtmharness Host/Client plugin.
+# Installable profile layer for the unified mtmharness Host/Client plugin.
 - insert:
     - id: mtmharness
       name: mtmharness
+      config:
+        serverName: codebase_memory
