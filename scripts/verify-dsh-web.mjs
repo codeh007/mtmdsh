@@ -12,7 +12,7 @@ if (!tarballArg) fail("usage: node scripts/verify-dsh-web.mjs <package-tarball>"
 const tarball = resolve(tarballArg);
 
 const dsh = process.env.DSH_BIN ?? "dsh";
-const home = mkdtempSync(join(tmpdir(), "mtm-codebase-memory-dsh-"));
+const home = mkdtempSync(join(tmpdir(), "mtm-coding-dsh-"));
 const port = Number(process.env.DSH_SMOKE_PORT ?? 0) || 3197;
 const env = { ...process.env, DSH_HOME: home };
 let child;
@@ -64,7 +64,7 @@ async function readInventory() {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       type: "client-request",
-      rpcId: "mtm-codebase-memory-inventory",
+      rpcId: "mtm-coding-inventory",
       method: "pluginInventory/list",
       payload: { args: {} },
     }),
@@ -72,13 +72,13 @@ async function readInventory() {
   return parseJsonResponse(await response.text(), "plugin inventory");
 }
 
-async function waitForCbm() {
+async function waitForPlugin() {
   const deadline = Date.now() + 180_000;
   let lastEntry;
   while (Date.now() < deadline) {
     try {
       const inventory = await readInventory();
-      lastEntry = inventory.entries.find((entry) => entry.moduleName === "mtm-codebase-memory");
+      lastEntry = inventory.entries.find((entry) => entry.moduleName === "mtm-coding");
       if (lastEntry?.fiberPhase === "active") return lastEntry;
       if (lastEntry?.fiberPhase === "failed") throw new Error("CBM plugin failed in the Web host");
     } catch (error) {
@@ -103,12 +103,12 @@ async function verifyToolCatalog(sessionId) {
     sessionId,
     mode: "queue",
     content: [{ type: "text", text: "Tool catalog smoke test. Reply READY without calling any tool." }],
-  }, "mtm-codebase-memory-tool-catalog-prompt");
+  }, "mtm-coding-tool-catalog-prompt");
   const deadline = Date.now() + 120_000;
   let lastNames = [];
   while (Date.now() < deadline) {
     try {
-      const history = await rpc("/api/session.history", "session.history", { sessionId, maxMessages: 100 }, "mtm-codebase-memory-tool-catalog-history");
+      const history = await rpc("/api/session.history", "session.history", { sessionId, maxMessages: 100 }, "mtm-coding-tool-catalog-history");
       const header = history.events
         .map((entry) => entry.event)
         .find((event) => event.type === "request/header")?.data?.header;
@@ -132,7 +132,7 @@ async function verifyToolCatalog(sessionId) {
 try {
   run(["plugin", "--profile", "web", "add", tarball]);
   const dump = run(["--profile", "web", "--dump-config"]);
-  if (!dump.includes("name: mtm-codebase-memory")) fail("profile dump did not include the CBM plugin row");
+  if (!dump.includes("name: mtm-coding")) fail("profile dump did not include the CBM plugin row");
 
   child = spawn(dsh, ["web", "--no-open", "--port", String(port)], {
     cwd: process.cwd(),
@@ -143,14 +143,14 @@ try {
   child.stdout?.on("data", (chunk) => { logs += String(chunk); });
   child.stderr?.on("data", (chunk) => { logs += String(chunk); });
   await waitForWeb();
-  const cbmEntry = await waitForCbm();
+  const pluginEntry = await waitForPlugin();
 
   const listResponse = await fetch("http://127.0.0.1:" + port + "/api/session.list", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       type: "client-request",
-      rpcId: "mtm-codebase-memory-session-list",
+      rpcId: "mtm-coding-session-list",
       method: "session.list",
       payload: {},
     }),
@@ -163,7 +163,7 @@ try {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       type: "client-request",
-      rpcId: "mtm-codebase-memory-session-create",
+      rpcId: "mtm-coding-session-create",
       method: "session.create",
       payload: { cwd: process.cwd() },
     }),
@@ -176,11 +176,11 @@ try {
 
   console.log(JSON.stringify({
     profile: home,
-    plugin: cbmEntry,
+    plugin: pluginEntry,
     sessionCount: sessions.items.length,
     createdSessionId: created.sessionId,
     ...toolCatalog === undefined ? {} : { toolCatalog },
-    logs: logs.split("\n").filter((line) => line.includes("dsh web:") || line.includes("mtm-codebase-memory")).slice(-10),
+    logs: logs.split("\n").filter((line) => line.includes("dsh web:") || line.includes("mtm-coding")).slice(-10),
   }));
 } finally {
   await stopWeb();

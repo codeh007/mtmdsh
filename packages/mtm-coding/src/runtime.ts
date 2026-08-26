@@ -58,11 +58,11 @@ export function resolveBundledCommand(
   try {
     packageJson = resolveModule("npm/package.json");
   } catch (error) {
-    throw new Error("mtm-codebase-memory: package-owned npm CLI is unavailable", { cause: error });
+    throw new Error("mtm-coding: package-owned npm CLI is unavailable", { cause: error });
   }
   const npxCli = join(dirname(packageJson), "bin", "npx-cli.js");
   if (!existsSync(npxCli)) {
-    throw new Error("mtm-codebase-memory: package-owned npx CLI is missing at " + npxCli);
+    throw new Error("mtm-coding: package-owned npx CLI is missing at " + npxCli);
   }
   return {
     command: process.execPath,
@@ -123,7 +123,7 @@ async function runCollected(
   let timedOut = false;
   const timer = setTimeout(() => {
     timedOut = true;
-    timeoutController.abort(new Error("mtm-codebase-memory subprocess timed out"));
+    timeoutController.abort(new Error("mtm-coding subprocess timed out"));
   }, timeoutMs);
   timer.unref?.();
 
@@ -200,7 +200,7 @@ export async function ensureRuntime(
     : undefined;
   if (native === undefined) {
     const detail = result.stderr.trim() || result.stdout.trim() || "no diagnostic output";
-    throw new Error("mtm-codebase-memory: native runtime check failed: " + detail);
+    throw new Error("mtm-coding: native runtime check failed: " + detail);
   }
   return { command: native, args: [...runtimeArgs], bundled: true };
 }

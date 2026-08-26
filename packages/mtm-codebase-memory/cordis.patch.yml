@@ -1,7 +1,0 @@
-# Opt-in profile bundle for the source-loadable CBM Cordis plugin.
-# The plugin owns provisioning, prompts, hooks, and the MCP client lifecycle.
-- insert:
-    - id: mtm-codebase-memory
-      name: 'mtm-codebase-memory'
-      config:
-        serverName: codebase_memory

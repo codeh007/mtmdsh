@@ -14,9 +14,9 @@ import {
   resolveWorkingDirectory,
   runHookAugment,
   type CommandSpec,
-} from "./runtime.js";
+} from "../runtime.js";
 
-export const name = "mtm-codebase-memory";
+export const name = "mtm-coding-codebase-memory";
 export const inject = ["systemPrompt", "subprocess"];
 
 const SERVER_NAME_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
@@ -90,16 +90,16 @@ export interface ResolvedConfig {
 export function resolveConfig(config: Config = {}): ResolvedConfig {
   const serverName = config.serverName ?? DEFAULT_SERVER_NAME;
   if (!SERVER_NAME_PATTERN.test(serverName)) {
-    throw new Error("mtm-codebase-memory: invalid serverName " + JSON.stringify(serverName));
+    throw new Error("mtm-coding: invalid serverName " + JSON.stringify(serverName));
   }
   const args = config.args ?? [];
   if (!Array.isArray(args) || args.some((value) => typeof value !== "string")) {
-    throw new Error("mtm-codebase-memory: args must be an array of strings");
+    throw new Error("mtm-coding: args must be an array of strings");
   }
   const env = config.env ?? {};
   if (typeof env !== "object" || env === null || Array.isArray(env)
     || Object.entries(env).some(([key, value]) => key.length === 0 || typeof value !== "string")) {
-    throw new Error("mtm-codebase-memory: env must be a string map");
+    throw new Error("mtm-coding: env must be a string map");
   }
   const timeout = (
     label: string,
@@ -109,7 +109,7 @@ export function resolveConfig(config: Config = {}): ResolvedConfig {
   ): number => {
     const resolved = value ?? fallback;
     if (!Number.isInteger(resolved) || resolved < 1 || resolved > maximum) {
-      throw new Error("mtm-codebase-memory: " + label + " must be an integer from 1 to " + maximum);
+      throw new Error("mtm-coding: " + label + " must be an integer from 1 to " + maximum);
     }
     return resolved;
   };
@@ -288,7 +288,7 @@ export async function apply(ctx: Context, rawConfig: Config = {}): Promise<void>
 
   await ctx.plugin(McpClient, buildMcpConfig(config, command, env));
   ctx.systemPrompt.section({
-    name: "mtm-codebase-memory:guidance",
+    name: "mtm-coding:guidance",
     order: 110,
     text: graphPrompt(config.serverName),
   });
@@ -297,14 +297,14 @@ export async function apply(ctx: Context, rawConfig: Config = {}): Promise<void>
   const lifecycleStates = new WeakMap<Agent, LifecycleState>();
   const pendingToolHooks = new Map<ToolExecutionToken, Promise<string | undefined>>();
   ctx.effect(() => () => {
-    lifecycleAbort.abort(new Error("mtm-codebase-memory disposed"));
+    lifecycleAbort.abort(new Error("mtm-coding disposed"));
     pendingToolHooks.clear();
-  }, "mtm-codebase-memory.lifecycle");
+  }, "mtm-coding.lifecycle");
 
   const startHook = (event: HookEvent, signal?: AbortSignal): Promise<string | undefined> =>
     runHookAugment(ctx, command, event.cwd, hookEnv, event.payload, config.hookTimeoutMs, signal)
       .catch((error: unknown) => {
-        ctx.logger.debug("mtm-codebase-memory hook augmentation skipped: " + String(error));
+        ctx.logger.debug("mtm-coding hook augmentation skipped: " + String(error));
         return undefined;
       });
 
@@ -331,8 +331,9 @@ export async function apply(ctx: Context, rawConfig: Config = {}): Promise<void>
       return decision;
     }
     let lastClaimed = -1;
+    const claimed = new Set(messages);
     for (let index = 0; index < decision.messages.length; index++) {
-      if (messages.includes(decision.messages[index]!)) lastClaimed = index;
+      if (claimed.has(decision.messages[index]!)) lastClaimed = index;
     }
     const insertAt = lastClaimed < 0 ? 0 : lastClaimed + 1;
     const entered = decision.messages.slice();
