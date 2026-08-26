@@ -1,7 +1,7 @@
 import { useState, type CSSProperties } from "react";
 import type { InjectFace, PropsLocale, PropsRuntime } from "@deepseek-ai/dsh-client-ui-slots";
 import type { MtmCodingCardFace, MtmCodingCardState } from "./controller.js";
-import { MODE_VALUES } from "./controller.js";
+import { MODE_VALUES, RTK_MODE_VALUES } from "./controller.js";
 import type { MtmCodingLocaleKey } from "./locales.js";
 import type {} from "@deepseek-ai/dsh-client-ui-settings-plugins/client";
 
@@ -72,6 +72,24 @@ function BooleanField(props: {
   );
 }
 
+function TextField(props: {
+  t: (key: MtmCodingLocaleKey) => string;
+  label: MtmCodingLocaleKey;
+  hint: MtmCodingLocaleKey;
+  field: { text: string; overridden: boolean };
+  disabled: boolean;
+  onChange: (value: string) => void;
+  onReset: () => void;
+}) {
+  return (
+    <div style={fieldStyle}>
+      {fieldLabel(props.t, props.label, props.field, props.onReset, props.disabled)}
+      <input type="text" value={props.field.text} disabled={props.disabled} onChange={(event) => { props.onChange(event.target.value); }} />
+      <p style={hintStyle}>{props.t(props.hint)}</p>
+    </div>
+  );
+}
+
 export function MtmCodingCard(props: MtmCodingCardProps) {
   const t = props.t;
   const state = props.useMtmCodingCard((snapshot: MtmCodingCardState) => snapshot);
@@ -79,6 +97,7 @@ export function MtmCodingCard(props: MtmCodingCardProps) {
   if (!state.available) return null;
   const disabled = !state.writable;
   const mode = state.fields.ponytailMode;
+  const rtkMode = state.fields.rtkMode;
   return (
     <li style={cardStyle}>
       <button type="button" style={headerStyle} aria-expanded={open} aria-label={t(open ? "hide" : "show")} onClick={() => { setOpen(value => !value); }}>
@@ -102,6 +121,15 @@ export function MtmCodingCard(props: MtmCodingCardProps) {
             <p style={hintStyle}>{t("ponytailModeHint")}</p>
           </div>
           <BooleanField t={t} label="ponytailSubagents" hint="ponytailSubagentsHint" field={state.fields.ponytailSubagents} disabled={disabled} onChange={(value) => { props.edit("ponytailSubagents", String(value)); }} onReset={() => { props.resetField("ponytailSubagents"); }} />
+          <div style={fieldStyle}>
+            {fieldLabel(t, "rtkMode", rtkMode, () => { props.resetField("rtkMode"); }, disabled)}
+            <select aria-label={t("rtkMode")} value={rtkMode.text} disabled={disabled} onChange={(event) => { props.edit("rtkMode", event.target.value); }}>
+              {RTK_MODE_VALUES.map(value => <option key={value} value={value}>{t(("rtkMode" + value[0].toUpperCase() + value.slice(1)) as MtmCodingLocaleKey)}</option>)}
+            </select>
+            <p style={hintStyle}>{t("rtkModeHint")}</p>
+          </div>
+          <BooleanField t={t} label="rtkAutoInstall" hint="rtkAutoInstallHint" field={state.fields.rtkAutoInstall} disabled={disabled} onChange={(value) => { props.edit("rtkAutoInstall", String(value)); }} onReset={() => { props.resetField("rtkAutoInstall"); }} />
+          <TextField t={t} label="rtkCommand" hint="rtkCommandHint" field={state.fields.rtkCommand} disabled={disabled} onChange={(value) => { props.edit("rtkCommand", value); }} onReset={() => { props.resetField("rtkCommand"); }} />
           <div style={actionStyle}>
             {state.failed ? <span role="status" style={{ color: "#b42318", marginRight: "auto" }}>{t("saveFailed")}</span> : null}
             {state.dirty ? <span style={{ marginRight: "auto", opacity: 0.68 }}>{t("unsaved")}</span> : null}

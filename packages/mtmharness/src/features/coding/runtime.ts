@@ -41,7 +41,7 @@ export interface CommandSpec {
   readonly bundled: boolean;
 }
 
-interface CollectedRun {
+export interface CollectedRun {
   readonly outcome: SubprocessOutcome;
   readonly stdout: string;
   readonly stderr: string;
@@ -84,8 +84,8 @@ export function resolveCommand(
 }
 
 /** Normalize an empty or relative working directory to one absolute path. */
-export function resolveWorkingDirectory(cwd: string | undefined): string {
-  return resolve(cwd?.trim() || process.cwd());
+export function resolveWorkingDirectory(cwd: string | undefined, base = process.cwd()): string {
+  return resolve(base, cwd?.trim() || ".");
 }
 
 /** Build explicit CBM environment values while leaving DSH's ambient scrub intact. */
@@ -110,7 +110,7 @@ function combinedSignal(parent: AbortSignal | undefined, timeout: AbortSignal): 
 }
 
 /** Run one bounded, non-shell child through the DSH subprocess seam. */
-async function runCollected(
+export async function runCollected(
   ctx: Context,
   argv: readonly string[],
   cwd: string,
