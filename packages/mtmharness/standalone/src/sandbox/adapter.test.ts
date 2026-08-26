@@ -39,7 +39,7 @@ describe("SandboxApiClient", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(new SandboxApiClient("https://api.example.test").selectSandbox(sandbox.id)).resolves.toEqual(sandbox);
+    await expect(new SandboxApiClient("https://api.example.test", "test-token").selectSandbox(sandbox.id)).resolves.toEqual(sandbox);
   });
 
   it("rejects malformed records and preserves server error codes", async () => {
@@ -49,7 +49,7 @@ describe("SandboxApiClient", () => {
         Response.json({ contractVersion: 1, sandboxes: [{ id: "bad" }], defaultSandbox: null, mountPolicy: [] }),
       ),
     );
-    await expect(new SandboxApiClient("https://api.example.test").listSandboxes()).rejects.toBeInstanceOf(
+    await expect(new SandboxApiClient("https://api.example.test", "test-token").listSandboxes()).rejects.toBeInstanceOf(
       SandboxApiError,
     );
 
@@ -64,7 +64,7 @@ describe("SandboxApiClient", () => {
         }),
       ),
     );
-    await expect(new SandboxApiClient("https://api.example.test").listSandboxes()).rejects.toMatchObject({
+    await expect(new SandboxApiClient("https://api.example.test", "test-token").listSandboxes()).rejects.toMatchObject({
       code: "sandbox_invalid_response",
     });
 
@@ -79,7 +79,7 @@ describe("SandboxApiClient", () => {
         }),
       ),
     );
-    await expect(new SandboxApiClient("https://api.example.test").listSandboxes()).rejects.toMatchObject({
+    await expect(new SandboxApiClient("https://api.example.test", "test-token").listSandboxes()).rejects.toMatchObject({
       code: "sandbox_invalid_response",
     });
 
@@ -93,7 +93,7 @@ describe("SandboxApiClient", () => {
           ),
       ),
     );
-    await expect(new SandboxApiClient("https://api.example.test").selectSandbox(sandbox.id)).rejects.toMatchObject({
+    await expect(new SandboxApiClient("https://api.example.test", "test-token").selectSandbox(sandbox.id)).rejects.toMatchObject({
       code: "sandbox_not_found",
       status: 404,
     });

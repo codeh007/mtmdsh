@@ -52,13 +52,25 @@ export interface SandboxClient {
   selectSandbox(sandboxId: string, signal?: AbortSignal): Promise<SandboxRecord>;
 }
 
+export interface SandboxApiClientOptions {
+  tokenProvider?: () => string | undefined | Promise<string | undefined>;
+  onAuthFailure?: () => void;
+}
+
 export class SandboxApiClient implements SandboxClient {
   private readonly apiOrigin: string;
-  private readonly accessToken: string | undefined;
+  private readonly tokenProvider: () => string | undefined | Promise<string | undefined>;
+  private readonly onAuthFailure: (() => void) | undefined;
 
-  constructor(apiOrigin: string, accessToken?: string) {
+  constructor(apiOrigin: string, options: SandboxApiClientOptions | string = {}) {
     this.apiOrigin = new URL(apiOrigin).origin;
-    this.accessToken = accessToken;
+    if (typeof options === "string") {
+      this.tokenProvider = () => options;
+      this.onAuthFailure = undefined;
+    } else {
+      this.tokenProvider = options.tokenProvider ?? (() => undefined);
+      this.onAuthFailure = options.onAuthFailure;
+    }
   }
 
   listSandboxes(signal?: AbortSignal): Promise<SandboxCatalog> {
@@ -87,8 +99,8 @@ export class SandboxApiClient implements SandboxClient {
     parser: (value: unknown) => T,
     signal?: AbortSignal,
   ): Promise<T> {
-    const headers: Record<string, string> = {};
-    if (this.accessToken !== undefined) headers.authorization = "Bearer " + this.accessToken;
+    const token = await this.readAccessToken();
+    const headers: Record<string, string> = { authorization: "Bearer " + token };
     let body: string | undefined;
     if (init?.body !== undefined) {
       headers["content-type"] = "application/json";
@@ -109,9 +121,10 @@ export class SandboxApiClient implements SandboxClient {
     const value = await response.json().catch(() => undefined);
     if (!response.ok) {
       const error = isRecord(value) && isRecord(value.error) ? value.error : {};
+      if (response.status === 401) this.onAuthFailure?.();
       throw new SandboxApiError(
         typeof error.message === "string" ? error.message : "The sandbox request failed",
-        typeof error.code === "string" ? error.code : "sandbox_request_failed",
+        typeof error.code === "string" ? error.code : response.status === 401 ? "auth_required" : "sandbox_request_failed",
         response.status,
         error.details,
       );
@@ -127,6 +140,15 @@ export class SandboxApiClient implements SandboxClient {
         error,
       );
     }
+  }
+
+  private async readAccessToken(): Promise<string> {
+    let token: string | undefined;
+    try { token = await this.tokenProvider(); } catch { throw new SandboxApiError("Authentication is required", "auth_required", 401); }
+    if (token === undefined || token.length === 0 || token.length > 16_384 || /[\u0000-\u001f\u007f]/u.test(token)) {
+      throw new SandboxApiError("Authentication is required", "auth_required", 401);
+    }
+    return token;
   }
 }
 

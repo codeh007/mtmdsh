@@ -4,12 +4,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import type { MtmHarnessAuthClient } from "@/app/auth";
+import { AuthControls } from "@/app/auth-controls";
 import type { MtmSessionSummary } from "@/dsh/adapter";
 import { MtmHarnessRuntime, type RuntimeSnapshot } from "@/runtime";
 
 export interface FullShellFrameProps {
   children: ReactNode;
   runtime: MtmHarnessRuntime;
+  auth?: MtmHarnessAuthClient;
 }
 
 function useRuntimeSnapshot(runtime: MtmHarnessRuntime): RuntimeSnapshot {
@@ -271,7 +274,7 @@ function DetailsPanel({ snapshot }: { snapshot: RuntimeSnapshot }): ReactElement
   );
 }
 
-export function FullShellFrame({ children, runtime }: FullShellFrameProps): ReactElement {
+export function FullShellFrame({ children, runtime, auth }: FullShellFrameProps): ReactElement {
   const snapshot = useRuntimeSnapshot(runtime);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -286,7 +289,7 @@ export function FullShellFrame({ children, runtime }: FullShellFrameProps): Reac
       <main className="flex min-w-0 flex-1 flex-col">
         <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-3 border-border border-b px-3 py-2 md:px-5">
           <div className="flex min-w-0 items-center gap-2"><Button type="button" variant="ghost" size="icon-sm" className="md:hidden" title="Open sidebar" aria-label="Open sidebar" onClick={() => setMobileOpen(true)}><Menu /></Button><LayoutDashboard aria-hidden="true" className="hidden size-4 text-muted-foreground sm:block" /><span className="truncate font-medium text-sm">DSH workspace</span></div>
-          <div className="flex w-full min-w-0 items-end gap-2 sm:w-auto sm:shrink-0"><SandboxControl runtime={runtime} snapshot={snapshot} /><AdapterBadge /><Badge variant={statusVariant(snapshot)}>{statusLabel(snapshot)}</Badge></div>
+          <div className="flex w-full min-w-0 items-end gap-2 sm:w-auto sm:shrink-0"><SandboxControl runtime={runtime} snapshot={snapshot} /><AdapterBadge /><Badge variant={statusVariant(snapshot)}>{statusLabel(snapshot)}</Badge><AuthControls auth={auth} /></div>
         </header>
         <div className="relative flex min-h-0 flex-1">
           <section data-slot="conversation" className="flex min-w-0 flex-1 flex-col"><SessionHeader key={snapshot.selectedSessionId ?? "none"} runtime={runtime} snapshot={snapshot} /><div data-slot="conversation.view" className="min-h-0 flex-1 overflow-hidden"><div data-slot="conversation.composer" className="h-full min-h-0">{children}</div></div></section>
