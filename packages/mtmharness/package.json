@@ -50,7 +50,7 @@
     "dev": "vite --config vite.standalone.config.ts",
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit && tsc --project tsconfig.standalone.json --noEmit",
-    "test": "pnpm run build && vitest run --config vitest.config.ts && node --test test/*.test.mjs",
+    "test": "pnpm run build && vitest run --config vitest.config.ts && node --test tests/*.test.mjs",
     "verify:package": "node scripts/verify-package.mjs",
     "check": "pnpm run typecheck && pnpm run test && pnpm run verify:package",
     "pack:check": "node scripts/pack-check.mjs",
