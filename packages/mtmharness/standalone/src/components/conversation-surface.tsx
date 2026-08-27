@@ -17,8 +17,8 @@ function statusLabel(snapshot: RuntimeSnapshot): string {
 }
 
 function statusVariant(snapshot: RuntimeSnapshot): "default" | "secondary" | "destructive" | "outline" {
-  if (snapshot.status === "error" || snapshot.status === "auth-required") return "destructive";
-  if (snapshot.status === "loading" || snapshot.status === "streaming") return "secondary";
+  if (snapshot.status === "error") return "destructive";
+  if (snapshot.status === "loading" || snapshot.status === "streaming" || snapshot.status === "auth-required") return "secondary";
   return "outline";
 }
 
@@ -94,8 +94,8 @@ export function ConversationSurface({ config, runtime, compact = false, connectO
         </>
       ) : null}
       {snapshot.status === "auth-required" ? (
-        <div className="mx-4 mt-4 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm" role="alert">
-          An OAuth access token is required. Configure the token-aware API and WebSocket transport before connecting.
+        <div className="mx-4 mt-4 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm" role="status">
+          Sign in above or continue anonymously on the sign-in page to start a conversation.
         </div>
       ) : null}
       {snapshot.status === "error" ? (
