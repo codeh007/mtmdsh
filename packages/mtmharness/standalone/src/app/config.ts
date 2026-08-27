@@ -3,6 +3,35 @@ import { MemoryTokenSource, OAuthClient, type MtmHarnessTokenSource, type OAuthC
 export type MtmHarnessClientMode = "floating" | "dialog" | "fullscreen";
 export type ClientPresentation = "standalone" | "embed";
 export type MtmHarnessWebSocketFactory = (url: URL, protocols: readonly string[]) => WebSocket | Promise<WebSocket>;
+export type MtmHarnessPresentationState = "closed" | "panel" | "fullscreen";
+
+export interface MtmHarnessPresentationController {
+  snapshot(): MtmHarnessPresentationState;
+  subscribe(listener: () => void): () => void;
+  open(): void;
+  close(): void;
+  openFullShell(): void;
+}
+
+export function createPresentationController(mode: MtmHarnessClientMode): MtmHarnessPresentationController {
+  let state: MtmHarnessPresentationState = mode === "fullscreen" ? "fullscreen" : "closed";
+  const listeners = new Set<() => void>();
+  const publish = (next: MtmHarnessPresentationState): void => {
+    if (state === next) return;
+    state = next;
+    for (const listener of listeners) listener();
+  };
+  return {
+    snapshot: () => state,
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => { listeners.delete(listener); };
+    },
+    open: () => publish(mode === "fullscreen" ? "fullscreen" : "panel"),
+    close: () => publish("closed"),
+    openFullShell: () => publish("fullscreen"),
+  };
+}
 
 export interface MtmHarnessRuntimeBootstrap {
   apiOrigin?: string;
@@ -44,6 +73,9 @@ export interface NormalizedClientConfig {
 
 export interface MtmHarnessClientHandle {
   unmount(): void;
+  open(): void;
+  close(): void;
+  openFullShell(): void;
 }
 
 const MODES: readonly MtmHarnessClientMode[] = ["floating", "dialog", "fullscreen"];

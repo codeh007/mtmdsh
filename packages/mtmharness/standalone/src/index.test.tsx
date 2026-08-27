@@ -30,6 +30,33 @@ describe("mtmharness embed runtime", () => {
     expect(target.querySelector("[data-mtmharness]")).toBeNull();
   });
 
+  it("opens the same runtime FullShell without remounting", async () => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    let handle: ReturnType<typeof mount> | undefined;
+    await act(async () => {
+      handle = mount({ target, apiOrigin: "https://api.example.test", accessToken: "token" });
+    });
+
+    await act(async () => {
+      handle?.open();
+    });
+    const shadowRoot = target.querySelector("[data-mtmharness]")?.shadowRoot;
+    expect(shadowRoot?.querySelector("section[aria-label=\"MTM Harness conversation\"]")).not.toBeNull();
+
+    await act(async () => {
+      handle?.openFullShell();
+    });
+    expect(shadowRoot?.querySelector("[data-shell-profile=\"full\"]")).not.toBeNull();
+    expect(shadowRoot?.querySelector("button[aria-label=\"Close full workspace\"]")).not.toBeNull();
+
+    await act(async () => {
+      (shadowRoot?.querySelector("button[aria-label=\"Close full workspace\"]") as HTMLButtonElement).click();
+    });
+    expect(shadowRoot?.querySelector("button[aria-label=\"Open MTM Harness conversation\"]")).not.toBeNull();
+    await act(async () => { handle?.unmount(); });
+  });
+
   it("keeps multiple mounts and host history independent", async () => {
     const first = document.createElement("div");
     const second = document.createElement("div");
@@ -79,6 +106,13 @@ describe("mtmharness embed runtime", () => {
     expect(script.dataset.mtmharnessMounted).toBe("true");
     expect(document.querySelector("[data-mtmharness]")).not.toBeNull();
     await act(async () => { handle?.unmount(); });
+  });
+
+  it("rejects partial OAuth data attributes instead of falling back to ambient config", () => {
+    const script = document.createElement("script");
+    script.dataset.apiOrigin = "https://api.example.test";
+    script.dataset.oauthIssuer = "https://auth.example.test";
+    expect(() => MtmHarnessClient.autoMount(script)).toThrow("OAuth data attributes must be provided together");
   });
 
   it("normalizes origins and keeps token configuration explicit", () => {

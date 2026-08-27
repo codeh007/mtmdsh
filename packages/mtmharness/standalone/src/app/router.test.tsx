@@ -1,6 +1,6 @@
 import { createBrowserHistory } from "@tanstack/react-router";
 import { afterEach, describe, expect, it } from "vitest";
-import { normalizeConfig, resolveStandaloneBasepath } from "@/app/config";
+import { createPresentationController, normalizeConfig, resolveStandaloneBasepath } from "@/app/config";
 import { MtmHarnessRuntime } from "@/runtime";
 import { createClientRouter } from "./router";
 
@@ -27,6 +27,7 @@ describe("client router history", () => {
       presentation: "standalone",
       basepath: "/mtmharness",
       history,
+      presentationController: createPresentationController(config.mode),
     });
 
     await router.navigate({ to: "/" });
@@ -49,6 +50,7 @@ describe("client router history", () => {
       presentation: "standalone",
       basepath: "/mtmharness",
       history,
+      presentationController: createPresentationController(config.mode),
     });
 
     await router.load();
@@ -62,7 +64,7 @@ describe("client router history", () => {
   it("keeps embed navigation in memory history", async () => {
     window.history.replaceState({}, "", "/host/page");
     const runtime = new MtmHarnessRuntime(config.apiOrigin);
-    const router = createClientRouter({ config, runtime, presentation: "embed" });
+    const router = createClientRouter({ config, runtime, presentation: "embed", presentationController: createPresentationController(config.mode) });
 
     await router.navigate({ to: "/workspace" });
     expect(router.history.location.pathname).toBe("/workspace");

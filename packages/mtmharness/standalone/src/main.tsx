@@ -1,7 +1,7 @@
 import { createBrowserHistory, RouterProvider } from "@tanstack/react-router";
 import { createRoot } from "react-dom/client";
 import { createClientRouter } from "@/app/router";
-import { createTokenSource, normalizeConfig, resolveStandaloneBasepath } from "@/app/config";
+import { createPresentationController, createTokenSource, normalizeConfig, resolveStandaloneBasepath } from "@/app/config";
 import type { MtmHarnessAuthClient } from "@/app/auth";
 import { DEFAULT_ALLOWED_PARENT_ORIGINS, installHostBridge } from "@/app/host-bridge";
 import { MtmHarnessRuntime } from "@/runtime";
@@ -26,6 +26,7 @@ const runtime = new MtmHarnessRuntime(config.apiOrigin, {
   tokenSource,
   webSocketFactory: config.webSocketFactory,
 });
+const presentationController = createPresentationController(config.mode);
 const bridge = installHostBridge({ allowedParentOrigins: config.allowedParentOrigins });
 if (auth !== undefined) {
   void auth.consumeCallback().then((consumed) => consumed ? runtime.refreshRegistry().catch(() => undefined) : undefined).catch(() => undefined);
@@ -38,6 +39,7 @@ const router = createClientRouter({
   basepath,
   history: createBrowserHistory(),
   auth,
+  presentationController,
 });
 const root = createRoot(container);
 let disposed = false;

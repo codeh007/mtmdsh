@@ -1,9 +1,8 @@
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, type AnyRouter, type RouterHistory } from "@tanstack/react-router";
-import type { ClientPresentation, NormalizedClientConfig } from "@/app/config";
+import type { ClientPresentation, MtmHarnessPresentationController, NormalizedClientConfig } from "@/app/config";
 import type { MtmHarnessAuthClient } from "@/app/auth";
 import { ConversationRoute } from "@/app/conversation-route";
 import { WorkspaceOverview } from "@/components/full-shell";
-import { EmbeddedFullShell } from "@/app/embedded-full-shell";
 import { EmbeddedShell } from "@/app/embedded-shell";
 import { StandaloneShell } from "@/app/standalone-shell";
 import type { MtmHarnessRuntime } from "@/runtime";
@@ -15,20 +14,19 @@ export interface ClientRouterOptions {
   basepath?: string;
   history?: RouterHistory;
   auth?: MtmHarnessAuthClient;
+  presentationController: MtmHarnessPresentationController;
 }
 
-export function createClientRouter({ config, runtime, presentation, basepath, history, auth }: ClientRouterOptions): AnyRouter {
+export function createClientRouter({ config, runtime, presentation, basepath, history, auth, presentationController }: ClientRouterOptions): AnyRouter {
   const rootRoute = createRootRoute({
     component: presentation === "standalone"
       ? () => <StandaloneShell runtime={runtime} auth={auth} />
-      : config.mode === "fullscreen"
-        ? () => <EmbeddedFullShell runtime={runtime} auth={auth} />
-        : () => <EmbeddedShell config={config} auth={auth} />,
+      : () => <EmbeddedShell config={config} runtime={runtime} auth={auth} presentationController={presentationController} />,
   });
   const conversationRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/",
-    component: () => <ConversationRoute config={config} runtime={runtime} presentation={presentation} />,
+    component: () => <ConversationRoute config={config} runtime={runtime} presentation={presentation} presentationController={presentationController} />,
   });
   const workspaceRoute = createRoute({
     getParentRoute: () => rootRoute,
