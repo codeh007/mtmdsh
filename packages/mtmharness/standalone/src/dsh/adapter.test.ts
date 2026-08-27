@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DshApiClient, DshApiError } from "./adapter";
 
+const TICKET = "t".repeat(43);
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -70,13 +72,13 @@ describe("DshApiClient", () => {
       expect(init?.credentials).toBe("omit");
       expect(new Headers(init?.headers).get("authorization")).toBe("Bearer access-token");
       expect(JSON.parse(String(init?.body))).toEqual({ sandboxId: "sbx_1", channel: "mux", sessionId: "session-1" });
-      return Response.json({ ok: true, ticket: "opaque-ticket-123", expiresAt: Date.now() + 30_000, contractVersion: 1 });
+      return Response.json({ ok: true, ticket: TICKET, expiresAt: Date.now() + 30_000, contractVersion: 1 });
     });
     vi.stubGlobal("fetch", fetchMock);
     const factory = vi.fn(async (url: URL, protocols: readonly string[]) => {
       expect(url.toString()).toBe("wss://api.example.test/api/dsh/events.mux");
       expect(url.search).toBe("");
-      expect(protocols).toEqual(["dsh.v1", "dsh-ticket.opaque-ticket-123"]);
+      expect(protocols).toEqual(["dsh.v1", `dsh-ticket.${TICKET}`]);
       return {} as WebSocket;
     });
 
@@ -88,10 +90,10 @@ describe("DshApiClient", () => {
 
   it("uses the DSH host alias for host-channel tickets", async () => {
     const now = Date.now();
-    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ok: true, ticket: "opaque-ticket-123", expiresAt: now + 30_000, contractVersion: 1 })));
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ok: true, ticket: TICKET, expiresAt: now + 30_000, contractVersion: 1 })));
     const factory = vi.fn(async (url: URL, protocols: readonly string[]) => {
       expect(url.toString()).toBe("wss://api.example.test/api/dsh/events.host");
-      expect(protocols).toEqual(["dsh.v1", "dsh-ticket.opaque-ticket-123"]);
+      expect(protocols).toEqual(["dsh.v1", `dsh-ticket.${TICKET}`]);
       return {} as WebSocket;
     });
 
@@ -107,13 +109,13 @@ describe("DshApiClient", () => {
     { contractVersion: 2, code: "contract" },
     { ticket: "bad ticket", code: "ticket" },
   ])("rejects invalid ticket response ($code)", async ({ expiresAt, contractVersion, ticket }) => {
-    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ok: true, ticket: ticket ?? "opaque-ticket-123", expiresAt: expiresAt ?? Date.now() + 30_000, contractVersion: contractVersion ?? 1 })));
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ok: true, ticket: ticket ?? TICKET, expiresAt: expiresAt ?? Date.now() + 30_000, contractVersion: contractVersion ?? 1 })));
     await expect(new DshApiClient("https://api.example.test", "access-token").requestWebSocketTicket({ sandboxId: "sbx_1", channel: "host" })).rejects.toBeInstanceOf(DshApiError);
   });
 
   it("rejects tickets beyond the 60-second contract TTL", async () => {
     const now = Date.now();
-    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ok: true, ticket: "opaque-ticket-123", expiresAt: now + 60_001, contractVersion: 1 })));
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ok: true, ticket: TICKET, expiresAt: now + 60_001, contractVersion: 1 })));
     const client = new DshApiClient("https://api.example.test", { tokenProvider: () => "access-token", now: () => now });
     await expect(client.requestWebSocketTicket({ sandboxId: "sbx_1", channel: "host" })).rejects.toMatchObject({ code: "ticket_expiry_invalid" });
   });
