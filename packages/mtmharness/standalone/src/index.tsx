@@ -12,6 +12,8 @@ export type {
   MtmHarnessClientConfig,
   MtmHarnessClientHandle,
   MtmHarnessClientMode,
+  MtmHarnessPresentationController,
+  MtmHarnessPresentationState,
   MtmHarnessRuntimeBootstrap,
   MtmHarnessWebSocketFactory,
   NormalizedClientConfig,

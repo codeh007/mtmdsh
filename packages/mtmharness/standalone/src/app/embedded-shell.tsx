@@ -1,22 +1,28 @@
 import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { LayoutDashboard, MessageSquare, X } from "lucide-react";
-import { useState, type ReactElement } from "react";
+import { LayoutDashboard, Maximize2, MessageSquare, X } from "lucide-react";
+import { useSyncExternalStore, type ReactElement } from "react";
 import { Button } from "@/components/ui/button";
-import type { NormalizedClientConfig } from "@/app/config";
+import type { MtmHarnessPresentationController, NormalizedClientConfig } from "@/app/config";
 import type { MtmHarnessAuthClient } from "@/app/auth";
 import { AuthControls } from "@/app/auth-controls";
+import { EmbeddedFullShell } from "@/app/embedded-full-shell";
+import type { MtmHarnessRuntime } from "@/runtime";
 
-export function EmbeddedShell({ config, auth }: { config: NormalizedClientConfig; auth?: MtmHarnessAuthClient }): ReactElement {
-  const [open, setOpen] = useState(false);
+export function EmbeddedShell({ config, runtime, auth, presentationController }: { config: NormalizedClientConfig; runtime: MtmHarnessRuntime; auth?: MtmHarnessAuthClient; presentationController: MtmHarnessPresentationController }): ReactElement {
+  const state = useSyncExternalStore(presentationController.subscribe, presentationController.snapshot, presentationController.snapshot);
   const matchRoute = useMatchRoute();
   const isWorkspace = Boolean(matchRoute({ to: "/workspace" }));
   const navigationLabel = isWorkspace ? "Open conversation" : "Open workspace";
   const NavigationIcon = isWorkspace ? MessageSquare : LayoutDashboard;
 
-  if (!open) {
+  if (state === "fullscreen") {
+    return <EmbeddedFullShell runtime={runtime} auth={auth} presentationController={presentationController} />;
+  }
+
+  if (state === "closed") {
     return (
       <div className="fixed right-4 bottom-4 z-[2147483647] sm:right-6 sm:bottom-6">
-        <Button type="button" size="icon-lg" className="rounded-full shadow-xl" onClick={() => setOpen(true)} aria-label="Open MTM Harness conversation" title="Open MTM Harness conversation">
+        <Button type="button" size="icon-lg" className="rounded-full shadow-xl" onClick={presentationController.open} aria-label="Open MTM Harness conversation" title="Open MTM Harness conversation">
           <MessageSquare />
         </Button>
       </div>
@@ -39,10 +45,13 @@ export function EmbeddedShell({ config, auth }: { config: NormalizedClientConfig
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <AuthControls auth={auth} />
+          <Button type="button" size="icon-sm" variant="ghost" aria-label="Open full workspace" title="Open full workspace" onClick={presentationController.openFullShell}>
+            <Maximize2 />
+          </Button>
           <Button type="button" size="icon-sm" variant="ghost" nativeButton={false} render={<Link to={isWorkspace ? "/" : "/workspace"} />} aria-label={navigationLabel} title={navigationLabel}>
             <NavigationIcon />
           </Button>
-          <Button type="button" size="icon-sm" variant="ghost" aria-label="Close conversation" title="Close conversation" onClick={() => setOpen(false)}>
+          <Button type="button" size="icon-sm" variant="ghost" aria-label="Close conversation" title="Close conversation" onClick={presentationController.close}>
             <X />
           </Button>
         </div>

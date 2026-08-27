@@ -13,6 +13,7 @@ export interface FullShellFrameProps {
   children: ReactNode;
   runtime: MtmHarnessRuntime;
   auth?: MtmHarnessAuthClient;
+  onClose?: () => void;
 }
 
 function useRuntimeSnapshot(runtime: MtmHarnessRuntime): RuntimeSnapshot {
@@ -274,7 +275,7 @@ function DetailsPanel({ snapshot }: { snapshot: RuntimeSnapshot }): ReactElement
   );
 }
 
-export function FullShellFrame({ children, runtime, auth }: FullShellFrameProps): ReactElement {
+export function FullShellFrame({ children, runtime, auth, onClose }: FullShellFrameProps): ReactElement {
   const snapshot = useRuntimeSnapshot(runtime);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -289,7 +290,7 @@ export function FullShellFrame({ children, runtime, auth }: FullShellFrameProps)
       <main className="flex min-w-0 flex-1 flex-col">
         <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-3 border-border border-b px-3 py-2 md:px-5">
           <div className="flex min-w-0 items-center gap-2"><Button type="button" variant="ghost" size="icon-sm" className="md:hidden" title="Open sidebar" aria-label="Open sidebar" onClick={() => setMobileOpen(true)}><Menu /></Button><LayoutDashboard aria-hidden="true" className="hidden size-4 text-muted-foreground sm:block" /><span className="truncate font-medium text-sm">DSH workspace</span></div>
-          <div className="flex w-full min-w-0 items-end gap-2 sm:w-auto sm:shrink-0"><SandboxControl runtime={runtime} snapshot={snapshot} /><AdapterBadge /><Badge variant={statusVariant(snapshot)}>{statusLabel(snapshot)}</Badge><AuthControls auth={auth} /></div>
+          <div className="flex w-full min-w-0 items-end gap-2 sm:w-auto sm:shrink-0"><SandboxControl runtime={runtime} snapshot={snapshot} /><AdapterBadge /><Badge variant={statusVariant(snapshot)}>{statusLabel(snapshot)}</Badge><AuthControls auth={auth} />{onClose ? <Button type="button" variant="ghost" size="icon-sm" onClick={onClose} title="Close full workspace" aria-label="Close full workspace"><X /></Button> : null}</div>
         </header>
         <div className="relative flex min-h-0 flex-1">
           <section data-slot="conversation" className="flex min-w-0 flex-1 flex-col"><SessionHeader key={snapshot.selectedSessionId ?? "none"} runtime={runtime} snapshot={snapshot} /><div data-slot="conversation.view" className="min-h-0 flex-1 overflow-hidden"><div data-slot="conversation.composer" className="h-full min-h-0">{children}</div></div></section>
