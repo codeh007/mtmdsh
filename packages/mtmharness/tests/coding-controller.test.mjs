@@ -81,7 +81,7 @@ function loadClient() {
   assert.ok(registration, "client artifact must register with the DSH loader");
 
   const external = new Map([
-    ["@deepseek-ai/dsh-client-runtime/client", { createSnapshotStore }],
+    ["@deepseek-ai/dsh-client-store", { createSnapshotStore }],
     ["@deepseek-ai/dsh-client-ui-primitives", {
       Button: () => null,
       Modal: () => null,

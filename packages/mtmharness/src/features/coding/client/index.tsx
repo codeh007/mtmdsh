@@ -1,4 +1,5 @@
-import type { ClientContext } from "@deepseek-ai/dsh-client-runtime/client";
+import type { Context } from "@deepseek-ai/cordis";
+import type {} from "@deepseek-ai/dsh-client-ui-renderer/client";
 import type {} from "@deepseek-ai/dsh-client-locale/client";
 import type {} from "@deepseek-ai/dsh-client-ui-settings/client";
 import type {} from "@deepseek-ai/dsh-client-ui-settings-plugins/client";
@@ -17,7 +18,7 @@ declare module "@deepseek-ai/dsh-client-ui-slots" {
 export const name = "mtm-coding-client";
 export const inject = ["slots", "locale", "settingsScope"];
 
-export function apply(ctx: ClientContext): void {
+export function apply(ctx: Context): void {
   const t = ctx.locale.bind("mtm.coding");
   ctx.effect(() => ctx.locale.register("mtm.coding", { en, zh }), "mtm-coding: locale");
   const controller = new MtmCodingCardController(ctx.settingsScope.bind({ namespace: SETTINGS_NAMESPACE }));

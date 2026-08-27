@@ -1,10 +1,10 @@
-import type { ClientContext } from "@deepseek-ai/dsh-client-runtime/client";
+import type { Context } from "@deepseek-ai/cordis";
 import type { ConnectionHandle } from "@deepseek-ai/dsh-client-connection/client";
 import { createMtmConnectTransport, MtmConnectClientRuntime } from "./runtime.ts";
 import { MTM_CONNECT_CSS } from "./styles.ts";
 
 /** Mount the browser connection runtime and its scoped styles. */
-export function apply(ctx: ClientContext): MtmConnectClientRuntime {
+export function apply(ctx: Context): MtmConnectClientRuntime {
   const connection = ctx.get("connection") as ConnectionHandle | undefined;
   if (connection === undefined) throw new Error("mtm-connect: DSH connection service is unavailable");
   const runtime = new MtmConnectClientRuntime({ transport: createMtmConnectTransport(connection.rpc) });

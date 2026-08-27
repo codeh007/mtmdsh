@@ -1,5 +1,6 @@
 /** Assemble the MTM Harness client domains into one DSH plugin entry. */
-import type { ClientContext } from "@deepseek-ai/dsh-client-runtime/client";
+import type { Context } from "@deepseek-ai/cordis";
+import type {} from "@deepseek-ai/dsh-client-ui-renderer/client";
 import type {} from "@deepseek-ai/dsh-client-locale/client";
 import type {} from "@deepseek-ai/dsh-client-ui-settings/client";
 import type {} from "@deepseek-ai/dsh-client-ui-settings-plugins/client";
@@ -18,7 +19,7 @@ export { applyCoding };
 export const inject = ["slots", "connection", "locale", "settingsScope"];
 
 /** Register every MTM and coding feature under one plugin-owned lifecycle. */
-export function apply(ctx: ClientContext): void {
+export function apply(ctx: Context): void {
   if (ctx.get("connection") === undefined) throw new Error("mtmharness: DSH connection service is unavailable");
   applyCoding(ctx);
   const runtime = applyConnect(ctx);

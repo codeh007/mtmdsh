@@ -83,7 +83,6 @@ export function apply(ctx: Context, config: MtmConnectHostConfig = {}): void {
     const remove = ctx.connection.rpc.handle(
       MTM_CONNECT_CHANNEL,
       createMtmConnectRpcHandler(registry, { allowControlReconcile: config.allowControlReconcile === true }),
-      { authority: "loopback" },
     );
     return async () => {
       await remove();

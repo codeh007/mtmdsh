@@ -1,4 +1,4 @@
-import type { ObservableSnapshot } from "@deepseek-ai/dsh-client-runtime/client";
+import type { ObservableSnapshot } from "@deepseek-ai/dsh-client-store";
 import type { ClientConnectionRpc } from "@deepseek-ai/dsh-client-connection/client";
 import { MTM_CANVAS_CHANNEL, type CanvasFileWire, type CanvasReadWire } from "../contract/rpc.ts";
 import { createCanvasDocument, createNodeId, validateCanvasDocument, type CanvasDocument, type CanvasPosition } from "../contract/canvas.ts";

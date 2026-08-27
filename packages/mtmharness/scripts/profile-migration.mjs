@@ -13,7 +13,7 @@ if (tarballArg === undefined) throw new Error("usage: profile-migration.mjs <mtm
 const tarball = resolve(process.cwd(), tarballArg);
 if (!existsSync(tarball)) throw new Error("mtmharness profile: tarball does not exist: " + tarball);
 
-const dshPackage = process.env.DSH_PACKAGE ?? "@deepseek-ai/dsh@0.1.1-rc.2";
+const dshPackage = process.env.DSH_PACKAGE ?? "@deepseek-ai/dsh@0.1.2-alpha.1";
 const root = mkdtempSync(join(tmpdir(), "mtmharness-profile-"));
 const dshHome = join(root, "dsh-home");
 const legacyRoot = join(root, "legacy");

@@ -1,10 +1,10 @@
-import type { ClientContext } from "@deepseek-ai/dsh-client-runtime/client";
+import type { Context } from "@deepseek-ai/cordis";
 import type { ConnectionHandle } from "@deepseek-ai/dsh-client-connection/client";
 import { CanvasRuntime } from "./runtime.ts";
 import { MTM_CANVAS_CSS } from "./styles.ts";
 
 /** Mount the browser Canvas runtime and its plugin-owned styles. */
-export function apply(ctx: ClientContext): CanvasRuntime {
+export function apply(ctx: Context): CanvasRuntime {
   const connection = ctx.get("connection") as ConnectionHandle | undefined;
   if (connection === undefined) throw new Error("mtm-canvas: DSH connection service is unavailable");
   const runtime = new CanvasRuntime(connection.rpc);

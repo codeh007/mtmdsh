@@ -1,4 +1,4 @@
-import type { ObservableSnapshot } from "@deepseek-ai/dsh-client-runtime/client";
+import type { ObservableSnapshot } from "@deepseek-ai/dsh-client-store";
 import type { ClientConnectionRpc } from "@deepseek-ai/dsh-client-connection/client";
 import type { EventProjection, EventPolicy, ExternalConnectionEvent } from "../contract/event.ts";
 import type { CapabilityInvocationResult, MtmConnectInvocationRequest, MtmConnectMutation, MtmConnectSnapshot } from "../contract/connection.ts";

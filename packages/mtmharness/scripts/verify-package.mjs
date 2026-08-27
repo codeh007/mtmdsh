@@ -18,14 +18,12 @@ if (manifest.dsh?.bundle?.patch !== "./cordis.patch.yml") fail("dsh.bundle.patch
 if (manifest.dsh?.client?.platform !== "web") fail("dsh.client.platform must be web");
 const expectedInject = [
   "@deepseek-ai/dsh-client-connection",
-  "@deepseek-ai/dsh-client-runtime",
-  "@deepseek-ai/dsh-client-ui-primitives",
+  "@deepseek-ai/dsh-client-ui-renderer",
   "@deepseek-ai/dsh-client-ui-sidebar",
   "@deepseek-ai/dsh-client-ui-layout",
   "@deepseek-ai/dsh-client-locale",
   "@deepseek-ai/dsh-client-ui-settings",
   "@deepseek-ai/dsh-client-ui-settings-plugins",
-  "@deepseek-ai/dsh-client-ui-slots",
 ];
 if (JSON.stringify(manifest.dsh?.client?.inject) !== JSON.stringify(expectedInject)) {
   fail("dsh.client.inject must exactly match " + JSON.stringify(expectedInject));

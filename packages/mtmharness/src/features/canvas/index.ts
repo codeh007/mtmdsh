@@ -110,7 +110,7 @@ export function createCanvasRpcHandler(ctx: Context) {
 /** Mount the file-backed Canvas RPC on the existing loopback Connection seam. */
 export function apply(ctx: Context): void {
   ctx.effect(() => {
-    const remove = ctx.connection.rpc.handle(MTM_CANVAS_CHANNEL, createCanvasRpcHandler(ctx), { authority: "loopback" });
+    const remove = ctx.connection.rpc.handle(MTM_CANVAS_CHANNEL, createCanvasRpcHandler(ctx));
     return remove;
   }, "mtm-canvas: file-backed RPC");
 }
