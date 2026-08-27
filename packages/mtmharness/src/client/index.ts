@@ -48,7 +48,7 @@ export function apply(ctx: ClientContext): void {
     order: 11,
     inject: () => ({ actions: canvasRuntime, hooks: { canvas: canvasRuntime } }),
   }, MtmCanvasAction));
-  // The launcher loads the fixed versioned app directly from the package CDN.
+  // The launcher loads the latest stable app directly from the package CDN.
   ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
     name: "sidebar.footer.action",
     id: "mtmdsh-launcher",

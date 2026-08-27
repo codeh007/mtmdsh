@@ -3,10 +3,10 @@ import type { PropsRuntime } from "@deepseek-ai/dsh-client-ui-slots";
 import { Button } from "@deepseek-ai/dsh-client-ui-primitives";
 import { closeMtmHarnessLauncher, openMtmHarnessLauncher, publish, snapshot, subscribe, type LauncherState } from "./launcher-state.js";
 
-export const MTM_HARNESS_LAUNCHER_APP_URL = "https://unpkg.com/mtmharness@0.5.2/dist/standalone/index.html";
+export const MTM_HARNESS_LAUNCHER_APP_URL = "https://unpkg.com/mtmharness@latest/dist/standalone/index.html";
 export const MTM_HARNESS_LAUNCHER_APP_ORIGIN = "https://unpkg.com";
 export const MTM_HARNESS_LAUNCHER_CONTRACT_VERSION = 1 as const;
-/** The launcher uses a versioned static app from the package CDN. */
+/** The launcher follows the package CDN's latest stable release. */
 export const MTM_HARNESS_LAUNCHER_READY = true;
 
 const LAUNCHER_MESSAGE_TYPES = ["ready", "close", "resize"] as const;

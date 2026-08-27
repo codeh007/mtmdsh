@@ -52,7 +52,7 @@ The package tarball contains `dist/standalone/index.html` and its hashed assets.
     </script>
     <!-- Serve dist/standalone/index.html after this configuration. -->
 
-The app uses browser history for direct navigation. A deployment must serve `index.html` for the app's routes and provide the CSP/frame-ancestors HTTP headers described by the static HTML contract.
+The app uses browser history for direct navigation. The default CDN config derives the exact OAuth callback from the final origin and pathname, so unpkg's `@latest` redirect remains compatible with exact redirect registration. The deployment authority must register that resolved URI, not a wildcard. A deployment must serve `index.html` for the app's routes and provide the CSP/frame-ancestors HTTP headers described by the static HTML contract.
 
 ## Script Embed
 
@@ -90,7 +90,7 @@ Access and refresh tokens live only in the JavaScript memory of the auth client.
 
 HTTP resource calls, revocation, and `POST /api/dsh/ws-ticket` use an explicit `Authorization: Bearer` header with `credentials: "omit"`. Each socket requests a fresh v1 ticket and sends only `Sec-WebSocket-Protocol: dsh.v1, dsh-ticket.<opaque>`; the socket URL has no sandbox/session credential query. Refresh, logout, expiry, and account switching clear the runtime socket, selection, memory token, and account-partitioned session hint.
 
-The official DSH plugin keeps the host FullShell and local session untouched. Its additive launcher uses the fixed versioned unpkg app URL, an iframe sandbox/allow policy, and a `ready/open/close/theme/locale/resize` handshake validated by source, origin, nonce, and contract version. The launcher keeps `allow-same-origin` because OAuth transaction storage and API requests require the fixed CDN app origin; do not reuse this policy for arbitrary untrusted frames. The package release and CDN URL must be read back before calling the launcher production-ready.
+The official DSH plugin keeps the host FullShell and local session untouched. Its additive launcher uses the latest stable unpkg app URL, an iframe sandbox/allow policy, and a `ready/open/close/theme/locale/resize` handshake validated by source, origin, nonce, and contract version. The launcher keeps `allow-same-origin` because OAuth transaction storage and API requests require the fixed CDN app origin; do not reuse this policy for arbitrary untrusted frames. The package release and CDN URL must be read back before calling the launcher production-ready.
 
 ## Development
 

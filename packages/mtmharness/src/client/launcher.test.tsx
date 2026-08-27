@@ -20,7 +20,7 @@ afterEach(() => {
 });
 
 describe("MtmHarnessLauncher", () => {
-  it("opens a versioned CDN static app without credential-bearing URL state", () => {
+  it("opens the latest CDN static app without credential-bearing URL state", () => {
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
