@@ -428,7 +428,7 @@ export class DshApiClient implements DshClient {
 
 }
 
-const TICKET_PATTERN = /^[A-Za-z0-9._~-]{8,2048}$/u;
+const TICKET_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 
 function validateSocketRequest(input: DshSocketRequest): void {
   if (!validIdentifier(input.sandboxId)) throw new DshApiError("A sandbox is required for the DSH WebSocket", "sandbox_scope_required");
