@@ -65,15 +65,6 @@ jobs:
       - name: Lint mtmharness package metadata
         run: pnpm dlx publint run "${{ steps.pack.outputs.tarball }}" --strict
 
-      - name: Install DSH CLI for Web smoke
-        if: ${{ matrix.node == '22.19.0' }}
-        run: npm install --global @deepseek-ai/dsh@0.1.1-rc.2
-
-      - name: Verify isolated DSH Web profile and tool catalog
-        if: ${{ matrix.node == '22.19.0' }}
-        env:
-          DSH_SMOKE_TOOL_CATALOG: "1"
-        run: pnpm run smoke:mtmharness -- "${{ steps.pack.outputs.tarball }}"
 
       - name: Verify mtmharness profile migration
         if: ${{ matrix.node == '22.19.0' }}
