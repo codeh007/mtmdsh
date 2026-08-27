@@ -1,5 +1,6 @@
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, type AnyRouter, type RouterHistory } from "@tanstack/react-router";
 import type { ClientPresentation, NormalizedClientConfig } from "@/app/config";
+import type { MtmHarnessAuthClient } from "@/app/auth";
 import { ConversationRoute } from "@/app/conversation-route";
 import { WorkspaceOverview } from "@/components/full-shell";
 import { EmbeddedFullShell } from "@/app/embedded-full-shell";
@@ -13,15 +14,16 @@ export interface ClientRouterOptions {
   presentation: ClientPresentation;
   basepath?: string;
   history?: RouterHistory;
+  auth?: MtmHarnessAuthClient;
 }
 
-export function createClientRouter({ config, runtime, presentation, basepath, history }: ClientRouterOptions): AnyRouter {
+export function createClientRouter({ config, runtime, presentation, basepath, history, auth }: ClientRouterOptions): AnyRouter {
   const rootRoute = createRootRoute({
     component: presentation === "standalone"
-      ? () => <StandaloneShell runtime={runtime} />
+      ? () => <StandaloneShell runtime={runtime} auth={auth} />
       : config.mode === "fullscreen"
-        ? () => <EmbeddedFullShell runtime={runtime} />
-        : () => <EmbeddedShell config={config} />,
+        ? () => <EmbeddedFullShell runtime={runtime} auth={auth} />
+        : () => <EmbeddedShell config={config} auth={auth} />,
   });
   const conversationRoute = createRoute({
     getParentRoute: () => rootRoute,

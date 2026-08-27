@@ -137,7 +137,7 @@ describe("mtmharness Host half", () => {
 
 describe("mtmharness browser half", () => {
   it("declares the combined service dependencies", () => {
-    expect(inject).toEqual(["slots", "sessions", "connection", "locale", "settingsScope"]);
+    expect(inject).toEqual(["slots", "connection", "locale", "settingsScope"]);
   });
 
   it("fails clearly when the Client connection service is unavailable", () => {
@@ -172,9 +172,11 @@ describe("mtmharness browser half", () => {
     expect(registered).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: "sidebar.footer.action", options: expect.objectContaining({ id: "mtmharness", order: 10 }) }),
     ]));
-    expect(registered.filter((entry) => entry.name === "sidebar.footer.action")).toHaveLength(2);
+    expect(registered.filter((entry) => entry.name === "sidebar.footer.action")).toHaveLength(3);
     expect(registered).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: "sidebar.footer.action", options: expect.objectContaining({ id: "mtmcanvas", order: 11 }) }),
+      expect.objectContaining({ name: "sidebar.footer.action", options: expect.objectContaining({ id: "mtmdsh-launcher", order: 12 }) }),
+      expect.objectContaining({ name: "shell.overlay", options: expect.objectContaining({ id: "mtmdsh-launcher-overlay", order: 100 }) }),
     ]));
     for (const cleanup of cleanups.reverse()) void cleanup();
     expect(registered).toHaveLength(0);

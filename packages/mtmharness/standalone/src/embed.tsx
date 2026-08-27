@@ -2,7 +2,9 @@ import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { createRoot } from "react-dom/client";
 import embedStyles from "@/styles/globals.css?inline";
 import { createClientRouter } from "@/app/router";
-import { normalizeConfig, resolveTarget, type MtmHarnessClientConfig, type MtmHarnessClientHandle } from "./app/config";
+import { createTokenSource, normalizeConfig, resolveTarget, type MtmHarnessClientConfig, type MtmHarnessClientHandle } from "./app/config";
+import type { MtmHarnessAuthClient } from "./app/auth";
+import { installHostBridge } from "./app/host-bridge";
 import { MtmHarnessRuntime } from "@/runtime";
 
 function mountClient(config: MtmHarnessClientConfig): MtmHarnessClientHandle {
@@ -25,15 +27,22 @@ function mountClient(config: MtmHarnessClientConfig): MtmHarnessClientHandle {
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
   if (document.body) observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
 
+  const tokenSource = createTokenSource(normalizedConfig);
+  const auth = tokenSource !== undefined && "consumeCallback" in tokenSource ? tokenSource as MtmHarnessAuthClient : undefined;
   const runtime = new MtmHarnessRuntime(normalizedConfig.apiOrigin, {
-    accessToken: normalizedConfig.accessToken,
+    tokenSource,
     webSocketFactory: normalizedConfig.webSocketFactory,
   });
+  const bridge = installHostBridge({ allowedParentOrigins: normalizedConfig.allowedParentOrigins });
+  if (auth !== undefined) {
+    void auth.consumeCallback().then((consumed) => consumed ? runtime.refreshRegistry().catch(() => undefined) : undefined).catch(() => undefined);
+  }
   const router = createClientRouter({
     config: normalizedConfig,
     runtime,
     presentation: "embed",
     history: createMemoryHistory({ initialEntries: ["/"] }),
+    auth,
   });
   const root = createRoot(container);
   root.render(<RouterProvider router={router} />);
@@ -44,7 +53,9 @@ function mountClient(config: MtmHarnessClientConfig): MtmHarnessClientHandle {
       mounted = false;
       root.unmount();
       router.history.destroy();
+      bridge.dispose();
       runtime.dispose();
+      auth?.dispose();
       observer.disconnect();
       host.remove();
     },
@@ -61,8 +72,11 @@ export function autoMount(script: HTMLScriptElement): MtmHarnessClientHandle | n
   const bootstrap = window.__MTM_HARNESS_CONFIG__ ?? {};
   const handle = mountClient({
     apiOrigin,
-    accessToken: script.dataset.accessToken ?? bootstrap.accessToken,
+    oauth: bootstrap.oauth,
+    accessToken: bootstrap.accessToken,
+    tokenSource: bootstrap.tokenSource,
     webSocketFactory: bootstrap.webSocketFactory,
+    allowedParentOrigins: bootstrap.allowedParentOrigins,
     mode: script.dataset.mode as MtmHarnessClientConfig["mode"] | undefined,
     target: script.dataset.target,
   });

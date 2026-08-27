@@ -1,8 +1,11 @@
 import type { MtmHarnessWebSocketFactory } from "@/app/config";
+import { MemoryTokenSource, type MtmHarnessAuthSnapshot, type MtmHarnessTokenSource } from "@/app/auth";
 import {
   DshApiClient,
   DshApiError,
   type DshClient,
+  type DshSocketRequest,
+  type DshWebSocketFactory,
   type DshHistoryEntry,
   type DshSessionEvent,
   type DshWorkspaceView,
@@ -13,7 +16,7 @@ import { SandboxApiClient, type SandboxClient, type SandboxRecord, type SandboxS
 export type RuntimeStatus = "idle" | "loading" | "streaming" | "auth-required" | "error";
 export type RegistryStatus = "idle" | "loading" | "error";
 export type SandboxCatalogStatus = "idle" | "loading" | "error";
-export type RuntimeOperation = "refreshing" | "creating" | "selecting" | "renaming" | "forking" | "switching-sandbox" | "creating-sandbox";
+export type RuntimeOperation = "refreshing" | "creating" | "selecting" | "renaming" | "forking" | "switching-sandbox" | "creating-sandbox" | "reconnecting";
 
 export interface ChatMessage {
   id: string;
@@ -48,7 +51,10 @@ type HistoryEntry = DshHistoryEntry;
 type Listener = (snapshot: RuntimeSnapshot) => void;
 
 export interface MtmHarnessRuntimeOptions {
+  /** Explicit in-memory adapter retained for tests and trusted hosts. */
   accessToken?: string;
+  accountPartition?: string;
+  tokenSource?: MtmHarnessTokenSource;
   webSocketFactory?: MtmHarnessWebSocketFactory;
   client?: DshClient;
   sandboxClient?: SandboxClient;
@@ -163,11 +169,15 @@ function mergeSandboxes(existing: SandboxRecord[], incoming: SandboxRecord[]): S
 export class MtmHarnessRuntime {
   private readonly listeners = new Set<Listener>();
   private readonly apiOrigin: string;
-  private readonly accessToken: string | undefined;
+  private readonly tokenSource: MtmHarnessTokenSource | undefined;
   private readonly webSocketFactory: MtmHarnessWebSocketFactory | undefined;
+  private readonly reconnectEnabled: boolean;
   private readonly storageKeyPrefix: string;
   private readonly client: DshClient;
   private readonly sandboxClient: SandboxClient;
+  private readonly accountPartitionHint: string | undefined;
+  private activeAccountPartition: string | undefined;
+  private readonly unsubscribeTokenSource: () => void;
   private snapshot: RuntimeSnapshot = {
     status: "idle",
     messages: [],
@@ -186,15 +196,23 @@ export class MtmHarnessRuntime {
   private readonly pendingSockets = new Set<WebSocket>();
   private selectionVersion = 0;
   private sandboxGeneration = 0;
+  private reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+  private reconnectAttempt = 0;
   private disposed = false;
 
   constructor(apiOrigin: string, options: MtmHarnessRuntimeOptions = {}) {
     this.apiOrigin = normalizeOrigin(apiOrigin);
-    this.accessToken = options.accessToken;
+    this.tokenSource = options.tokenSource ?? (options.accessToken === undefined ? undefined : new MemoryTokenSource(options.accessToken, options.accountPartition));
+    this.accountPartitionHint = options.accountPartition;
+    this.activeAccountPartition = this.tokenSource?.getAccountPartition() ?? this.accountPartitionHint;
     this.webSocketFactory = options.webSocketFactory;
-    this.storageKeyPrefix = "mtmharness:v1:session:" + this.apiOrigin;
-    this.client = options.client ?? new DshApiClient(apiOrigin, options.accessToken);
-    this.sandboxClient = options.sandboxClient ?? new SandboxApiClient(apiOrigin, options.accessToken);
+    this.reconnectEnabled = this.tokenSource !== undefined || options.client !== undefined || options.webSocketFactory !== undefined;
+    this.storageKeyPrefix = "mtmharness:v2:session:" + this.apiOrigin;
+    const tokenProvider = this.tokenSource === undefined ? undefined : () => this.tokenSource!.getAccessToken();
+    const onAuthFailure = (): void => { this.tokenSource?.clear(); };
+    this.client = options.client ?? new DshApiClient(apiOrigin, { tokenProvider, onAuthFailure });
+    this.sandboxClient = options.sandboxClient ?? new SandboxApiClient(apiOrigin, { tokenProvider, onAuthFailure });
+    this.unsubscribeTokenSource = this.tokenSource?.subscribe((snapshot) => { this.handleAuthSnapshot(snapshot); }) ?? (() => {});
   }
 
   getSnapshot(): RuntimeSnapshot { return this.snapshot; }
@@ -490,6 +508,7 @@ export class MtmHarnessRuntime {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.unsubscribeTokenSource();
     this.closeSocket();
     for (const socket of this.pendingSockets) this.closeSocketInstance(socket);
     this.pendingSockets.clear();
@@ -587,51 +606,47 @@ export class MtmHarnessRuntime {
   }
 
   private async openSocket(sessionId: string, version: number): Promise<WebSocket> {
-    const url = new URL("/api/dsh/events.mux", this.apiOrigin);
-    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
     const scope = this.currentSandboxScope();
     if (scope === undefined) throw new MtmHarnessError("Sandbox scope is required", "sandbox_scope_required");
-    const accessToken = this.accessToken;
-    const webSocketFactory = this.webSocketFactory;
-    if (accessToken === undefined) throw new MtmHarnessError("An OAuth access token is required", "auth_required");
-    if (webSocketFactory === undefined) {
-      throw new MtmHarnessError("A token-aware WebSocket factory is required for streaming", "websocket_auth_required");
-    }
-    url.searchParams.set("sandboxId", scope.sandboxId);
     let socket: WebSocket;
     try {
-      socket = await webSocketFactory(url, accessToken);
+      const request: DshSocketRequest = { sandboxId: scope.sandboxId, channel: "mux", sessionId };
+      const factory = this.webSocketFactory === undefined ? undefined : ((url: URL, protocols: readonly string[]) => this.webSocketFactory!(url, protocols));
+      socket = await this.client.openSocket(request, factory as DshWebSocketFactory | undefined);
     } catch (error) {
-      throw new MtmHarnessError(error instanceof Error ? error.message : "Unable to create the conversation stream", "websocket_auth_failed");
+      if (error instanceof MtmHarnessError) throw error;
+      const code = error instanceof Error && "code" in error && typeof error.code === "string" ? error.code : "websocket_auth_failed";
+      throw new MtmHarnessError(error instanceof Error ? error.message : "Unable to create the conversation stream", code);
     }
     return new Promise((resolve, reject) => {
       this.pendingSockets.add(socket);
       let settled = false;
-      const fail = (message: string): void => {
+      const fail = (message: string, code?: string): void => {
         if (settled) return;
         settled = true;
         this.pendingSockets.delete(socket);
         this.closeSocketInstance(socket);
-        reject(new MtmHarnessError(message));
+        reject(new MtmHarnessError(message, code));
       };
       socket.onopen = () => {
         if (settled) return;
         settled = true;
         this.pendingSockets.delete(socket);
+        this.reconnectAttempt = 0;
         resolve(socket);
       };
       socket.onmessage = (event) => this.handleSocketMessage(event.data, sessionId, version);
-      socket.onerror = () => { if (!settled) fail("Unable to connect to the conversation stream"); };
+      socket.onerror = () => { if (!settled) fail("Unable to connect to the conversation stream", "websocket_auth_failed"); };
       socket.onclose = () => {
         this.pendingSockets.delete(socket);
         if (!settled) {
           settled = true;
-          reject(new MtmHarnessError("The conversation stream closed"));
+          reject(new MtmHarnessError("The conversation stream closed", "websocket_closed"));
           return;
         }
-        if (!this.disposed && this.sessionId === sessionId && this.selectionVersion === version && this.socket === socket && this.snapshot.status === "streaming") {
+        if (!this.disposed && this.sessionId === sessionId && this.selectionVersion === version && this.socket === socket) {
           this.socket = undefined;
-          this.update({ status: "error", error: "The conversation stream was disconnected" });
+          this.scheduleReconnect(sessionId, version);
         }
       };
     });
@@ -655,6 +670,91 @@ export class MtmHarnessRuntime {
       error: failed ? "The agent could not complete the conversation." : this.snapshot.error,
       sessions: this.snapshot.sessions.map((session) => session.sessionId === sessionId ? { ...session, running: event.type !== "turn/end", updatedAt: Date.now() } : session),
     });
+  }
+
+  private handleAuthSnapshot(snapshot: MtmHarnessAuthSnapshot): void {
+    const nextPartition = snapshot.status === "authenticated" ? snapshot.accountPartition : undefined;
+    const changedAccount = nextPartition !== undefined && this.activeAccountPartition !== undefined && nextPartition !== this.activeAccountPartition;
+    const signedOut = snapshot.status === "signed-out";
+    if (signedOut || changedAccount) this.resetAccountState("auth-required");
+    this.activeAccountPartition = nextPartition;
+  }
+
+  private resetAccountState(status: RuntimeStatus): void {
+    const previousPartition = this.activeAccountPartition;
+    this.selectionVersion += 1;
+    this.sandboxGeneration += 1;
+    this.cancelReconnect();
+    this.closeSocket();
+    for (const socket of this.pendingSockets) this.closeSocketInstance(socket);
+    this.pendingSockets.clear();
+    this.sessionId = undefined;
+    this.client.setSandboxScope(undefined);
+    this.clearStoredAccountHints(previousPartition);
+    this.update({
+      status,
+      messages: [],
+      error: status === "auth-required" ? "Sign in is required" : undefined,
+      registryStatus: "idle",
+      registryError: undefined,
+      sandboxCatalogStatus: "idle",
+      sandboxError: undefined,
+      sandboxes: [],
+      selectedSandboxId: undefined,
+      defaultSandboxId: undefined,
+      workspaceId: undefined,
+      sandboxLifecycleStatus: undefined,
+      operation: undefined,
+      workspaces: [],
+      archivedSessionIds: [],
+      sessions: [],
+      selectedSessionId: undefined,
+    });
+  }
+
+  private scheduleReconnect(sessionId: string, version: number): void {
+    if (this.disposed || this.reconnectTimer !== undefined || !this.reconnectEnabled) return;
+    if (this.reconnectAttempt >= 5) {
+      this.update({ status: "error", operation: undefined, error: "The conversation stream was disconnected" });
+      return;
+    }
+    const delay = Math.min(250 * 2 ** this.reconnectAttempt, 5_000);
+    this.reconnectAttempt += 1;
+    this.update({ status: "loading", operation: "reconnecting", error: "Reconnecting to the conversation stream" });
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = undefined;
+      void this.reconnectSocket(sessionId, version);
+    }, delay);
+  }
+
+  private async reconnectSocket(sessionId: string, version: number): Promise<void> {
+    if (this.disposed || this.sessionId !== sessionId || this.selectionVersion !== version) return;
+    try {
+      const socket = await this.openSocket(sessionId, version);
+      if (this.disposed || this.sessionId !== sessionId || this.selectionVersion !== version) {
+        this.closeSocketInstance(socket);
+        return;
+      }
+      this.socket = socket;
+      this.reconnectAttempt = 0;
+      this.update({ status: "idle", operation: undefined, error: undefined });
+    } catch (error) {
+      const normalized = normalizeError(error);
+      if (isAuthError(normalized)) {
+        this.tokenSource?.clear();
+        return;
+      }
+      this.update({ status: "error", operation: undefined, error: normalized.message });
+      this.scheduleReconnect(sessionId, version);
+    }
+  }
+
+  private cancelReconnect(): void {
+    if (this.reconnectTimer !== undefined) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = undefined;
+    }
+    this.reconnectAttempt = 0;
   }
 
   private update(patch: Partial<RuntimeSnapshot>): void {
@@ -690,6 +790,7 @@ export class MtmHarnessRuntime {
   }
 
   private closeSocket(): void {
+    this.cancelReconnect();
     const socket = this.socket;
     this.socket = undefined;
     if (socket) this.closeSocketInstance(socket);
@@ -701,24 +802,39 @@ export class MtmHarnessRuntime {
   }
 
   private sessionStorageKey(): string | undefined {
-    return this.snapshot.selectedSandboxId === undefined ? undefined : this.storageKeyPrefix + ":" + this.snapshot.selectedSandboxId;
+    const sandboxId = this.snapshot.selectedSandboxId;
+    const accountPartition = this.activeAccountPartition ?? this.tokenSource?.getAccountPartition() ?? this.accountPartitionHint;
+    return sandboxId === undefined || accountPartition === undefined
+      ? undefined
+      : this.storageKeyPrefix + ":" + encodeURIComponent(accountPartition) + ":" + sandboxId;
   }
 
   private readStoredSessionId(): string | undefined {
     const key = this.sessionStorageKey();
     if (key === undefined) return undefined;
-    try { return localStorage.getItem(key) ?? undefined; } catch { return undefined; }
+    try { return sessionStorage.getItem(key) ?? undefined; } catch { return undefined; }
   }
 
   private storeSessionId(sessionId: string): void {
     const key = this.sessionStorageKey();
     if (key === undefined) return;
-    try { localStorage.setItem(key, sessionId); } catch { /* optional browser storage */ }
+    try { sessionStorage.setItem(key, sessionId); } catch { /* optional browser storage */ }
   }
 
   private clearStoredSessionId(): void {
     const key = this.sessionStorageKey();
     if (key === undefined) return;
-    try { localStorage.removeItem(key); } catch { /* optional browser storage */ }
+    try { sessionStorage.removeItem(key); } catch { /* optional browser storage */ }
+  }
+
+  private clearStoredAccountHints(accountPartition: string | undefined): void {
+    if (accountPartition === undefined) return;
+    const prefix = this.storageKeyPrefix + ":" + encodeURIComponent(accountPartition) + ":";
+    try {
+      for (let index = sessionStorage.length - 1; index >= 0; index -= 1) {
+        const key = sessionStorage.key(index);
+        if (key?.startsWith(prefix)) sessionStorage.removeItem(key);
+      }
+    } catch { /* optional browser storage */ }
   }
 }

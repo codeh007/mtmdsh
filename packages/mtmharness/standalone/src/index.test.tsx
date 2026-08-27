@@ -11,6 +11,7 @@ afterEach(() => {
   document.documentElement.classList.remove("dark");
   window.history.replaceState({}, "", "/");
   vi.unstubAllGlobals();
+  delete window.__MTM_HARNESS_CONFIG__;
 });
 
 describe("mtmharness embed runtime", () => {
@@ -67,7 +68,6 @@ describe("mtmharness embed runtime", () => {
   it("auto-mounts from a script with an explicit token", async () => {
     const script = document.createElement("script");
     script.dataset.apiOrigin = "https://api.example.test";
-    script.dataset.accessToken = "script-token";
     script.dataset.mode = "fullscreen";
     document.body.append(script);
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: { code: "auth_required", message: "Authentication is required" } }), { status: 401 })));
@@ -85,6 +85,7 @@ describe("mtmharness embed runtime", () => {
     expect(normalizeConfig({ apiOrigin: "https://api.example.test/path", accessToken: "  token  " })).toEqual({
       apiOrigin: "https://api.example.test",
       accessToken: "token",
+      allowedParentOrigins: [],
       mode: "floating",
     });
     expect(() => normalizeConfig({ apiOrigin: "https://api.example.test", accessToken: "  " })).toThrow("accessToken must not be empty");
