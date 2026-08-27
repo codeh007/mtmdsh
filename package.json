@@ -8,7 +8,6 @@
     "build": "pnpm --filter mtmharness run build",
     "demo": "pnpm --filter mtmharness run dev",
     "check": "pnpm --filter mtmharness run check",
-    "smoke:mtmharness": "node scripts/verify-dsh-web.mjs",
     "pack:mtmharness": "pnpm --filter mtmharness run pack:check"
   },
   "devDependencies": { "typescript": "6.0.3" }
