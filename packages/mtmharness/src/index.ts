@@ -18,7 +18,22 @@ export {
 export { apply as applyCoding } from "./features/coding/index.ts";
 export { apply as applyCodebaseMemory } from "./features/coding/codebase-memory.ts";
 export { apply as applyPonytail } from "./features/coding/ponytail.ts";
-export type { MtmCodingConfig, MtmCodingSettings, PonytailMode } from "./features/coding/types.ts";
+export { apply as applyRtk } from "./features/coding/rtk.ts";
+export {
+  RTK_REWRITE_TIMEOUT_MS,
+  RTK_VERSION,
+  bindRtkExecutable,
+  bashInput,
+  ensureRtk,
+  extractRtkBinary,
+  resolveRtkHome,
+  rewriteRtk,
+  rtkAssetFor,
+  rtkAssetUrl,
+  rtkDisabled,
+  rtkEnvironment,
+} from "./features/coding/rtk-runtime.ts";
+export type { MtmCodingConfig, MtmCodingSettings, PonytailMode, RtkMode } from "./features/coding/types.ts";
 
 export const name = "mtmharness";
 export const inject = ["connection", "fs", "directoryPicker", "settings"];

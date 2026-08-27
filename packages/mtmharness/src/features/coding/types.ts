@@ -2,6 +2,7 @@ import z from "@deepseek-ai/schemastery";
 import type { ReconnectConfig } from "@deepseek-ai/dsh-mcp-client";
 
 export type PonytailMode = "off" | "lite" | "full" | "ultra";
+export type RtkMode = "off" | "guidance" | "auto" | "rewrite";
 
 export interface MtmCodingSettings {
   codebaseMemoryEnabled: boolean;
@@ -9,6 +10,9 @@ export interface MtmCodingSettings {
   ponytailEnabled: boolean;
   ponytailMode: PonytailMode;
   ponytailSubagents: boolean;
+  rtkMode: RtkMode;
+  rtkAutoInstall: boolean;
+  rtkCommand: string;
   serverName: string;
   command: string;
   args: string[];
@@ -39,6 +43,9 @@ export const MtmCodingSettingsSchema: z<MtmCodingSettings> = z.object({
   ponytailEnabled: z.boolean().default(true),
   ponytailMode: z.union(["off", "lite", "full", "ultra"] as const).default("full"),
   ponytailSubagents: z.boolean().default(true),
+  rtkMode: z.union(["off", "guidance", "auto", "rewrite"] as const).default("auto"),
+  rtkAutoInstall: z.boolean().default(true),
+  rtkCommand: z.string().default(""),
   serverName: z.string().default("codebase_memory"),
   command: z.string().default(""),
   args: z.array(String).default([]),

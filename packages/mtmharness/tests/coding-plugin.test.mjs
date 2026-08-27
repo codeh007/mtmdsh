@@ -4,6 +4,7 @@ import {
   applyCoding,
   applyCodebaseMemory,
   applyPonytail,
+  applyRtk,
   name,
   PONYTAIL_SKILLS,
 } from "../lib/index.js";
@@ -14,6 +15,9 @@ const DEFAULT_SETTINGS = {
   ponytailEnabled: true,
   ponytailMode: "full",
   ponytailSubagents: true,
+  rtkMode: "auto",
+  rtkAutoInstall: true,
+  rtkCommand: "",
   serverName: "codebase_memory",
   command: "/controlled/codebase-memory-mcp",
   args: [],
@@ -287,7 +291,11 @@ test("unified settings reconcile both domains and unregisters its watcher", asyn
   const fake = createContext({ codebaseMemoryEnabled: false, ponytailMode: "lite" });
   await applyCoding(fake.context, {});
   assert.equal(name, "mtmharness");
-  assert.equal(fake.skills.length, 6);
+  assert.equal(fake.skills.length, 7);
+  const autoSection = fake.sections.find((section) => section.name === "mtm-coding:rtk");
+  assert.ok(autoSection);
+  assert.match(autoSection.text({}), /guidance is active/);
+  assert.equal(fake.listeners.has("tools/pre-record-input"), false);
   assert.equal(fake.pluginCalls.filter((call) => call.config?.transport === "stdio").length, 0);
   await fake.trigger({ ...fake.getSettings(), codebaseMemoryEnabled: true });
   assert.equal(fake.pluginCalls.filter((call) => call.config?.transport === "stdio").length, 1);
@@ -295,6 +303,23 @@ test("unified settings reconcile both domains and unregisters its watcher", asyn
   await fake.dispose();
   await fake.trigger({ ...fake.getSettings(), codebaseMemoryEnabled: false, ponytailEnabled: false });
   assert.equal(fake.pluginCalls.length, callsBeforeDispose);
+});
+
+test("RTK stays honest when the DSH pre-record capability is absent", async () => {
+  const fake = createContext();
+  await applyRtk(fake.context, { mode: "rewrite", autoInstall: false });
+  assert.equal(fake.skills.length, 1);
+  assert.equal(fake.skills[0].name, "rtk");
+  const section = fake.sections.find((item) => item.name === "mtm-coding:rtk");
+  assert.ok(section);
+  assert.match(section.text({}), /unavailable/);
+  assert.match(section.text({}), /Bash/);
+  const agent = { session: { header: {} }, inject(message) { fake.injected.push(message); } };
+  onlyListener(fake.listeners, "agent/session-start")({ agent });
+  assert.match(fake.injected[0].content[0].text, /unavailable/);
+  const command = fake.commands.find((item) => item.name === "rtk");
+  assert.equal(command.handler({ rawInput: "", agent }).text.includes("unavailable"), true);
+  await fake.dispose();
 });
 
 test("Ponytail embeds all six skills and supports agent-scoped commands", async () => {

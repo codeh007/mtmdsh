@@ -1,15 +1,19 @@
 import type { SettingsScope, SnapshotStore } from "@deepseek-ai/dsh-client-runtime/client";
 import { createSnapshotStore } from "@deepseek-ai/dsh-client-runtime/client";
-import type { MtmCodingSettings, PonytailMode } from "../types.js";
+import type { MtmCodingSettings, PonytailMode, RtkMode } from "../types.js";
 
 export const SETTINGS_NAMESPACE = "mtm-coding";
 export const MODE_VALUES: readonly PonytailMode[] = ["off", "lite", "full", "ultra"];
+export const RTK_MODE_VALUES: readonly RtkMode[] = ["off", "guidance", "auto", "rewrite"];
 const FIELD_NAMES = [
   "codebaseMemoryEnabled",
   "codebaseMemoryAugmentHooks",
   "ponytailEnabled",
   "ponytailMode",
   "ponytailSubagents",
+  "rtkMode",
+  "rtkAutoInstall",
+  "rtkCommand",
 ] as const;
 export type MtmCodingField = (typeof FIELD_NAMES)[number];
 
@@ -38,15 +42,17 @@ export interface MtmCodingCardFace {
 }
 
 type StagedEdit = { readonly text: string; readonly clear: boolean };
-type FieldValue = boolean | PonytailMode;
+type FieldValue = boolean | PonytailMode | RtkMode | string;
 
 function format(field: MtmCodingField, value: unknown): string {
-  if (field === "ponytailMode") return typeof value === "string" ? value : "";
+  if (field === "ponytailMode" || field === "rtkMode" || field === "rtkCommand") return typeof value === "string" ? value : "";
   return typeof value === "boolean" ? String(value) : "";
 }
 
 function parse(field: MtmCodingField, text: string): FieldValue | undefined {
   if (field === "ponytailMode") return MODE_VALUES.includes(text as PonytailMode) ? text as PonytailMode : undefined;
+  if (field === "rtkMode") return RTK_MODE_VALUES.includes(text as RtkMode) ? text as RtkMode : undefined;
+  if (field === "rtkCommand") return text;
   if (text === "true" || text === "false") return text === "true";
   return undefined;
 }
