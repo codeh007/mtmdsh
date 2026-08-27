@@ -15,7 +15,7 @@ describe("DshApiClient", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await new DshApiClient("https://api.example.test/path").listSessions();
+    const result = await new DshApiClient("https://api.example.test/path", "test-token").listSessions();
 
     expect(result.items[0]).toMatchObject({ sessionId: "session-1", title: "Plan", cwd: "/workspace/project" });
     expect(fetchMock).toHaveBeenCalledOnce();
@@ -27,7 +27,7 @@ describe("DshApiClient", () => {
       { events: [{ event: { type: "user/message", seq: 1, time: 1, data: { content: [{ type: "text", text: "Hi" }] } } }], hasMore: false },
     ];
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ result: { ok: true, value: values.shift() } })));
-    const client = new DshApiClient("https://api.example.test");
+    const client = new DshApiClient("https://api.example.test", "test-token");
 
     await expect(client.listWorkspaces()).resolves.toMatchObject({ items: [{ workspaceId: "workspace-1" }] });
     await expect(client.loadHistory({ sessionId: "session-1", maxMessages: 50 })).resolves.toMatchObject({ events: [{ event: { type: "user/message", seq: 1 } }], hasMore: false });
@@ -39,7 +39,7 @@ describe("DshApiClient", () => {
       return Response.json({ result: { ok: true, value: { items: [] } } });
     });
     vi.stubGlobal("fetch", fetchMock);
-    const client = new DshApiClient("https://api.example.test");
+    const client = new DshApiClient("https://api.example.test", "test-token");
     client.setSandboxScope({ sandboxId: "sbx_00000000-0000-4000-8000-000000000001", workspaceId: "ws_00000000-0000-4000-8000-000000000001" });
 
     await client.listSessions();
@@ -51,7 +51,7 @@ describe("DshApiClient", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ ok: false, error: { code: "auth_required", message: "Authentication is required" } }), { status: 401 }))
       .mockResolvedValueOnce(Response.json({ result: { ok: false, error: { code: "title-invalid", message: "Title is invalid" } } }));
     vi.stubGlobal("fetch", fetchMock);
-    const client = new DshApiClient("https://api.example.test");
+    const client = new DshApiClient("https://api.example.test", "test-token");
 
     await expect(client.listSessions()).rejects.toMatchObject({ code: "auth_required", message: "Authentication is required" });
     await expect(client.renameSession({ sessionId: "session-1", title: "" })).rejects.toMatchObject({ code: "title-invalid", message: "Title is invalid" });
@@ -60,6 +60,61 @@ describe("DshApiClient", () => {
   it("rejects malformed operation values before they reach the UI", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ result: { ok: true, value: { items: [{ sessionId: "session-1" }] } } })));
 
-    await expect(new DshApiClient("https://api.example.test").listSessions()).rejects.toBeInstanceOf(DshApiError);
+    await expect(new DshApiClient("https://api.example.test", "test-token").listSessions()).rejects.toBeInstanceOf(DshApiError);
+  });
+
+  it("requests a v1 ticket and passes only the opaque subprotocols to the socket factory", async () => {
+    const fetchMock = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      expect(String(input)).toBe("https://api.example.test/api/dsh/ws-ticket");
+      expect(new URL(String(input)).search).toBe("");
+      expect(init?.credentials).toBe("omit");
+      expect(new Headers(init?.headers).get("authorization")).toBe("Bearer access-token");
+      expect(JSON.parse(String(init?.body))).toEqual({ sandboxId: "sbx_1", channel: "mux", sessionId: "session-1" });
+      return Response.json({ ok: true, ticket: "opaque-ticket-123", expiresAt: Date.now() + 30_000, contractVersion: 1 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const factory = vi.fn(async (url: URL, protocols: readonly string[]) => {
+      expect(url.toString()).toBe("wss://api.example.test/api/dsh/events.mux");
+      expect(url.search).toBe("");
+      expect(protocols).toEqual(["dsh.v1", "dsh-ticket.opaque-ticket-123"]);
+      return {} as WebSocket;
+    });
+
+    const socket = await new DshApiClient("https://api.example.test", "access-token").openSocket({ sandboxId: "sbx_1", channel: "mux", sessionId: "session-1" }, factory);
+    expect(socket).toBeDefined();
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(factory).toHaveBeenCalledOnce();
+  });
+
+  it("uses the DSH host alias for host-channel tickets", async () => {
+    const now = Date.now();
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ok: true, ticket: "opaque-ticket-123", expiresAt: now + 30_000, contractVersion: 1 })));
+    const factory = vi.fn(async (url: URL, protocols: readonly string[]) => {
+      expect(url.toString()).toBe("wss://api.example.test/api/dsh/events.host");
+      expect(protocols).toEqual(["dsh.v1", "dsh-ticket.opaque-ticket-123"]);
+      return {} as WebSocket;
+    });
+
+    await new DshApiClient("https://api.example.test", { tokenProvider: () => "access-token", now: () => now }).openSocket(
+      { sandboxId: "sbx_1", channel: "host" },
+      factory,
+    );
+    expect(factory).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    { expiresAt: "2030-01-01T00:00:00.000Z", code: "expiresAt" },
+    { contractVersion: 2, code: "contract" },
+    { ticket: "bad ticket", code: "ticket" },
+  ])("rejects invalid ticket response ($code)", async ({ expiresAt, contractVersion, ticket }) => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ok: true, ticket: ticket ?? "opaque-ticket-123", expiresAt: expiresAt ?? Date.now() + 30_000, contractVersion: contractVersion ?? 1 })));
+    await expect(new DshApiClient("https://api.example.test", "access-token").requestWebSocketTicket({ sandboxId: "sbx_1", channel: "host" })).rejects.toBeInstanceOf(DshApiError);
+  });
+
+  it("rejects tickets beyond the 60-second contract TTL", async () => {
+    const now = Date.now();
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ok: true, ticket: "opaque-ticket-123", expiresAt: now + 60_001, contractVersion: 1 })));
+    const client = new DshApiClient("https://api.example.test", { tokenProvider: () => "access-token", now: () => now });
+    await expect(client.requestWebSocketTicket({ sandboxId: "sbx_1", channel: "host" })).rejects.toMatchObject({ code: "ticket_expiry_invalid" });
   });
 });

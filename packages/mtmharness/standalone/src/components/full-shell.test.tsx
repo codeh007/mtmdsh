@@ -21,7 +21,7 @@ class TestWebSocket {
   onopen: (() => void) | undefined;
   onclose: (() => void) | undefined;
 
-  constructor(readonly url: URL) {
+  constructor(readonly url: URL, readonly protocols: readonly string[] = []) {
     setTimeout(() => {
       this.readyState = TestWebSocket.OPEN;
       this.onopen?.();
@@ -37,7 +37,7 @@ class TestWebSocket {
 function createRuntimeOptions(client: DshClient, sandboxClient: SandboxClient) {
   return {
     accessToken: "test-token",
-    webSocketFactory: (url: URL) => new TestWebSocket(url) as unknown as WebSocket,
+    webSocketFactory: (url: URL, protocols: readonly string[]) => new TestWebSocket(url, protocols) as unknown as WebSocket,
     client,
     sandboxClient,
   };
@@ -78,6 +78,10 @@ function createFixtureClient(): DshClient {
     renameSession: async ({ title }) => ({ title, seq: 1 }),
     forkSession: async () => ({ sessionId: "session-fork" }),
     prompt: async () => ({ accepted: true }),
+    openSocket: async (_input, factory) => {
+      if (factory === undefined) throw new Error("fixture socket factory is required");
+      return factory(new URL("wss://api.example.test/api/dsh/events.mux"), ["dsh.v1", "dsh-ticket.fixture"]);
+    },
   };
 }
 
@@ -93,6 +97,10 @@ function createLiveClient(): DshClient {
     renameSession: async ({ title }) => ({ title, seq: 1 }),
     forkSession: async () => ({ sessionId: "session-fork" }),
     prompt: async () => ({ accepted: true }),
+    openSocket: async (_input, factory) => {
+      if (factory === undefined) throw new Error("fixture socket factory is required");
+      return factory(new URL("wss://api.example.test/api/dsh/events.mux"), ["dsh.v1", "dsh-ticket.fixture"]);
+    },
   };
 }
 

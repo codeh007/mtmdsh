@@ -3,8 +3,10 @@ import { LayoutDashboard, MessageSquare, X } from "lucide-react";
 import { useState, type ReactElement } from "react";
 import { Button } from "@/components/ui/button";
 import type { NormalizedClientConfig } from "@/app/config";
+import type { MtmHarnessAuthClient } from "@/app/auth";
+import { AuthControls } from "@/app/auth-controls";
 
-export function EmbeddedShell({ config }: { config: NormalizedClientConfig }): ReactElement {
+export function EmbeddedShell({ config, auth }: { config: NormalizedClientConfig; auth?: MtmHarnessAuthClient }): ReactElement {
   const [open, setOpen] = useState(false);
   const matchRoute = useMatchRoute();
   const isWorkspace = Boolean(matchRoute({ to: "/workspace" }));
@@ -36,6 +38,7 @@ export function EmbeddedShell({ config }: { config: NormalizedClientConfig }): R
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          <AuthControls auth={auth} />
           <Button type="button" size="icon-sm" variant="ghost" nativeButton={false} render={<Link to={isWorkspace ? "/" : "/workspace"} />} aria-label={navigationLabel} title={navigationLabel}>
             <NavigationIcon />
           </Button>

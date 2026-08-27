@@ -3,8 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="mtmharness-frame-ancestors" content="https://gomtm-dev.yuepa8.com http://127.0.0.1:3080 http://localhost:3080" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors https://gomtm-dev.yuepa8.com http://127.0.0.1:3080 http://localhost:3080; connect-src 'self' https://gomtm-dev.yuepa8.com wss://gomtm-dev.yuepa8.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self';" />
     <link rel="icon" href="data:," />
     <title>MTM Harness Web Client</title>
+    <script src="%BASE_URL%config.js"></script>
   </head>
   <body>
     <main id="app"></main>

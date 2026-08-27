@@ -1,10 +1,30 @@
 import type { SandboxScope } from "@/sandbox/adapter";
 
 export class DshApiError extends Error {
-  constructor(message: string, readonly code?: string, readonly details?: unknown) {
+  constructor(message: string, readonly code?: string, readonly details?: unknown, readonly status?: number) {
     super(message);
     this.name = "DshApiError";
   }
+}
+
+export interface DshApiClientOptions {
+  tokenProvider?: () => string | undefined | Promise<string | undefined>;
+  now?: () => number;
+  onAuthFailure?: () => void;
+}
+
+export type DshWebSocketFactory = (url: URL, protocols: readonly string[]) => WebSocket | Promise<WebSocket>;
+
+export interface DshSocketRequest {
+  sandboxId: string;
+  channel: "mux" | "host";
+  sessionId?: string;
+}
+
+export interface DshWsTicket {
+  ticket: string;
+  expiresAt: number;
+  contractVersion: 1;
 }
 
 export interface DshSessionEvent {
@@ -97,6 +117,7 @@ export interface DshClient {
   renameSession(input: { sessionId: string; title: string }, signal?: AbortSignal): Promise<DshSessionRenameValue>;
   forkSession(input: { sessionId: string; atSeq?: number }, signal?: AbortSignal): Promise<DshSessionForkValue>;
   prompt(input: { sessionId: string; mode: "queue" | "steer"; content: [{ type: "text"; text: string }]; clientTimeZone?: string }, signal?: AbortSignal): Promise<Record<string, unknown>>;
+  openSocket(input: DshSocketRequest, factory?: DshWebSocketFactory): Promise<WebSocket>;
 }
 
 type JsonRecord = Record<string, unknown>;
@@ -272,12 +293,23 @@ function parseEnvelope(value: unknown): unknown {
 
 export class DshApiClient implements DshClient {
   private readonly apiOrigin: string;
-  private readonly accessToken: string | undefined;
+  private readonly tokenProvider: () => string | undefined | Promise<string | undefined>;
+  private readonly now: () => number;
+  private readonly onAuthFailure: (() => void) | undefined;
   private sandboxScope: SandboxScope | undefined;
 
-  constructor(apiOrigin: string, accessToken?: string) {
+  constructor(apiOrigin: string, options: DshApiClientOptions | string = {}) {
     this.apiOrigin = new URL(apiOrigin).origin;
-    this.accessToken = accessToken;
+    if (typeof options === "string") {
+      this.tokenProvider = () => options;
+    } else {
+      this.tokenProvider = options.tokenProvider ?? (() => undefined);
+      this.now = options.now ?? (() => Date.now());
+      this.onAuthFailure = options.onAuthFailure;
+      return;
+    }
+    this.now = () => Date.now();
+    this.onAuthFailure = undefined;
   }
 
   setSandboxScope(scope: SandboxScope | undefined): void {
@@ -312,17 +344,55 @@ export class DshApiClient implements DshClient {
     return this.call("session.prompt", input, (value) => parseObjectValue(value, "session.prompt response"), signal);
   }
 
+  async requestWebSocketTicket(input: DshSocketRequest, signal?: AbortSignal): Promise<DshWsTicket> {
+    validateSocketRequest(input);
+    const accessToken = await this.readAccessToken();
+    let response: Response;
+    try {
+      response = await fetch(new URL("/api/dsh/ws-ticket", this.apiOrigin), {
+        method: "POST",
+        credentials: "omit",
+        cache: "no-store",
+        headers: { authorization: "Bearer " + accessToken, "content-type": "application/json" },
+        body: JSON.stringify({ sandboxId: input.sandboxId, channel: input.channel, ...(input.sessionId === undefined ? {} : { sessionId: input.sessionId }) }),
+        signal,
+      });
+    } catch (error) {
+      if (error instanceof DshApiError) throw error;
+      throw new DshApiError("Unable to request a DSH WebSocket ticket", "ticket_unavailable", error);
+    }
+    if (!response.ok) {
+      const body = await response.json().catch(() => undefined);
+      throw this.responseError(body, response.status, "The DSH WebSocket ticket request failed");
+    }
+    const body = await response.json().catch(() => undefined);
+    return parseWebSocketTicket(body, this.now());
+  }
+
+  async openSocket(input: DshSocketRequest, factory?: DshWebSocketFactory): Promise<WebSocket> {
+    const ticket = await this.requestWebSocketTicket(input);
+    const url = new URL(input.channel === "mux" ? "/api/dsh/events.mux" : "/api/dsh/events.host", this.apiOrigin);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    const protocols = ["dsh.v1", "dsh-ticket." + ticket.ticket] as const;
+    try {
+      const createSocket = factory ?? ((target: URL, values: readonly string[]) => new WebSocket(target, [...values]));
+      return await createSocket(url, protocols);
+    } catch (error) {
+      throw new DshApiError("Unable to create the DSH WebSocket", "websocket_unavailable", error);
+    }
+  }
+
   private async call<T>(method: string, payload: unknown, parser: Parser<T>, signal?: AbortSignal): Promise<T> {
+    const accessToken = await this.readAccessToken();
     let response: Response;
     try {
       const target = new URL(`/api/dsh/${method}`, this.apiOrigin);
       if (this.sandboxScope !== undefined) target.searchParams.set("sandboxId", this.sandboxScope.sandboxId);
-      const headers: Record<string, string> = { "content-type": "application/json" };
-      if (this.accessToken !== undefined) headers.authorization = "Bearer " + this.accessToken;
       response = await fetch(target, {
         method: "POST",
         credentials: "omit",
-        headers,
+        cache: "no-store",
+        headers: { authorization: "Bearer " + accessToken, "content-type": "application/json" },
         body: JSON.stringify({ type: "client-request", rpcId: createRpcId(), method, payload }),
         signal,
       });
@@ -332,13 +402,56 @@ export class DshApiClient implements DshClient {
     }
     if (!response.ok) {
       const body = await response.json().catch(() => undefined);
-      const error = isRecord(body) && isRecord(body.error) ? body.error : {};
-      throw new DshApiError(typeof error.message === "string" ? error.message : "The DSH request failed", typeof error.code === "string" ? error.code : undefined, error.details);
+      throw this.responseError(body, response.status, "The DSH request failed");
     }
     const body = await response.json().catch(() => undefined);
     return parser(parseEnvelope(body));
   }
 
+  private async readAccessToken(): Promise<string> {
+    let token: string | undefined;
+    try { token = await this.tokenProvider(); } catch (error) {
+      const code = error instanceof Error && "code" in error && typeof error.code === "string" ? error.code : "auth_required";
+      throw new DshApiError(code === "auth_required" ? "Authentication is required" : "The access token provider failed", code, undefined, 401);
+    }
+    if (token === undefined || !validCredential(token)) throw new DshApiError("Authentication is required", "auth_required", undefined, 401);
+    return token;
+  }
+
+  private responseError(value: unknown, status: number, fallbackMessage: string): DshApiError {
+    const body = isRecord(value) ? value : {};
+    const error = isRecord(body.error) ? body.error : body;
+    const code = typeof error.code === "string" ? error.code : status === 401 ? "auth_required" : undefined;
+    if (status === 401) this.onAuthFailure?.();
+    return new DshApiError(typeof error.message === "string" ? error.message : fallbackMessage, code, error.details, status);
+  }
+
+}
+
+const TICKET_PATTERN = /^[A-Za-z0-9._~-]{8,2048}$/u;
+
+function validateSocketRequest(input: DshSocketRequest): void {
+  if (!validIdentifier(input.sandboxId)) throw new DshApiError("A sandbox is required for the DSH WebSocket", "sandbox_scope_required");
+  if (input.channel !== "mux" && input.channel !== "host") throw new DshApiError("The DSH WebSocket channel is invalid", "ticket_channel_invalid");
+  if (input.sessionId !== undefined && !validIdentifier(input.sessionId)) throw new DshApiError("The DSH session is invalid", "ticket_session_invalid");
+}
+
+function parseWebSocketTicket(value: unknown, now: number): DshWsTicket {
+  const item = record(value, "WebSocket ticket response");
+  if (item.ok !== true || item.contractVersion !== 1) throw new DshApiError("The server returned an unsupported WebSocket ticket contract", "ticket_contract_invalid");
+  const ticket = requiredString(item, "ticket", "WebSocket ticket");
+  const expiresAt = requiredFiniteNumber(item, "expiresAt", "WebSocket ticket expiry");
+  if (!TICKET_PATTERN.test(ticket) || ticket.startsWith("dsh-ticket.")) throw new DshApiError("The server returned an invalid WebSocket ticket", "ticket_invalid");
+  if (!Number.isSafeInteger(expiresAt) || expiresAt <= now || expiresAt > now + 60_000) throw new DshApiError("The server returned an invalid WebSocket ticket expiry", "ticket_expiry_invalid");
+  return { ticket, expiresAt, contractVersion: 1 };
+}
+
+function validCredential(value: string): boolean {
+  return value.length > 0 && value.length <= 16_384 && !/[\s\u0000-\u001f\u007f]/u.test(value);
+}
+
+function validIdentifier(value: string): boolean {
+  return value.length > 0 && value.length <= 512 && !/[\u0000-\u001f\u007f]/u.test(value);
 }
 
 function createRpcId(): string {

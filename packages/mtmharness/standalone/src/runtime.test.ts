@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryTokenSource } from "@/app/auth";
 import { DshApiError, type DshClient, type DshWorkspaceView, type MtmSessionSummary } from "@/dsh/adapter";
 import { SandboxApiError, type SandboxClient, type SandboxRecord } from "@/sandbox/adapter";
 import { MtmHarnessRuntime } from "./runtime";
@@ -14,7 +15,7 @@ class TestWebSocket {
   onerror: (() => void) | undefined;
   onclose: (() => void) | undefined;
 
-  constructor(readonly url: URL) {
+  constructor(readonly url: URL, readonly protocols: readonly string[] = []) {
     TestWebSocket.last = this;
     TestWebSocket.instances.push(this);
     setTimeout(() => {
@@ -31,12 +32,16 @@ class TestWebSocket {
     this.readyState = TestWebSocket.CLOSING;
     this.onclose?.();
   }
+
+  emitClose(): void {
+    this.onclose?.();
+  }
 }
 
 function createRuntimeOptions(client: DshClient, sandboxClient: SandboxClient) {
   return {
     accessToken: "test-token",
-    webSocketFactory: (url: URL) => new TestWebSocket(url) as unknown as WebSocket,
+    webSocketFactory: (url: URL, protocols: readonly string[]) => new TestWebSocket(url, protocols) as unknown as WebSocket,
     client,
     sandboxClient,
   };
@@ -111,6 +116,10 @@ function createClient() {
       return { sessionId: child.sessionId };
     },
     prompt: async () => ({ accepted: true }),
+    openSocket: async (_input, factory) => {
+      if (factory === undefined) throw new Error("fixture socket factory is required");
+      return factory(new URL("wss://api.example.test/api/dsh/events.mux"), ["dsh.v1", "dsh-ticket.fixture"]);
+    },
   };
   return { client, calls, scopes, sandboxClient: createSandboxClient() };
 }
@@ -119,11 +128,11 @@ beforeEach(() => {
   vi.stubGlobal("WebSocket", TestWebSocket);
   TestWebSocket.last = undefined;
   TestWebSocket.instances = [];
-  localStorage.clear();
+  sessionStorage.clear();
 });
 
 afterEach(() => {
-  localStorage.clear();
+  sessionStorage.clear();
   vi.unstubAllGlobals();
 });
 
@@ -161,6 +170,10 @@ describe("MtmHarnessRuntime registry", () => {
       renameSession: async () => ({ title: "session", seq: 1 }),
       forkSession: async () => ({ sessionId: "session-2" }),
       prompt: async () => ({ accepted: true }),
+      openSocket: async (_input, factory) => {
+        if (factory === undefined) throw new Error("fixture socket factory is required");
+        return factory(new URL("wss://api.example.test/api/dsh/events.mux"), ["dsh.v1", "dsh-ticket.fixture"]);
+      },
     };
     const runtime = new MtmHarnessRuntime("https://api.example.test", createRuntimeOptions(client, createSandboxClient()));
 
@@ -213,11 +226,11 @@ describe("MtmHarnessRuntime registry", () => {
     const runtime = new MtmHarnessRuntime("https://api.example.test", createRuntimeOptions(client, base.sandboxClient));
     await runtime.refreshRegistry();
     await runtime.selectSession("session-1");
-    expect(localStorage.getItem("mtmharness:v1:session:https://api.example.test:sbx_00000000-0000-4000-8000-000000000001")).toBe("session-1");
+    expect(sessionStorage.getItem("mtmharness:v2:session:https://api.example.test:explicit:sbx_00000000-0000-4000-8000-000000000001")).toBe("session-1");
 
     await expect(runtime.selectSession("session-failed")).rejects.toMatchObject({ code: "history_unavailable" });
     expect(runtime.getSnapshot()).toMatchObject({ selectedSessionId: "session-1", status: "error", messages: [{ role: "user", text: "Hello" }] });
-    expect(localStorage.getItem("mtmharness:v1:session:https://api.example.test:sbx_00000000-0000-4000-8000-000000000001")).toBe("session-1");
+    expect(sessionStorage.getItem("mtmharness:v2:session:https://api.example.test:explicit:sbx_00000000-0000-4000-8000-000000000001")).toBe("session-1");
     runtime.dispose();
   });
 
@@ -227,12 +240,12 @@ describe("MtmHarnessRuntime registry", () => {
     await runtime.refreshRegistry();
     await runtime.selectSession("session-1");
     const oldSocket = TestWebSocket.last;
-    expect(oldSocket?.url.searchParams.get("sandboxId")).toBe(sandboxOne.id);
+    expect(oldSocket?.url.pathname).toBe("/api/dsh/events.mux");
 
     await runtime.selectSandbox(sandboxTwo.id);
 
     expect(oldSocket?.readyState).toBe(TestWebSocket.CLOSING);
-    expect(TestWebSocket.last?.url.searchParams.get("sandboxId")).toBe(sandboxTwo.id);
+    expect(TestWebSocket.last?.url.pathname).toBe("/api/dsh/events.mux");
     expect(runtime.getSnapshot()).toMatchObject({ selectedSandboxId: sandboxTwo.id, workspaceId: sandboxTwo.workspaceId, selectedSessionId: "session-1", status: "idle" });
     oldSocket?.emit(JSON.stringify({ type: "server-request", payload: { type: "session/event", sessionId: "session-1", event: { type: "assistant/message", seq: 9, data: { message: { id: "stale", content: [{ type: "text", text: "stale" }] } } } } }));
     expect(runtime.getSnapshot().messages.some((message) => message.id === "stale")).toBe(false);
@@ -255,7 +268,7 @@ describe("MtmHarnessRuntime registry", () => {
 
     await expect(runtime.selectSandbox(sandboxTwo.id)).rejects.toMatchObject({ code: "sandbox_not_found" });
     expect(runtime.getSnapshot()).toMatchObject({ selectedSandboxId: sandboxOne.id, workspaceId: sandboxOne.workspaceId, selectedSessionId: "session-1", messages: previousMessages, sandboxError: "Sandbox not found", status: "error" });
-    expect(TestWebSocket.last?.url.searchParams.get("sandboxId")).toBe(sandboxOne.id);
+    expect(TestWebSocket.last?.url.pathname).toBe("/api/dsh/events.mux");
     expect(TestWebSocket.last?.readyState).toBe(TestWebSocket.OPEN);
     runtime.dispose();
   });
@@ -275,6 +288,97 @@ describe("MtmHarnessRuntime registry", () => {
     expect(runtime.getSnapshot().status).toBe("idle");
     socket?.emit(JSON.stringify({ type: "server-request", payload: { type: "host/agent-error", sessionId: "session-1", message: "Agent failed" } }));
     expect(runtime.getSnapshot()).toMatchObject({ status: "error", error: "Agent failed" });
+    runtime.dispose();
+  });
+
+  it("reconnects through a custom client without a token source", async () => {
+    vi.useFakeTimers();
+    try {
+      const { client, sandboxClient } = createClient();
+      const runtime = new MtmHarnessRuntime("https://api.example.test", {
+        client,
+        sandboxClient,
+        webSocketFactory: (url: URL, protocols: readonly string[]) => new TestWebSocket(url, protocols) as unknown as WebSocket,
+      });
+      await runtime.refreshRegistry();
+      const selecting = runtime.selectSession("session-1");
+      await vi.runAllTimersAsync();
+      await selecting;
+      TestWebSocket.last?.close();
+      expect(runtime.getSnapshot()).toMatchObject({ status: "loading", operation: "reconnecting" });
+      await vi.advanceTimersByTimeAsync(250);
+      await vi.runAllTimersAsync();
+      expect(TestWebSocket.instances).toHaveLength(2);
+      expect(runtime.getSnapshot().status).toBe("idle");
+      runtime.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("gets a new ticket-aware socket after a disconnect", async () => {
+    vi.useFakeTimers();
+    try {
+      const { client, sandboxClient } = createClient();
+      const runtime = new MtmHarnessRuntime("https://api.example.test", createRuntimeOptions(client, sandboxClient));
+      await runtime.refreshRegistry();
+      const selecting = runtime.selectSession("session-1");
+      await vi.runAllTimersAsync();
+      await selecting;
+      const first = TestWebSocket.last;
+      first?.close();
+      expect(runtime.getSnapshot()).toMatchObject({ status: "loading", operation: "reconnecting" });
+      await vi.advanceTimersByTimeAsync(250);
+      await vi.runAllTimersAsync();
+      expect(TestWebSocket.instances).toHaveLength(2);
+      expect(TestWebSocket.instances[1]?.protocols).toEqual(["dsh.v1", "dsh-ticket.fixture"]);
+      expect(runtime.getSnapshot().status).toBe("idle");
+      runtime.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ignores a stale close from a replaced socket", async () => {
+    vi.useFakeTimers();
+    try {
+      const { client, sandboxClient } = createClient();
+      const runtime = new MtmHarnessRuntime("https://api.example.test", createRuntimeOptions(client, sandboxClient));
+      await runtime.refreshRegistry();
+      const selecting = runtime.selectSession("session-1");
+      await vi.runAllTimersAsync();
+      await selecting;
+      const first = TestWebSocket.instances[0];
+      first?.close();
+      await vi.advanceTimersByTimeAsync(250);
+      await vi.runAllTimersAsync();
+      const second = TestWebSocket.instances[1];
+      expect(TestWebSocket.instances).toHaveLength(2);
+      first?.emitClose();
+      expect(TestWebSocket.instances).toHaveLength(2);
+      expect(second?.readyState).toBe(TestWebSocket.OPEN);
+      expect(runtime.getSnapshot().status).toBe("idle");
+      runtime.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("clears the old account socket, selection, and session hint", async () => {
+    const source = new MemoryTokenSource("test-token", "account-a");
+    const { client, sandboxClient } = createClient();
+    const runtime = new MtmHarnessRuntime("https://api.example.test", { ...createRuntimeOptions(client, sandboxClient), tokenSource: source });
+    await runtime.refreshRegistry();
+    await runtime.selectSession("session-1");
+    const socket = TestWebSocket.last;
+    const key = "mtmharness:v2:session:https://api.example.test:account-a:" + sandboxOne.id;
+    expect(sessionStorage.getItem(key)).toBe("session-1");
+
+    source.clear();
+
+    expect(socket?.readyState).toBe(TestWebSocket.CLOSING);
+    expect(runtime.getSnapshot()).toMatchObject({ status: "auth-required", selectedSandboxId: undefined, selectedSessionId: undefined, sandboxes: [], sessions: [], messages: [] });
+    expect(sessionStorage.getItem(key)).toBeNull();
     runtime.dispose();
   });
 });
