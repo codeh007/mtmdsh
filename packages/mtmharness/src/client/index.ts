@@ -48,7 +48,7 @@ export function apply(ctx: ClientContext): void {
     order: 11,
     inject: () => ({ actions: canvasRuntime, hooks: { canvas: canvasRuntime } }),
   }, MtmCanvasAction));
-  // The fixed-origin app and response CSP are deployed with the gomtmui-dev workflow.
+  // The launcher loads the latest stable app directly from the package CDN.
   ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
     name: "sidebar.footer.action",
     id: "mtmdsh-launcher",

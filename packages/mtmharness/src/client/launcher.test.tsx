@@ -20,7 +20,7 @@ afterEach(() => {
 });
 
 describe("MtmHarnessLauncher", () => {
-  it("opens a fixed-origin sandboxed iframe without credential-bearing URL state", () => {
+  it("opens the latest CDN static app without credential-bearing URL state", () => {
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -34,6 +34,7 @@ describe("MtmHarnessLauncher", () => {
     const frame = container.querySelector("iframe");
     expect(frame).not.toBeNull();
     expect(frame?.src).toBe(MTM_HARNESS_LAUNCHER_APP_URL);
+    expect(frame?.src).not.toContain("/mtmdsh/");
     expect(frame?.src).not.toContain("token");
     expect(frame?.getAttribute("sandbox")).toContain("allow-scripts");
     expect(frame?.getAttribute("sandbox")).toContain("allow-same-origin");

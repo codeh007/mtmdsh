@@ -72,16 +72,20 @@ for (const required of [
   "RTK",
   "shell.overlay",
   "mtmdsh-launcher-overlay",
-  "https://gomtm-dev.yuepa8.com/mtmdsh/",
+  "https://unpkg.com/mtmharness@latest/dist/standalone/index.html",
 ]) {
   if (!client.includes(required)) fail("client artifact is missing unified feature surface: " + required);
 }
-for (const forbidden of ["createRoot", "RouterProvider", "new WebSocket", 'credentials: "include"', "MtmHarnessRuntime", "standalone/src", 'id: "mtm-connect"']) {
+for (const forbidden of ["createRoot", "RouterProvider", "new WebSocket", 'credentials: "include"', "MtmHarnessRuntime", "standalone/src", 'id: "mtm-connect"', "/mtmdsh/"]) {
   if (client.includes(forbidden)) fail("client artifact contains standalone behavior: " + forbidden);
 }
 
 const app = read("dist/standalone/index.html");
 if (!app.includes("<script") || !app.includes("assets/")) fail("static app entry does not reference built assets");
+const staticConfig = read("dist/standalone/config.js");
+for (const required of ["https://gomtm-dev.yuepa8.com", "mtmharness-web-v1", "window.location.origin + window.location.pathname"]) {
+  if (!staticConfig.includes(required)) fail("static app config is missing CDN OAuth bootstrap: " + required);
+}
 const embed = read("dist/embed/mtmharness.js");
 const embedIife = read("dist/embed/mtmharness.iife.js");
 const appJsName = readdirSync(resolve(packageRoot, "dist/standalone/assets")).find((name) => name.endsWith(".js"));

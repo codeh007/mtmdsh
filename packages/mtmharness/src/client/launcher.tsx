@@ -3,10 +3,10 @@ import type { PropsRuntime } from "@deepseek-ai/dsh-client-ui-slots";
 import { Button } from "@deepseek-ai/dsh-client-ui-primitives";
 import { closeMtmHarnessLauncher, openMtmHarnessLauncher, publish, snapshot, subscribe, type LauncherState } from "./launcher-state.js";
 
-export const MTM_HARNESS_LAUNCHER_APP_URL = "https://gomtm-dev.yuepa8.com/mtmdsh/";
-export const MTM_HARNESS_LAUNCHER_APP_ORIGIN = "https://gomtm-dev.yuepa8.com";
+export const MTM_HARNESS_LAUNCHER_APP_URL = "https://unpkg.com/mtmharness@latest/dist/standalone/index.html";
+export const MTM_HARNESS_LAUNCHER_APP_ORIGIN = "https://unpkg.com";
 export const MTM_HARNESS_LAUNCHER_CONTRACT_VERSION = 1 as const;
-/** The fixed app is deployed by the gomtmui-dev build and serves response security headers. */
+/** The launcher follows the package CDN's latest stable release. */
 export const MTM_HARNESS_LAUNCHER_READY = true;
 
 const LAUNCHER_MESSAGE_TYPES = ["ready", "close", "resize"] as const;
@@ -85,7 +85,7 @@ export function MtmHarnessLauncherOverlay(): ReactElement | null {
           <strong className="truncate text-sm">MTM Cloud</strong>
           <Button type="button" variant="ghost" size="sm" aria-label="Close MTM cloud workspace" title="Close MTM cloud workspace" onClick={() => { const frame = frameRef.current; if (frame) send(frame, "close", nonce); closeMtmHarnessLauncher(); }}><span aria-hidden="true">X</span></Button>
         </header>
-        {/* The first-party app needs same-origin storage/CORS; source, origin, nonce, and CSP checks fence the parent. */}
+        {/* The first-party app keeps its OAuth callback and storage on its own CDN origin. */}
         <iframe
           ref={frameRef}
           src={MTM_HARNESS_LAUNCHER_APP_URL}

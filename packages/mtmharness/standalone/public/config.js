@@ -1,1 +1,1 @@
-window.__MTM_HARNESS_CONFIG__ ??= {};
+window.__MTM_HARNESS_CONFIG__ ??= { apiOrigin: "https://gomtm-dev.yuepa8.com", oauth: { issuer: "https://gomtm-dev.yuepa8.com", clientId: "mtmharness-web-v1", redirectUri: window.location.origin + window.location.pathname, resource: "https://gomtm-dev.yuepa8.com/api/dsh" } };

@@ -2,13 +2,14 @@ import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { createRoot } from "react-dom/client";
 import embedStyles from "@/styles/globals.css?inline";
 import { createClientRouter } from "@/app/router";
-import { createTokenSource, normalizeConfig, resolveTarget, type MtmHarnessClientConfig, type MtmHarnessClientHandle } from "./app/config";
+import { createPresentationController, createTokenSource, normalizeConfig, resolveTarget, type MtmHarnessClientConfig, type MtmHarnessClientHandle } from "./app/config";
 import type { MtmHarnessAuthClient } from "./app/auth";
 import { installHostBridge } from "./app/host-bridge";
 import { MtmHarnessRuntime } from "@/runtime";
 
 function mountClient(config: MtmHarnessClientConfig): MtmHarnessClientHandle {
   const normalizedConfig = normalizeConfig(config);
+  const presentationController = createPresentationController(normalizedConfig.mode);
   const target = resolveTarget(config.target);
   const host = document.createElement("div");
   const shadowRoot = host.attachShadow({ mode: "open" });
@@ -43,11 +44,15 @@ function mountClient(config: MtmHarnessClientConfig): MtmHarnessClientHandle {
     presentation: "embed",
     history: createMemoryHistory({ initialEntries: ["/"] }),
     auth,
+    presentationController,
   });
   const root = createRoot(container);
   root.render(<RouterProvider router={router} />);
   let mounted = true;
   return {
+    open: presentationController.open,
+    close: presentationController.close,
+    openFullShell: presentationController.openFullShell,
     unmount() {
       if (!mounted) return;
       mounted = false;
@@ -70,9 +75,13 @@ export function autoMount(script: HTMLScriptElement): MtmHarnessClientHandle | n
   const apiOrigin = script.dataset.apiOrigin;
   if (!apiOrigin) return null;
   const bootstrap = window.__MTM_HARNESS_CONFIG__ ?? {};
+  const oauthValues = [script.dataset.oauthIssuer, script.dataset.oauthClientId, script.dataset.oauthRedirectUri, script.dataset.oauthResource];
+  const hasOAuthAttributes = oauthValues.some((value) => value !== undefined);
+  if (hasOAuthAttributes && oauthValues.some((value) => value === undefined)) throw new TypeError("OAuth data attributes must be provided together");
+  const oauth = hasOAuthAttributes ? { issuer: oauthValues[0]!, clientId: oauthValues[1]!, redirectUri: oauthValues[2]!, resource: oauthValues[3]! } : bootstrap.oauth;
   const handle = mountClient({
     apiOrigin,
-    oauth: bootstrap.oauth,
+    oauth,
     accessToken: bootstrap.accessToken,
     tokenSource: bootstrap.tokenSource,
     webSocketFactory: bootstrap.webSocketFactory,
