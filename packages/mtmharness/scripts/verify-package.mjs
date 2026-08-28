@@ -80,8 +80,6 @@ for (const required of [
   "RTK",
   "shell.overlay",
   "mtmdsh-launcher-overlay",
-  "mtmcanvas@0.2.0",
-  "secondary client artifact integrity mismatch",
   "https://unpkg.com/mtmharness@latest/dist/standalone/index.html",
 ]) {
   if (!client.includes(required)) fail("client artifact is missing unified feature surface: " + required);

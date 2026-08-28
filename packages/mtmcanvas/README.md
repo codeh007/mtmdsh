@@ -14,7 +14,7 @@ The first experiment keeps Canvas data in browser memory. File persistence and h
 
 Install only `mtmharness` into the DSH Web profile. The Dynamic Canvas setting loads the exact Canvas artifact at runtime; it does not modify the profile or create another DSH Loader entry.
 
-The default experiment uses the published URL on unpkg, but the loader accepts any exact HTTPS static-host URL with CORS enabled. The artifact is fetched, checked against its SHA-256 integrity value, imported as native ESM, and mounted into an owned root.
+The default experiment uses the published URL on unpkg, but the loader accepts any exact HTTPS static-host URL with CORS enabled. The host CSP must allow `connect-src` to the artifact origin and `script-src blob:` for the fetched ESM. The artifact is fetched, checked against its SHA-256 integrity value, imported as native ESM, and mounted into an owned root.
 
 ## Development
 

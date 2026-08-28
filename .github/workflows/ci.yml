@@ -65,6 +65,7 @@ jobs:
       - name: Lint mtmharness package metadata
         run: pnpm dlx publint run "${{ steps.pack.outputs.tarball }}" --strict
 
+
       - name: Verify mtmharness profile migration
         if: ${{ matrix.node == '22.19.0' }}
         run: pnpm --filter mtmharness run profile:check -- "${{ steps.pack.outputs.tarball }}"

@@ -102,16 +102,18 @@ export async function loadSecondaryModule(
   if (integrity !== manifest.clientIntegrity) throw new Error("secondary client artifact integrity mismatch");
 
   const source = new TextDecoder().decode(bytes);
-  const sourceUrl = typeof URL.createObjectURL === "function"
-    ? URL.createObjectURL(new Blob([source], { type: "text/javascript" }))
-    : "data:text/javascript;charset=utf-8," + encodeURIComponent(source);
+  const importModule = options.importModule ?? ((url: string) => import(/* @vite-ignore */ url));
+  if (typeof URL.createObjectURL !== "function" || typeof URL.revokeObjectURL !== "function") {
+    throwIfAborted(signal);
+    return extensionExports(await importModule("data:text/javascript;charset=utf-8," + encodeURIComponent(source)));
+  }
+  const sourceUrl = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
   try {
     throwIfAborted(signal);
     // Dynamic import has no cancellation API; the checkpoint prevents starting it after abort.
-    const importModule = options.importModule ?? ((url: string) => import(/* @vite-ignore */ url));
     return extensionExports(await importModule(sourceUrl));
   } finally {
-    if (sourceUrl.startsWith("blob:")) URL.revokeObjectURL(sourceUrl);
+    URL.revokeObjectURL(sourceUrl);
   }
 }
 
