@@ -44,6 +44,10 @@ for (const path of [
   "lib/types/index.d.ts",
   "lib/types/client/index.d.ts",
   "lib/types/features/coding/index.d.ts",
+  "resources/go-modern-guidelines/scripts/VERSION",
+  "resources/go-modern-guidelines/LICENSE",
+  "resources/go-modern-guidelines/scripts/run-tool.sh",
+  "resources/go-modern-guidelines/scripts/run-tool.ps1",
   "dist/standalone/index.html",
   "dist/standalone/config.js",
   "dist/embed/mtmharness.js",
@@ -57,7 +61,7 @@ if (!patch.includes("id: mtmharness") || !patch.includes("name: mtmharness") || 
 }
 
 const host = read("lib/index.js");
-for (const required of ["mtm-coding", "codebase_memory", "mtm-coding-ponytail", "mtm-coding-rtk", "RTK_VERSION"]) {
+for (const required of ["mtm-coding", "codebase_memory", "mtm-coding-modern-go", "use-modern-go", "mtm-coding-ponytail", "mtm-coding-rtk", "RTK_VERSION"]) {
   if (!host.includes(required)) fail("Host artifact is missing coding feature: " + required);
 }
 
@@ -68,6 +72,8 @@ for (const required of [
   "mtm-coding",
   "mtm.coding",
   "ponytail",
+  "modernGoEnabled",
+  "Modern Go Guidelines",
   "rtkMode",
   "RTK",
   "shell.overlay",
@@ -118,6 +124,10 @@ if (tarball !== undefined) {
     "package/lib/types/client/index.d.ts",
     "package/lib/types/index.d.ts",
     "package/lib/types/features/coding/index.d.ts",
+    "package/resources/go-modern-guidelines/scripts/VERSION",
+    "package/resources/go-modern-guidelines/LICENSE",
+    "package/resources/go-modern-guidelines/scripts/run-tool.sh",
+    "package/resources/go-modern-guidelines/scripts/run-tool.ps1",
     "package/dist/standalone/index.html",
     "package/dist/standalone/config.js",
     "package/dist/embed/mtmharness.js",

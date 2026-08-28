@@ -18,6 +18,8 @@ function clientBench(): { registered: Registered[]; cleanups: Array<() => void |
     value: {
       codebaseMemoryEnabled: false,
       codebaseMemoryAugmentHooks: true,
+      modernGoEnabled: true,
+      modernGoCommand: "",
       ponytailEnabled: true,
       ponytailMode: "full",
       ponytailSubagents: true,
@@ -85,6 +87,8 @@ async function hostBench(): Promise<{ provided: Record<string, unknown>; cleanup
   const settings = {
     codebaseMemoryEnabled: false,
     codebaseMemoryAugmentHooks: true,
+    modernGoEnabled: false,
+    modernGoCommand: "",
     ponytailEnabled: false,
     ponytailMode: "full",
     ponytailSubagents: true,

@@ -1,6 +1,7 @@
 import type { Context, Fiber } from "@deepseek-ai/cordis";
 import { settingsNamespace } from "@deepseek-ai/dsh-settings";
 import { apply as applyCodebaseMemory, type Config as CodebaseMemoryConfig } from "./codebase-memory.js";
+import { apply as applyModernGo } from "./modern-go.js";
 import { apply as applyPonytail } from "./ponytail.js";
 import { apply as applyRtk } from "./rtk.js";
 import {
@@ -12,6 +13,7 @@ import {
 
 export { buildMcpConfig, resolveConfig } from "./codebase-memory.js";
 export { MtmCodingSettingsSchema, codebaseMemoryConfig } from "./types.js";
+export { MODERN_GO_RESOURCE_BASE, createModernGoSkill } from "./modern-go.js";
 export { PONYTAIL_SKILLS } from "./ponytail-skills.js";
 export {
   ensureRuntime,
@@ -23,6 +25,7 @@ export {
   resolveWorkingDirectory,
 } from "./runtime.js";
 export { apply as applyCodebaseMemory } from "./codebase-memory.js";
+export { apply as applyModernGo } from "./modern-go.js";
 export { apply as applyPonytail } from "./ponytail.js";
 export { apply as applyRtk } from "./rtk.js";
 export type { MtmCodingConfig, MtmCodingSettings, PonytailMode, RtkMode } from "./types.js";
@@ -34,6 +37,12 @@ const CodebaseMemoryFeature = {
   name: "mtm-coding-codebase-memory",
   inject: ["systemPrompt", "subprocess"],
   apply: applyCodebaseMemory,
+};
+
+const ModernGoFeature = {
+  name: "mtm-coding-modern-go",
+  inject: ["skills"],
+  apply: applyModernGo,
 };
 
 const PonytailFeature = {
@@ -73,6 +82,13 @@ function ponytailKey(settings: MtmCodingSettings): string {
   });
 }
 
+function modernGoKey(settings: MtmCodingSettings): string {
+  return jsonKey({
+    enabled: settings.modernGoEnabled,
+    command: settings.modernGoCommand,
+  });
+}
+
 function rtkKey(settings: MtmCodingSettings): string {
   return jsonKey({
     mode: settings.rtkMode,
@@ -89,9 +105,11 @@ export async function apply(ctx: Context, rawConfig: MtmCodingConfig = {}): Prom
     { base: rawConfig },
   );
   let codebaseMemoryFiber: MountedFiber | undefined;
+  let modernGoFiber: MountedFiber | undefined;
   let ponytailFiber: MountedFiber | undefined;
   let rtkFiber: MountedFiber | undefined;
   let activeCodebaseKey = "";
+  let activeModernGoKey = "";
   let activePonytailKey = "";
   let activeRtkKey = "";
   let reconciling = Promise.resolve();
@@ -99,6 +117,7 @@ export async function apply(ctx: Context, rawConfig: MtmCodingConfig = {}): Prom
 
   const reconcile = async (next: MtmCodingSettings): Promise<void> => {
     const nextCodebaseKey = codebaseKey(next);
+    const nextModernGoKey = modernGoKey(next);
     const nextPonytailKey = ponytailKey(next);
     const nextRtkKey = rtkKey(next);
 
@@ -113,6 +132,16 @@ export async function apply(ctx: Context, rawConfig: MtmCodingConfig = {}): Prom
         );
       }
       activeCodebaseKey = nextCodebaseKey;
+    }
+
+    if (nextModernGoKey !== activeModernGoKey) {
+      await dispose(modernGoFiber);
+      modernGoFiber = undefined;
+      activeModernGoKey = "";
+      if (next.modernGoEnabled) {
+        modernGoFiber = await ctx.plugin(ModernGoFeature, { command: next.modernGoCommand });
+      }
+      activeModernGoKey = nextModernGoKey;
     }
 
     if (nextPonytailKey !== activePonytailKey) {
@@ -159,9 +188,11 @@ export async function apply(ctx: Context, rawConfig: MtmCodingConfig = {}): Prom
     stopWatching();
     await reconciling;
     await dispose(rtkFiber);
+    await dispose(modernGoFiber);
     await dispose(ponytailFiber);
     await dispose(codebaseMemoryFiber);
     rtkFiber = undefined;
+    modernGoFiber = undefined;
     ponytailFiber = undefined;
     codebaseMemoryFiber = undefined;
   }, "mtm-coding.lifecycle");

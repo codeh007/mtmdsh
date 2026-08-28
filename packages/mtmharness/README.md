@@ -2,10 +2,12 @@
 
 `mtmharness` is one public npm package with one unified DSH plugin and two explicit client identities:
 
-- **DSH Web plugin**: the package root and `./client` export use the official `dsh.client` lazy-CJS contract. One installation provides the MTM sidebar action, the Connect control panel, and the settings-controlled Codebase Memory/Ponytail coding features.
+- **DSH Web plugin**: the package root and `./client` export use the official `dsh.client` lazy-CJS contract. One installation provides the MTM sidebar action, the Connect control panel, and the settings-controlled Codebase Memory/Modern Go/Ponytail coding features.
 - **Independent web client**: the package also publishes a BrowserHistory static app and a MemoryHistory script/embed entry. These artifacts own their React root, router, styles, and teardown and never load the local coding runtime.
 
 The DSH plugin is assembled from Connect and coding feature domains under one Host/Client lifecycle. Codebase Memory keeps its `codebase_memory` server namespace and `mcp__codebase_memory__*` tool names; Ponytail ships six skills inline, including `/ponytail` and its companion commands. The `mtm-coding` settings namespace remains the configuration contract inside the unified `mtmharness` package.
+
+Modern Go Guidelines is enabled by default as the inline `use-modern-go` skill. The skill uses the bundled JetBrains `v0.1.1` wrapper to resolve guidance for the target project version. The wrapper installs its CLI only when a Go task runs it, caches the binary outside the project, and reports a missing Go toolchain instead of assuming the host is prepared. `modernGoCommand` can replace the bundled wrapper command; `modernGoEnabled` removes the skill from the DSH catalog. The redistributed wrapper and license live under `resources/go-modern-guidelines/` and remain Apache-2.0.
 
 RTK is an optional coding feature in the same `mtm-coding` settings namespace. `rtkMode` defaults to `auto`: it transparently rewrites Bash calls when the DSH `tools/pre-record-input` capability is available and falls back to inline guidance when it is not. Explicit `rewrite` is strict and reports `unavailable` on older DSH runtimes instead of changing frozen tool inputs. The pinned RTK `v0.45.0` binary is resolved from an explicit `rtkCommand` or lazily installed under the DSH home with checksum verification; RTK telemetry, tracking, and tee output are disabled for plugin-managed runs.
 

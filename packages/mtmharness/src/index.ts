@@ -4,6 +4,7 @@ import { apply as applyCodingHost } from "./features/coding/index.ts";
 import { apply as applyConnectHost } from "./features/connect/index.ts";
 
 export { buildMcpConfig, resolveConfig } from "./features/coding/index.ts";
+export { MODERN_GO_RESOURCE_BASE, createModernGoSkill } from "./features/coding/modern-go.ts";
 export { PONYTAIL_SKILLS } from "./features/coding/ponytail-skills.ts";
 export {
   ensureRuntime,
@@ -16,6 +17,7 @@ export {
 } from "./features/coding/runtime.ts";
 export { apply as applyCoding } from "./features/coding/index.ts";
 export { apply as applyCodebaseMemory } from "./features/coding/codebase-memory.ts";
+export { apply as applyModernGo } from "./features/coding/modern-go.ts";
 export { apply as applyPonytail } from "./features/coding/ponytail.ts";
 export { apply as applyRtk } from "./features/coding/rtk.ts";
 export {
