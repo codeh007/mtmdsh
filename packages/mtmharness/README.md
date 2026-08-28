@@ -18,22 +18,21 @@ Install the package into a web profile:
     dsh plugin --profile web add mtmharness
     dsh --profile web --dump-config
 
-Restart the DSH Web host after changing profile composition. The `MTM` action appears in the sidebar footer. The host owns the React root, session connection, and lifecycle. Install the independent `mtmcanvas` package to add the Canvas action and its Host/Client entry.
+Restart the DSH Web host after changing profile composition. The `MTM` action appears in the sidebar footer. The host owns the React root, session connection, and lifecycle.
 
 The plugin enables the Connect control panel by default and keeps its registry and `/mtm-connect` RPC on the DSH Host loopback boundary. The independent static/embed client remains a separate application surface and is not part of the DSH plugin.
 
-### Independent Canvas plugin
+## Secondary Extensions
 
-Canvas is maintained as the separate `mtmcanvas` DSH package. Add it after installing or upgrading `mtmharness`:
+`mtmharness` owns a runtime frontend-extension loader. The `Dynamic Canvas` setting is off by default; enabling it fetches the exact pinned `mtmcanvas` native ESM artifact, verifies its SHA-256 integrity, and mounts it through the `mount(context) -> cleanup` ABI. The extension contract passes only an owned DOM root, document, version, abort signal, and cleanup-registration callback; it does not expose DSH or Node.js internals. The ESM still runs with normal page privileges, so integrity is an identity check, not a browser security boundary; once native import starts, browser evaluation cannot be cancelled. Disabling the setting awaits cleanup and removes the owned root.
 
-    dsh plugin --profile web add mtmharness
-    dsh plugin --profile web add mtmcanvas
+`mtmcanvas` is an extension artifact, not a standard DSH plugin. Do not add it with `dsh plugin`; install only `mtmharness`. The default URL uses unpkg, but the manifest accepts any exact HTTPS static-host URL with CORS enabled. The host CSP must allow `connect-src` to the artifact origin and `script-src blob:` for the fetched ESM. The first browser-only experiment keeps Canvas data in memory; persistence and host capabilities are deferred.
 
-Profiles created from an older `mtmharness` release should remove retired `mtm-connect` and `mtm-coding` rows before adding the current packages. The committed profile smoke still covers the old-row cleanup and duplicate install path:
+Profiles created from an older `mtmharness` release should remove retired `mtmcanvas`, `mtm-connect`, and `mtm-coding` rows before adding the current package. The committed profile smoke still covers the old-row cleanup and duplicate install path:
 
     pnpm --filter mtmharness run profile:check -- /path/to/mtmharness.tgz
 
-`mtmcanvas` now owns the Canvas Host/Client implementation; `mtm-connect` and `mtm-coding` remain historical package names and are not compatibility aliases.
+`mtmcanvas` remains a separately published artifact so its browser code can be retrieved at runtime; its package has no `dsh.bundle` or `dsh.client` declaration. Publish the pinned `mtmcanvas` version before `mtmharness`; the mtmharness release gate checks the local, CDN, and manifest SHA-256 values.
 
 ## Static App
 

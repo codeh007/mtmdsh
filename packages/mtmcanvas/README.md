@@ -1,32 +1,23 @@
 # mtmcanvas
 
-Experimental independent DSH Web Canvas plugin extracted from the Canvas domain currently hosted by `mtmharness`.
+Experimental browser-only frontend extension for `mtmharness`.
 
-The package publishes two DSH faces:
+The package is not a standard DSH plugin: it has no `dsh` manifest or profile patch. `mtmharness` owns its runtime loading, version pin, integrity check, and lifecycle.
 
-- Host half: `lib/index.js`, which mounts the existing file-backed Canvas RPC through DSH's abstract `ctx.fs` service.
-- Browser half: `lib/client.cjs`, a `window.__ModuleLoader__.load` bundle that registers the Canvas sidebar action.
+## Extension contract
 
-This package is the independent Canvas implementation for the dynamic-loading experiment. The published `mtmharness` package no longer statically mounts Canvas; install both packages when the Canvas surface is required.
+The package publishes one self-contained native ESM artifact at `lib/client.js`. It exports `mount(context)`, where `context` contains the extension id, version, an owned DOM root, the host `Document`, an `AbortSignal`, a cleanup-registration callback, and `apiVersion: 1`. The function returns an optional cleanup function. The extension does not receive DSH or Node.js internals.
 
-## Install Into DSH Web
+The first experiment keeps Canvas data in browser memory. File persistence and host capabilities are intentionally deferred until the frontend ABI is proven. The artifact runs in the host page; SHA-256 integrity identifies the reviewed bytes but does not sandbox the code.
 
-```bash
-dsh plugin --profile web add mtmcanvas
-dsh --profile web --dump-config
+## Use Through mtmharness
 
-# Restart the Web profile after changing Bundle membership.
-```
+Install only `mtmharness` into the DSH Web profile. The Dynamic Canvas setting loads the exact Canvas artifact at runtime; it does not modify the profile or create another DSH Loader entry.
 
-The package patch inserts the `mtmcanvas` Loader row. The official Web client module table discovers the `dsh.client` declaration and serves the exported `./client` bundle.
-
-The separate `standalone/` client in `mtmharness` is not part of this plugin. It is the cloud multi-user client and does not receive the file-backed Host implementation.
+The default experiment uses the published URL on unpkg, but the loader accepts any exact HTTPS static-host URL with CORS enabled. The host CSP must allow `connect-src` to the artifact origin and `script-src blob:` for the fetched ESM. The artifact is fetched, checked against its SHA-256 integrity value, imported as native ESM, and mounted into an owned root.
 
 ## Development
 
-```bash
-pnpm --filter mtmcanvas run check
-pnpm --filter mtmcanvas run pack:check
-```
+    pnpm --filter mtmcanvas run check
 
-The browser artifact uses DSH's React singleton and dynamic module table. It does not create a React root, router, authentication flow, or local filesystem. `ctx.fs` is the Host capability boundary and can be backed by a remote implementation later.
+The package metadata under `mtmharness.secondary` is consumed by the owning harness runtime. It is not a `dsh.bundle` or `dsh.client` declaration.

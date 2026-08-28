@@ -1,4 +1,0 @@
-# Installable profile layer for the experimental mtmcanvas Host/Client plugin.
-- insert:
-    - id: mtmcanvas
-      name: mtmcanvas

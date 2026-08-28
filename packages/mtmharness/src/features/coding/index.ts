@@ -172,16 +172,19 @@ export async function apply(ctx: Context, rawConfig: MtmCodingConfig = {}): Prom
     }
   };
 
-  await reconcile(settings.get());
-  const stopWatching = settings.watch(() => {
-    if (stopped) return;
+  const queueReconcile = (): Promise<void> => {
     reconciling = reconciling
       .then(() => reconcile(settings.get()))
       .catch((error: unknown) => {
         ctx.logger.error("mtm-coding settings reconciliation failed: " + String(error));
       });
     return reconciling;
+  };
+  const stopWatching = settings.watch(() => {
+    if (stopped) return;
+    return queueReconcile();
   });
+  await queueReconcile();
 
   ctx.effect(() => async () => {
     stopped = true;

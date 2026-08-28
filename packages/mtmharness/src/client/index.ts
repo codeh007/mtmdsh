@@ -6,6 +6,7 @@ import type {} from "@deepseek-ai/dsh-client-ui-settings-plugins/client";
 import type {} from "@deepseek-ai/dsh-client-ui-sidebar/client";
 import type {} from "@deepseek-ai/dsh-client-ui-layout/client";
 import { apply as applyCoding } from "../features/coding/client/index.tsx";
+import { apply as applySecondary } from "../features/secondary/client.ts";
 import { apply as applyConnect } from "../features/connect/client/index.ts";
 import type { MtmConnectPanelActions } from "../features/connect/client/MtmConnectPanel.tsx";
 import { MtmHarnessAction, type MtmHarnessActionInjected } from "./MtmHarnessAction.tsx";
@@ -19,6 +20,7 @@ export const inject = ["slots", "connection", "locale", "settingsScope"];
 export function apply(ctx: ClientContext): void {
   if (ctx.get("connection") === undefined) throw new Error("mtmharness: DSH connection service is unavailable");
   applyCoding(ctx);
+  applySecondary(ctx);
   const runtime = applyConnect(ctx);
   const actions: MtmConnectPanelActions = {
     selectConnection: (connectionId) => { runtime.selectConnection(connectionId); },
