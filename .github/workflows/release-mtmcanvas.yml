@@ -1,0 +1,123 @@
+name: release-mtmcanvas
+run-name: Release mtmcanvas ${{ github.ref_name }}
+
+on:
+  push:
+    tags:
+      - 'mtmcanvas-v[0-9]*.[0-9]*.[0-9]*'
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: mtmcanvas-npm-publish
+  cancel-in-progress: false
+
+env:
+  PACKAGE_NAME: mtmcanvas
+  PACKAGE_DIR: packages/mtmcanvas
+  TAG_PREFIX: mtmcanvas-v
+
+jobs:
+  publish:
+    name: Pack, publish, and read back mtmcanvas
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout tagged main commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Verify pnpm version
+        run: test "$(pnpm --version)" = 11.7.0
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate tag and main ancestry
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          package_version="$(node -p "require('./packages/mtmcanvas/package.json').version")"
+          test "$RELEASE_TAG" = "${TAG_PREFIX}${package_version}"
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          printf 'PACKAGE_VERSION=%s\n' "$package_version" >> "$GITHUB_ENV"
+
+      - name: Check mtmcanvas
+        run: pnpm --filter mtmcanvas run check
+
+      - name: Pack release tarball
+        id: pack
+        run: |
+          set -euo pipefail
+          pack_dir="$RUNNER_TEMP/mtmcanvas"
+          mkdir -p "$pack_dir"
+          pnpm --filter mtmcanvas pack --pack-destination "$pack_dir"
+          tarball="$(find "$pack_dir" -maxdepth 1 -type f -name "${PACKAGE_NAME}-*.tgz" -print -quit)"
+          test -n "$tarball"
+          local_integrity="sha512-$(openssl dgst -sha512 -binary "$tarball" | base64 -w0)"
+          printf 'tarball=%s\n' "$tarball" >> "$GITHUB_OUTPUT"
+          printf 'LOCAL_INTEGRITY=%s\n' "$local_integrity" >> "$GITHUB_ENV"
+
+      - name: Verify tarball contract
+        run: node "$PACKAGE_DIR/scripts/verify-package.mjs" "${{ steps.pack.outputs.tarball }}"
+
+      - name: Lint package metadata
+        run: pnpm dlx publint run "${{ steps.pack.outputs.tarball }}" --strict
+
+      - name: Preflight registry and token
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "${NODE_AUTH_TOKEN:-}"
+          npm whoami --registry=https://registry.npmjs.org >/dev/null
+          status="$(curl --silent --show-error --location --output /dev/null --write-out '%{http_code}' "https://registry.npmjs.org/${PACKAGE_NAME}/${PACKAGE_VERSION}")"
+          test "$status" = 404
+
+      - name: Publish with provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish "${{ steps.pack.outputs.tarball }}" --access public --provenance --ignore-scripts
+
+      - name: Read back npm integrity
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 12); do
+            if published_integrity="$(npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" dist.integrity --json 2>/dev/null | jq -r .)" && published_version="$(npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version --json 2>/dev/null | jq -r .)" && test "$published_integrity" = "$LOCAL_INTEGRITY" && test "$published_version" = "$PACKAGE_VERSION"; then
+              break
+            fi
+            if test "$attempt" -eq 12; then
+              echo "npm registry read-back did not converge after ${attempt} attempts" >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          {
+            echo '### npm release evidence'
+            echo
+            echo "- package: ${PACKAGE_NAME}@${PACKAGE_VERSION}"
+            echo "- tag: ${GITHUB_REF_NAME}"
+            echo "- integrity: ${published_integrity}"
+            echo '- provenance: requested with npm publish --provenance'
+          } >> "$GITHUB_STEP_SUMMARY"
