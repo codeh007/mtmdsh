@@ -7,6 +7,8 @@ export type RtkMode = "off" | "guidance" | "auto" | "rewrite";
 export interface MtmCodingSettings {
   codebaseMemoryEnabled: boolean;
   codebaseMemoryAugmentHooks: boolean;
+  modernGoEnabled: boolean;
+  modernGoCommand: string;
   ponytailEnabled: boolean;
   ponytailMode: PonytailMode;
   ponytailSubagents: boolean;
@@ -40,6 +42,8 @@ const Reconnect = z.object({
 export const MtmCodingSettingsSchema: z<MtmCodingSettings> = z.object({
   codebaseMemoryEnabled: z.boolean().default(true),
   codebaseMemoryAugmentHooks: z.boolean().default(true),
+  modernGoEnabled: z.boolean().default(true),
+  modernGoCommand: z.string().default(""),
   ponytailEnabled: z.boolean().default(true),
   ponytailMode: z.union(["off", "lite", "full", "ultra"] as const).default("full"),
   ponytailSubagents: z.boolean().default(true),

@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import test from "node:test";
 import {
   applyCoding,
@@ -12,6 +14,8 @@ import {
 const DEFAULT_SETTINGS = {
   codebaseMemoryEnabled: true,
   codebaseMemoryAugmentHooks: true,
+  modernGoEnabled: true,
+  modernGoCommand: "",
   ponytailEnabled: true,
   ponytailMode: "full",
   ponytailSubagents: true,
@@ -287,11 +291,19 @@ test("Codebase Memory hooks become bounded DSH context messages", async () => {
   await fake.dispose();
 });
 
-test("unified settings reconcile both domains and unregisters its watcher", async () => {
+test("unified settings reconcile coding features and unregister the watcher", async () => {
   const fake = createContext({ codebaseMemoryEnabled: false, ponytailMode: "lite" });
   await applyCoding(fake.context, {});
   assert.equal(name, "mtmharness");
-  assert.equal(fake.skills.length, 7);
+  assert.equal(fake.skills.length, 8);
+  const modernGo = fake.skills.find((skill) => skill.name === "use-modern-go");
+  assert.ok(modernGo);
+  assert.equal(modernGo.invocation.modelInvocable, true);
+  assert.equal(modernGo.invocation.userInvocable, true);
+  assert.equal(existsSync(join(modernGo.resourceBase.path, "scripts", "run-tool.sh")), true);
+  assert.match(modernGo.content, /run-tool\.sh/);
+  assert.match(modernGo.content, /list --file-path/);
+  assert.equal(fake.spawnSpecs.length, 0);
   const autoSection = fake.sections.find((section) => section.name === "mtm-coding:rtk");
   assert.ok(autoSection);
   assert.match(autoSection.text({}), /guidance is active/);
@@ -303,6 +315,21 @@ test("unified settings reconcile both domains and unregisters its watcher", asyn
   await fake.dispose();
   await fake.trigger({ ...fake.getSettings(), codebaseMemoryEnabled: false, ponytailEnabled: false });
   assert.equal(fake.pluginCalls.length, callsBeforeDispose);
+});
+
+test("Modern Go can be disabled and accepts a wrapper override", async () => {
+  const disabled = createContext({ modernGoEnabled: false });
+  await applyCoding(disabled.context, {});
+  assert.equal(disabled.skills.some((skill) => skill.name === "use-modern-go"), false);
+  await disabled.dispose();
+
+  const configured = createContext({ modernGoCommand: "/opt/go-modern-guidelines" });
+  await applyCoding(configured.context, {});
+  const skill = configured.skills.find((item) => item.name === "use-modern-go");
+  assert.ok(skill);
+  assert.match(skill.content, /\/opt\/go-modern-guidelines list --file-path/);
+  assert.equal(configured.spawnSpecs.length, 0);
+  await configured.dispose();
 });
 
 test("RTK stays honest when the DSH pre-record capability is absent", async () => {

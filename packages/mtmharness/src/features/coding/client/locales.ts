@@ -6,6 +6,10 @@ export type MtmCodingLocaleKey =
   | "codebaseMemoryEnabledHint"
   | "codebaseMemoryAugmentHooks"
   | "codebaseMemoryAugmentHooksHint"
+  | "modernGoEnabled"
+  | "modernGoEnabledHint"
+  | "modernGoCommand"
+  | "modernGoCommandHint"
   | "ponytailEnabled"
   | "ponytailEnabledHint"
   | "ponytailMode"
@@ -40,11 +44,15 @@ export type MtmCodingLocaleKey =
 export const en: Record<MtmCodingLocaleKey, string> = {
   nav: "Coding",
   title: "MTM Coding",
-  description: "Codebase Memory and Ponytail coding assistance.",
+  description: "Codebase Memory, Modern Go, and Ponytail coding assistance.",
   codebaseMemoryEnabled: "Codebase Memory",
   codebaseMemoryEnabledHint: "Expose graph-first code discovery tools and guidance.",
   codebaseMemoryAugmentHooks: "Codebase Memory context augmentation",
   codebaseMemoryAugmentHooksHint: "Add bounded repository context around session and read/search events.",
+  modernGoEnabled: "Modern Go Guidelines",
+  modernGoEnabledHint: "Use JetBrains Modern Go guidance when working on Go code.",
+  modernGoCommand: "Modern Go wrapper override",
+  modernGoCommandHint: "Optional wrapper command; leave empty for the bundled on-demand wrapper.",
   ponytailEnabled: "Ponytail",
   ponytailEnabledHint: "Apply the lazy-senior-dev rules and bundled skills.",
   ponytailMode: "Ponytail intensity",
@@ -80,11 +88,15 @@ export const en: Record<MtmCodingLocaleKey, string> = {
 export const zh: Record<MtmCodingLocaleKey, string> = {
   nav: "编程",
   title: "MTM 编程",
-  description: "统一配置 Codebase Memory 与 Ponytail 编程辅助。",
+  description: "统一配置 Codebase Memory、Modern Go 与 Ponytail 编程辅助。",
   codebaseMemoryEnabled: "Codebase Memory",
   codebaseMemoryEnabledHint: "启用图谱优先的代码发现工具和指导。",
   codebaseMemoryAugmentHooks: "Codebase Memory 上下文增强",
   codebaseMemoryAugmentHooksHint: "在会话和读/搜索事件周围加入有边界的仓库上下文。",
+  modernGoEnabled: "Modern Go Guidelines",
+  modernGoEnabledHint: "编写 Go 代码时使用 JetBrains Modern Go 指导。",
+  modernGoCommand: "Modern Go wrapper 覆盖",
+  modernGoCommandHint: "可选的 wrapper 命令；留空使用内置的按需 wrapper。",
   ponytailEnabled: "Ponytail",
   ponytailEnabledHint: "启用 lazy senior dev 规则和内置 skills。",
   ponytailMode: "Ponytail 强度",

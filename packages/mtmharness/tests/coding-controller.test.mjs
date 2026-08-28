@@ -6,6 +6,8 @@ import { runInNewContext } from "node:vm";
 const base = {
   codebaseMemoryEnabled: true,
   codebaseMemoryAugmentHooks: true,
+  modernGoEnabled: true,
+  modernGoCommand: "",
   ponytailEnabled: true,
   ponytailMode: "full",
   ponytailSubagents: true,
@@ -172,6 +174,37 @@ test("client artifact settings card clears an overridden field after Host readba
   for (const cleanup of mounted.cleanups.reverse()) await cleanup();
 });
 
+
+test("client artifact settings card saves and resets Modern Go settings", async () => {
+  const fake = createScope();
+  const client = loadClient();
+  const mounted = createClientContext(fake.scope);
+  client.applyCoding(mounted.context);
+  const face = mounted.registrations[0].face;
+
+  face.edit("modernGoEnabled", "false");
+  face.edit("modernGoCommand", "/opt/go-modern-guidelines");
+  face.save();
+  await nextTurn();
+
+  let state = face.hooks.mtmCodingCard.getSnapshot();
+  assert.equal(state.failed, false);
+  assert.equal(state.dirty, false);
+  assert.equal(fake.getSnapshot().user.modernGoEnabled, false);
+  assert.equal(fake.getSnapshot().user.modernGoCommand, "/opt/go-modern-guidelines");
+
+  face.resetField("modernGoCommand");
+  face.resetField("modernGoEnabled");
+  face.save();
+  await nextTurn();
+  state = face.hooks.mtmCodingCard.getSnapshot();
+  assert.equal(state.fields.modernGoCommand.text, "");
+  assert.equal(state.fields.modernGoCommand.overridden, false);
+  assert.equal(state.fields.modernGoEnabled.text, "true");
+  assert.equal(state.fields.modernGoEnabled.overridden, false);
+
+  for (const cleanup of mounted.cleanups.reverse()) await cleanup();
+});
 
 test("client artifact settings card saves and resets RTK settings", async () => {
   const fake = createScope();

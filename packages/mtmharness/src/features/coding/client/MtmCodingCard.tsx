@@ -112,6 +112,8 @@ export function MtmCodingCard(props: MtmCodingCardProps) {
           {disabled ? <p role="status">{t("readOnly")}</p> : null}
           <BooleanField t={t} label="codebaseMemoryEnabled" hint="codebaseMemoryEnabledHint" field={state.fields.codebaseMemoryEnabled} disabled={disabled} onChange={(value) => { props.edit("codebaseMemoryEnabled", String(value)); }} onReset={() => { props.resetField("codebaseMemoryEnabled"); }} />
           <BooleanField t={t} label="codebaseMemoryAugmentHooks" hint="codebaseMemoryAugmentHooksHint" field={state.fields.codebaseMemoryAugmentHooks} disabled={disabled} onChange={(value) => { props.edit("codebaseMemoryAugmentHooks", String(value)); }} onReset={() => { props.resetField("codebaseMemoryAugmentHooks"); }} />
+          <BooleanField t={t} label="modernGoEnabled" hint="modernGoEnabledHint" field={state.fields.modernGoEnabled} disabled={disabled} onChange={(value) => { props.edit("modernGoEnabled", String(value)); }} onReset={() => { props.resetField("modernGoEnabled"); }} />
+          <TextField t={t} label="modernGoCommand" hint="modernGoCommandHint" field={state.fields.modernGoCommand} disabled={disabled} onChange={(value) => { props.edit("modernGoCommand", value); }} onReset={() => { props.resetField("modernGoCommand"); }} />
           <BooleanField t={t} label="ponytailEnabled" hint="ponytailEnabledHint" field={state.fields.ponytailEnabled} disabled={disabled} onChange={(value) => { props.edit("ponytailEnabled", String(value)); }} onReset={() => { props.resetField("ponytailEnabled"); }} />
           <div style={fieldStyle}>
             {fieldLabel(t, "ponytailMode", mode, () => { props.resetField("ponytailMode"); }, disabled)}
