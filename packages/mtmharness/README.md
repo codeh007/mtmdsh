@@ -2,10 +2,10 @@
 
 `mtmharness` is one public npm package with one unified DSH plugin and two explicit client identities:
 
-- **DSH Web plugin**: the package root and `./client` export use the official `dsh.client` lazy-CJS contract. One installation provides MTM and Canvas sidebar actions, the Connect control panel, a file-backed Canvas editor over `ctx.fs`, and the settings-controlled Codebase Memory/Ponytail coding features.
+- **DSH Web plugin**: the package root and `./client` export use the official `dsh.client` lazy-CJS contract. One installation provides the MTM sidebar action, the Connect control panel, and the settings-controlled Codebase Memory/Ponytail coding features.
 - **Independent web client**: the package also publishes a BrowserHistory static app and a MemoryHistory script/embed entry. These artifacts own their React root, router, styles, and teardown and never load the local coding runtime.
 
-The DSH plugin is assembled from Connect, Canvas, and coding feature domains under one Host/Client lifecycle. Codebase Memory keeps its `codebase_memory` server namespace and `mcp__codebase_memory__*` tool names; Ponytail ships six skills inline, including `/ponytail` and its companion commands. The `mtm-coding` settings namespace remains the configuration contract inside the unified `mtmharness` package.
+The DSH plugin is assembled from Connect and coding feature domains under one Host/Client lifecycle. Codebase Memory keeps its `codebase_memory` server namespace and `mcp__codebase_memory__*` tool names; Ponytail ships six skills inline, including `/ponytail` and its companion commands. The `mtm-coding` settings namespace remains the configuration contract inside the unified `mtmharness` package.
 
 RTK is an optional coding feature in the same `mtm-coding` settings namespace. `rtkMode` defaults to `auto`: it transparently rewrites Bash calls when the DSH `tools/pre-record-input` capability is available and falls back to inline guidance when it is not. Explicit `rewrite` is strict and reports `unavailable` on older DSH runtimes instead of changing frozen tool inputs. The pinned RTK `v0.45.0` binary is resolved from an explicit `rtkCommand` or lazily installed under the DSH home with checksum verification; RTK telemetry, tracking, and tee output are disabled for plugin-managed runs.
 
@@ -16,24 +16,22 @@ Install the package into a web profile:
     dsh plugin --profile web add mtmharness
     dsh --profile web --dump-config
 
-Restart the DSH Web host after changing profile composition. The `MTM` and `Canvas` actions appear in the sidebar footer. The host owns the React root, session connection, and lifecycle. Canvas initialization derives a `.mtmcanvas` child from the active `ctx.fs` workspace and requires the Host's `directoryPicker` to expose the `browse` capability so it can create that child; a native-only picker cannot create this workspace directory.
+Restart the DSH Web host after changing profile composition. The `MTM` action appears in the sidebar footer. The host owns the React root, session connection, and lifecycle. Install the independent `mtmcanvas` package to add the Canvas action and its Host/Client entry.
 
 The plugin enables the Connect control panel by default and keeps its registry and `/mtm-connect` RPC on the DSH Host loopback boundary. The independent static/embed client remains a separate application surface and is not part of the DSH plugin.
 
-### Migrating an existing profile
+### Independent Canvas plugin
 
-If the profile previously installed the retired packages, remove them before adding the unified package so their old rows do not remain alongside the `mtmharness` row:
+Canvas is maintained as the separate `mtmcanvas` DSH package. Add it after installing or upgrading `mtmharness`:
 
-    dsh plugin --profile web remove mtmcanvas
-    dsh plugin --profile web remove mtm-connect
-    dsh plugin --profile web remove mtm-coding
     dsh plugin --profile web add mtmharness
+    dsh plugin --profile web add mtmcanvas
 
-The same hard-cut sequence is covered by the committed isolated profile smoke, including removal of the retired `mtm-coding` row, duplicate install, removal, and reinstall:
+Profiles created from an older `mtmharness` release should remove retired `mtm-connect` and `mtm-coding` rows before adding the current packages. The committed profile smoke still covers the old-row cleanup and duplicate install path:
 
     pnpm --filter mtmharness run profile:check -- /path/to/mtmharness.tgz
 
-Historical `mtmcanvas`, `mtm-connect`, and `mtm-coding` npm versions remain available as history, but the mtmdsh workspace no longer publishes new versions of those package names. Imports from the retired package names are intentionally not compatibility aliases; this release is a hard cut to the unified plugin entry.
+`mtmcanvas` now owns the Canvas Host/Client implementation; `mtm-connect` and `mtm-coding` remain historical package names and are not compatibility aliases.
 
 ## Static App
 

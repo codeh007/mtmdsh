@@ -1,7 +1,7 @@
 import type { PropsRuntime, InjectFace } from "@deepseek-ai/dsh-client-ui-slots";
 import { Button, Modal } from "@deepseek-ai/dsh-client-ui-primitives";
-import { CanvasView } from "../features/canvas/client/CanvasView.tsx";
-import type { CanvasRuntime, CanvasViewState } from "../features/canvas/client/runtime.ts";
+import { CanvasView } from "./CanvasView.tsx";
+import type { CanvasRuntime, CanvasViewState } from "./runtime.ts";
 import { useState, type ReactElement } from "react";
 
 type MtmCanvasActionInjected = {

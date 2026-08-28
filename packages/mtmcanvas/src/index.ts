@@ -1,4 +1,5 @@
 import type { Context } from "@deepseek-ai/cordis";
+import type {} from "@deepseek-ai/dsh-client-connection";
 import { FsError, FsVersion } from "@deepseek-ai/dsh-fs";
 import type {} from "@deepseek-ai/dsh-fs";
 import type {} from "@deepseek-ai/dsh-host-directory-picker";
@@ -72,6 +73,9 @@ async function readDocument(ctx: Context, directory: Awaited<ReturnType<typeof c
   if (String(before.version) !== String(after.version)) throw new FsError("canvas document changed while reading", "FS_STALE_VERSION");
   return { version: String(after.version), document };
 }
+
+export const name = "mtmcanvas";
+export const inject = ["connection", "fs", "directoryPicker"];
 
 export function createCanvasRpcHandler(ctx: Context) {
   return async (endpoint: string, payload: unknown, signal: AbortSignal): Promise<RpcResult<unknown>> => {
