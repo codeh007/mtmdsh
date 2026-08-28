@@ -4,6 +4,8 @@ export type MtmCodingLocaleKey =
   | "description"
   | "codebaseMemoryEnabled"
   | "codebaseMemoryEnabledHint"
+  | "dynamicCanvasEnabled"
+  | "dynamicCanvasEnabledHint"
   | "codebaseMemoryAugmentHooks"
   | "codebaseMemoryAugmentHooksHint"
   | "modernGoEnabled"
@@ -47,6 +49,8 @@ export const en: Record<MtmCodingLocaleKey, string> = {
   description: "Codebase Memory, Modern Go, and Ponytail coding assistance.",
   codebaseMemoryEnabled: "Codebase Memory",
   codebaseMemoryEnabledHint: "Expose graph-first code discovery tools and guidance.",
+  dynamicCanvasEnabled: "Dynamic Canvas",
+  dynamicCanvasEnabledHint: "Load the pinned Canvas extension at runtime from its published artifact.",
   codebaseMemoryAugmentHooks: "Codebase Memory context augmentation",
   codebaseMemoryAugmentHooksHint: "Add bounded repository context around session and read/search events.",
   modernGoEnabled: "Modern Go Guidelines",
@@ -91,6 +95,8 @@ export const zh: Record<MtmCodingLocaleKey, string> = {
   description: "统一配置 Codebase Memory、Modern Go 与 Ponytail 编程辅助。",
   codebaseMemoryEnabled: "Codebase Memory",
   codebaseMemoryEnabledHint: "启用图谱优先的代码发现工具和指导。",
+  dynamicCanvasEnabled: "动态画布",
+  dynamicCanvasEnabledHint: "从已发布的固定版本载荷中运行时加载 Canvas 扩展。",
   codebaseMemoryAugmentHooks: "Codebase Memory 上下文增强",
   codebaseMemoryAugmentHooksHint: "在会话和读/搜索事件周围加入有边界的仓库上下文。",
   modernGoEnabled: "Modern Go Guidelines",

@@ -7,6 +7,7 @@ export const MODE_VALUES: readonly PonytailMode[] = ["off", "lite", "full", "ult
 export const RTK_MODE_VALUES: readonly RtkMode[] = ["off", "guidance", "auto", "rewrite"];
 const FIELD_NAMES = [
   "codebaseMemoryEnabled",
+  "dynamicCanvasEnabled",
   "codebaseMemoryAugmentHooks",
   "modernGoEnabled",
   "modernGoCommand",

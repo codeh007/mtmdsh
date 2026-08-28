@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type DragEvent, type ReactElement } from "react";
+import { useEffect, useRef, useState, type DragEvent, type FormEvent, type ReactElement } from "react";
 import type { CanvasNode } from "../contract/canvas.ts";
 import type { CanvasActions, CanvasViewState } from "./runtime.ts";
 
@@ -31,7 +31,7 @@ export function CanvasView({ state, actions }: { state: CanvasViewState; actions
     if (selected?.kind === "prompt") setDraft(selected.prompt);
   }, [selected]);
 
-  function create(event: React.FormEvent<HTMLFormElement>): void {
+  function create(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
     const name = filename.endsWith(".canvas") ? filename : filename + ".canvas";
     actions.create(name);

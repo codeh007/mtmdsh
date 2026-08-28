@@ -35,6 +35,11 @@ export {
   rtkEnvironment,
 } from "./features/coding/rtk-runtime.ts";
 export type { MtmCodingConfig, MtmCodingSettings, PonytailMode, RtkMode } from "./features/coding/types.ts";
+export type {
+  MtmharnessFrontendExtension,
+  MtmharnessFrontendExtensionCleanup,
+  MtmharnessFrontendExtensionContext,
+} from "./features/secondary/client.ts";
 
 export const name = "mtmharness";
 export const inject = ["connection", "settings"];

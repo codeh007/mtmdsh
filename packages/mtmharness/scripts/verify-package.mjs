@@ -44,6 +44,8 @@ for (const path of [
   "lib/types/index.d.ts",
   "lib/types/client/index.d.ts",
   "lib/types/features/coding/index.d.ts",
+  "lib/types/features/secondary/client.d.ts",
+  "lib/types/features/secondary/manifest.d.ts",
   "resources/go-modern-guidelines/scripts/VERSION",
   "resources/go-modern-guidelines/LICENSE",
   "resources/go-modern-guidelines/scripts/run-tool.sh",
@@ -78,6 +80,8 @@ for (const required of [
   "RTK",
   "shell.overlay",
   "mtmdsh-launcher-overlay",
+  "mtmcanvas@0.2.0",
+  "secondary client artifact integrity mismatch",
   "https://unpkg.com/mtmharness@latest/dist/standalone/index.html",
 ]) {
   if (!client.includes(required)) fail("client artifact is missing unified feature surface: " + required);
@@ -124,6 +128,8 @@ if (tarball !== undefined) {
     "package/lib/types/client/index.d.ts",
     "package/lib/types/index.d.ts",
     "package/lib/types/features/coding/index.d.ts",
+    "package/lib/types/features/secondary/client.d.ts",
+    "package/lib/types/features/secondary/manifest.d.ts",
     "package/resources/go-modern-guidelines/scripts/VERSION",
     "package/resources/go-modern-guidelines/LICENSE",
     "package/resources/go-modern-guidelines/scripts/run-tool.sh",

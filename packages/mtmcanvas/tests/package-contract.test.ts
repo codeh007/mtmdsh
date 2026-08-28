@@ -1,19 +1,27 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const packageRoot = resolve(import.meta.dirname, "..");
 
-describe("mtmcanvas package contract", () => {
-  it("declares an installable DSH Bundle and Web Client face", () => {
+describe("mtmcanvas secondary package contract", () => {
+  it("publishes only the mtmharness browser extension", () => {
     const manifest = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8")) as {
-      exports: { ".": { default?: string }; "./client": { default?: string } };
-      dsh?: { bundle?: { patch?: string }; client?: { platform?: string; inject?: string[] } };
+      dsh?: unknown;
+      main?: string;
+      type?: string;
+      files?: string[];
+      exports: { ".": { import?: string; default?: string }; "./client": { import?: string; default?: string } };
+      mtmharness?: { secondary?: { id?: string; apiVersion?: number; client?: string } };
     };
-    expect(manifest.dsh?.bundle?.patch).toBe("./cordis.patch.yml");
-    expect(manifest.dsh?.client?.platform).toBe("web");
-    expect(manifest.dsh?.client?.inject).toContain("@deepseek-ai/dsh-client-ui-sidebar");
-    expect(manifest.exports["."]?.default).toBe("./lib/index.js");
-    expect(manifest.exports["./client"]?.default).toBe("./lib/client.cjs");
+    expect(manifest.dsh).toBeUndefined();
+    expect(manifest.type).toBe("module");
+    expect(manifest.main).toBe("./lib/client.js");
+    expect(manifest.exports["."]).toMatchObject({ import: "./lib/client.js", default: "./lib/client.js" });
+    expect(manifest.exports["./client"]).toMatchObject({ import: "./lib/client.js", default: "./lib/client.js" });
+    expect(manifest.mtmharness?.secondary).toEqual({ id: "mtmcanvas", apiVersion: 1, client: "./lib/client.js" });
+    expect(manifest.files).toEqual(expect.arrayContaining(["lib/client.js", "lib/types/**/*.d.ts"]));
+    expect(manifest.files).not.toContain("cordis.patch.yml");
+    expect(existsSync(resolve(packageRoot, "cordis.patch.yml"))).toBe(false);
   });
 });

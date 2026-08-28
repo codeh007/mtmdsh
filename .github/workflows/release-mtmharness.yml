@@ -63,8 +63,23 @@ jobs:
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main
           printf 'PACKAGE_VERSION=%s\n' "$package_version" >> "$GITHUB_ENV"
 
-      - name: Check workspace
-        run: pnpm --filter mtmharness run check
+      - name: Check workspace and secondary client contract
+        run: |
+          set -euo pipefail
+          pnpm --filter mtmharness run check
+          pnpm --filter mtmcanvas run check
+          # The pinned Canvas artifact must already be published before mtmharness.
+          canvas_version="$(node -p "require('./packages/mtmcanvas/package.json').version")"
+          expected_integrity="$(sed -n 's/.*clientIntegrity: \"\([^\"]*\)\".*/\1/p' packages/mtmharness/src/features/secondary/manifest.ts)"
+          local_integrity="sha256-$(openssl dgst -sha256 -binary packages/mtmcanvas/lib/client.js | base64 -w0)"
+          test -n "$expected_integrity"
+          test "$local_integrity" = "$expected_integrity"
+          test "$(npm view "mtmcanvas@${canvas_version}" version --json | jq -r .)" = "$canvas_version"
+          remote="$RUNNER_TEMP/mtmcanvas-client.js"
+          curl --fail --silent --show-error --output "$remote" "https://unpkg.com/mtmcanvas@${canvas_version}/lib/client.js"
+          remote_integrity="sha256-$(openssl dgst -sha256 -binary "$remote" | base64 -w0)"
+          test "$remote_integrity" = "$expected_integrity"
+          cmp "packages/mtmcanvas/lib/client.js" "$remote"
 
       - name: Pack release tarball
         id: pack

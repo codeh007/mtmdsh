@@ -17,6 +17,7 @@ function clientBench(): { registered: Registered[]; cleanups: Array<() => void |
     status: "ready",
     value: {
       codebaseMemoryEnabled: false,
+      dynamicCanvasEnabled: false,
       codebaseMemoryAugmentHooks: true,
       modernGoEnabled: true,
       modernGoCommand: "",
@@ -35,8 +36,8 @@ function clientBench(): { registered: Registered[]; cleanups: Array<() => void |
   };
   const ctx = {
     get(name: string) {
-      if (name !== "connection") throw new Error("unexpected service: " + name);
-      return { rpc: { call: async () => ({ ok: true, value: snapshot }) } };
+      if (name === "connection") return { rpc: { call: async () => ({ ok: true, value: snapshot }) } };
+      throw new Error("unexpected service: " + name);
     },
     provide() {},
     locale: {
@@ -86,6 +87,7 @@ async function hostBench(): Promise<{ provided: Record<string, unknown>; cleanup
   const cleanups: Array<() => void | Promise<void>> = [];
   const settings = {
     codebaseMemoryEnabled: false,
+    dynamicCanvasEnabled: false,
     codebaseMemoryAugmentHooks: true,
     modernGoEnabled: false,
     modernGoCommand: "",
