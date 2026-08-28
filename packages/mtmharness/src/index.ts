@@ -2,7 +2,6 @@
 import type { Context } from "@deepseek-ai/cordis";
 import { apply as applyCodingHost } from "./features/coding/index.ts";
 import { apply as applyConnectHost } from "./features/connect/index.ts";
-import { apply as applyCanvasHost } from "./features/canvas/index.ts";
 
 export { buildMcpConfig, resolveConfig } from "./features/coding/index.ts";
 export { PONYTAIL_SKILLS } from "./features/coding/ponytail-skills.ts";
@@ -36,12 +35,11 @@ export {
 export type { MtmCodingConfig, MtmCodingSettings, PonytailMode, RtkMode } from "./features/coding/types.ts";
 
 export const name = "mtmharness";
-export const inject = ["connection", "fs", "directoryPicker", "settings"];
+export const inject = ["connection", "settings"];
 
 /** Mount the Host-owned MTM and coding control planes. */
 export async function apply(ctx: Context, config: Record<string, unknown> = {}): Promise<void> {
   if (ctx.connection === undefined) throw new Error("mtmharness: DSH connection service is unavailable");
   applyConnectHost(ctx);
-  applyCanvasHost(ctx);
   await applyCodingHost(ctx, config);
 }

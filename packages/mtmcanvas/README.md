@@ -7,9 +7,7 @@ The package publishes two DSH faces:
 - Host half: `lib/index.js`, which mounts the existing file-backed Canvas RPC through DSH's abstract `ctx.fs` service.
 - Browser half: `lib/client.cjs`, a `window.__ModuleLoader__.load` bundle that registers the Canvas sidebar action.
 
-This package is a dynamic-loading experiment. The existing Canvas implementation remains in `mtmharness` during the experiment so the published main package stays compatible; remove that duplicate only after the independent profile path is accepted.
-
-ponytail: temporary source duplication keeps the experiment reversible; delete the integrated Canvas copy after the independent package path is validated.
+This package is the independent Canvas implementation for the dynamic-loading experiment. The published `mtmharness` package no longer statically mounts Canvas; install both packages when the Canvas surface is required.
 
 ## Install Into DSH Web
 
