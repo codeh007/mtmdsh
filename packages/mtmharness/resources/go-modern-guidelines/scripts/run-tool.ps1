@@ -22,6 +22,21 @@ if ($env:GO_MODERN_GUIDELINES_DEV) {
     exit $LASTEXITCODE
 }
 
+function Assert-BinaryVersion([string] $path, [string] $label) {
+    $actualVersion = ""
+    $exitCode = 1
+    try {
+        $actualVersion = ((& $path --version 2>$null) -join "`n").Trim()
+        $exitCode = $LASTEXITCODE
+    } catch {
+    }
+    if ($exitCode -ne 0 -or $actualVersion -ne $cliVersion) {
+        $reportedVersion = if ($actualVersion) { $actualVersion } else { "unknown version" }
+        Write-Error "go-modern-guidelines: $label binary reports $reportedVersion, want $cliVersion"
+        exit 1
+    }
+}
+
 $installDir = Join-Path $cacheRoot $cliVersion
 $binaryPath = Join-Path $installDir $binaryName
 
@@ -31,8 +46,8 @@ if (-not (Test-Path -LiteralPath $binaryPath -PathType Leaf)) {
         exit 1
     }
 
-    $tmpDir = "$installDir.tmp.$PID"
-    Remove-Item -LiteralPath $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Path $cacheRoot -Force | Out-Null
+    $tmpDir = Join-Path $cacheRoot "$cliVersion.tmp.$([System.IO.Path]::GetRandomFileName())"
     New-Item -ItemType Directory -Path $tmpDir -Force | Out-Null
 
     Write-Host "go-modern-guidelines: installing $modulePath@$cliVersion into $installDir" -ForegroundColor DarkGray
@@ -63,22 +78,10 @@ if (-not (Test-Path -LiteralPath $binaryPath -PathType Leaf)) {
             exit 1
         }
 
-        $actualVersion = ""
-        try {
-            $actualVersion = (& $tmpBinary --version 2>$null)
-        } catch {
-            $actualVersion = ""
-        }
-        if ($actualVersion -ne $cliVersion) {
-            if (-not $actualVersion) {
-                $actualVersion = "unknown version"
-            }
-            Write-Error "go-modern-guidelines: installed $actualVersion, want $cliVersion"
-            exit 1
-        }
+        Assert-BinaryVersion $tmpBinary "installed"
 
         New-Item -ItemType Directory -Path $installDir -Force | Out-Null
-        $stagedBinary = "$binaryPath.tmp.$PID"
+        $stagedBinary = "$binaryPath.tmp.$([System.IO.Path]::GetRandomFileName())"
         Move-Item -LiteralPath $tmpBinary -Destination $stagedBinary -Force
         Move-Item -LiteralPath $stagedBinary -Destination $binaryPath -Force
         Remove-Item -LiteralPath $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
@@ -87,5 +90,6 @@ if (-not (Test-Path -LiteralPath $binaryPath -PathType Leaf)) {
     }
 }
 
+Assert-BinaryVersion $binaryPath "cached"
 & $binaryPath @args
 exit $LASTEXITCODE

@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { deflateRawSync, gzipSync } from "node:zlib";
-import { join } from "node:path";
 import test from "node:test";
 import {
   ensureRuntime,
@@ -40,6 +43,54 @@ test("explicit command remains an opt-in override", () => {
     args: ["--ui"],
     bundled: false,
   });
+});
+
+test("lazily installs and validates the Modern Go wrapper cache", () => {
+  const root = mkdtempSync(join(tmpdir(), "mtmharness-modern-go-"));
+  try {
+    const binDir = join(root, "bin");
+    const cacheDir = join(root, "cache");
+    const installCount = join(root, "install-count");
+    const wrapper = resolve(import.meta.dirname, "../resources/go-modern-guidelines/scripts/run-tool.sh");
+    const version = readFileSync(resolve(import.meta.dirname, "../resources/go-modern-guidelines/scripts/VERSION"), "utf8").trim();
+    const fakeGo = join(binDir, "go");
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(fakeGo, `#!/bin/sh
+set -eu
+printf 'install\n' >> "$FAKE_GO_INSTALLS"
+printf '%s\n' '#!/bin/sh' 'if [ "$1" = "--version" ]; then printf "%s\\n" "$FAKE_VERSION"; else printf "fake:%s\\n" "$*"; fi' > "$GOBIN/go-modern-guidelines"
+chmod +x "$GOBIN/go-modern-guidelines"
+`);
+    chmodSync(fakeGo, 0o755);
+    const env = {
+      ...process.env,
+      FAKE_GO_INSTALLS: installCount,
+      FAKE_VERSION: version,
+      HOME: root,
+      PATH: binDir + ":" + (process.env.PATH ?? "/usr/bin:/bin"),
+      XDG_CACHE_HOME: cacheDir,
+    };
+    const run = (...args) => spawnSync("/bin/sh", [wrapper, ...args], { env, encoding: "utf8" });
+
+    let result = run("list", "--go-version", "1.27");
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout.trim(), "fake:list --go-version 1.27");
+    assert.equal(readFileSync(installCount, "utf8"), "install\n");
+
+    result = run("list", "--go-version", "1.27");
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout.trim(), "fake:list --go-version 1.27");
+    assert.equal(readFileSync(installCount, "utf8"), "install\n");
+
+    const cached = join(cacheDir, "go-modern-guidelines", version, "go-modern-guidelines");
+    writeFileSync(cached, "#!/bin/sh\nprintf 'wrong\\n'\n");
+    chmodSync(cached, 0o755);
+    result = run("list", "--go-version", "1.27");
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /cached binary reports wrong/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("resolves the native binary for the long-lived MCP connection", async () => {

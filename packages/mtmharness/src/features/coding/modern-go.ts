@@ -8,7 +8,7 @@ export const MODERN_GO_RESOURCE_BASE = resolve(
   "../resources/go-modern-guidelines",
 );
 
-// Adapted from JetBrains/go-modern-guidelines v1.1.1; command paths are resolved for mtmharness.
+// Adapted from JetBrains/go-modern-guidelines CLI v0.1.1; command paths are resolved for mtmharness.
 const SKILL_CONTENT_TEMPLATE = [
   "# Modern Go Guidelines CLI",
   "",
@@ -65,10 +65,14 @@ const SKILL_CONTENT_TEMPLATE = [
   "Do not call `explain` without guideline IDs. Use `list` first to discover the short guideline list for the target Go version, then call `explain` for the specific returned IDs.",
 ].join("\n");
 
+function powerShellLiteral(value: string): string {
+  return "'" + value.replaceAll("'", "''") + "'";
+}
+
 function content(command: string): string {
   const configured = command.trim();
   const unixCommand = configured || "sh \"" + join(MODERN_GO_RESOURCE_BASE, "scripts", "run-tool.sh") + "\"";
-  const windowsCommand = configured || "& '" + join(MODERN_GO_RESOURCE_BASE, "scripts", "run-tool.ps1") + "'";
+  const windowsCommand = configured || "& " + powerShellLiteral(join(MODERN_GO_RESOURCE_BASE, "scripts", "run-tool.ps1"));
   return SKILL_CONTENT_TEMPLATE
     .replaceAll("__UNIX_COMMAND__", unixCommand)
     .replaceAll("__WINDOWS_COMMAND__", windowsCommand);

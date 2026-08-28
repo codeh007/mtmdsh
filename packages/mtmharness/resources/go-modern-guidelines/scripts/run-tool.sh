@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 set -eu
+umask 077
 
 script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)"
 
@@ -35,9 +36,8 @@ if [ ! -x "${binary_path}" ]; then
 		exit 1
 	fi
 
-	tmp_dir="${install_dir}.tmp.$$"
-	rm -rf "${tmp_dir}"
-	mkdir -p "${tmp_dir}"
+	mkdir -p "${cache_root}"
+	tmp_dir="$(mktemp -d "${install_dir}.tmp.XXXXXX")"
 	trap 'rm -rf "${tmp_dir}"' EXIT HUP INT TERM
 
 	echo "go-modern-guidelines: installing ${module_path}@${cli_version} into ${install_dir}" >&2
@@ -60,9 +60,16 @@ if [ ! -x "${binary_path}" ]; then
 	fi
 
 	mkdir -p "${install_dir}"
-	mv "${tmp_binary}" "${binary_path}.tmp.$$"
-	mv "${binary_path}.tmp.$$" "${binary_path}"
+	staged_binary="$(mktemp "${binary_path}.tmp.XXXXXX")"
+	mv "${tmp_binary}" "${staged_binary}"
+	mv "${staged_binary}" "${binary_path}"
 	rm -rf "${tmp_dir}"
+fi
+
+actual_version="$("${binary_path}" --version 2>/dev/null || true)"
+if [ "${actual_version}" != "${cli_version}" ]; then
+	echo "go-modern-guidelines: cached binary reports ${actual_version:-unknown version}, want ${cli_version}" >&2
+	exit 1
 fi
 
 exec "${binary_path}" "$@"
