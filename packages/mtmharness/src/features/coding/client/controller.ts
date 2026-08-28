@@ -1,5 +1,7 @@
+import type { ClientConnectionRpc } from "@deepseek-ai/dsh-client-connection/client";
 import type { SettingsScope, SnapshotStore } from "@deepseek-ai/dsh-client-runtime/client";
 import { createSnapshotStore } from "@deepseek-ai/dsh-client-runtime/client";
+import { assertMtmUpdateResponse, MTM_UPDATE_CHANNEL, type MtmUpdateStatus } from "../../update/contract.js";
 import type { MtmCodingSettings, PonytailMode, RtkMode } from "../types.js";
 
 export const SETTINGS_NAMESPACE = "mtm-coding";
@@ -26,6 +28,17 @@ export interface FieldState {
   readonly invalid: boolean;
 }
 
+export interface MtmUpdateCardState {
+  readonly available: boolean;
+  readonly checking: boolean;
+  readonly updating: boolean;
+  readonly currentVersion: string | null;
+  readonly latestVersion: string | null;
+  readonly status: MtmUpdateStatus | "idle";
+  readonly error: string | null;
+  readonly restartRequired: boolean;
+}
+
 export interface MtmCodingCardState {
   readonly available: boolean;
   readonly writable: boolean;
@@ -34,6 +47,7 @@ export interface MtmCodingCardState {
   readonly saving: boolean;
   readonly failed: boolean;
   readonly fields: Readonly<Record<MtmCodingField, FieldState>>;
+  readonly update: MtmUpdateCardState;
 }
 
 export interface MtmCodingCardFace {
@@ -42,6 +56,8 @@ export interface MtmCodingCardFace {
   readonly resetField: (field: MtmCodingField) => void;
   readonly save: () => void;
   readonly discard: () => void;
+  readonly checkForUpdate: () => void;
+  readonly updatePackage: () => void;
 }
 
 type StagedEdit = { readonly text: string; readonly clear: boolean };
@@ -77,12 +93,25 @@ function userHas(snapshot: ReturnType<SettingsScope<MtmCodingSettings>["getSnaps
 export class MtmCodingCardController {
   private readonly staged = new Map<MtmCodingField, StagedEdit>();
   private readonly store: SnapshotStore<MtmCodingCardState>;
+  private readonly updateRpc: ClientConnectionRpc | undefined;
+  private updateState: MtmUpdateCardState;
   private saving = false;
   private failed = false;
   private disposed = false;
   private readonly unsubscribe: () => void;
 
-  constructor(private readonly scope: SettingsScope<MtmCodingSettings>) {
+  constructor(private readonly scope: SettingsScope<MtmCodingSettings>, updateRpc?: ClientConnectionRpc) {
+    this.updateRpc = updateRpc;
+    this.updateState = {
+      available: updateRpc !== undefined,
+      checking: false,
+      updating: false,
+      currentVersion: null,
+      latestVersion: null,
+      status: "idle",
+      error: null,
+      restartRequired: false,
+    };
     this.store = createSnapshotStore(this.projection());
     this.unsubscribe = scope.subscribe(() => { this.publish(); });
   }
@@ -94,12 +123,41 @@ export class MtmCodingCardController {
       resetField: (field) => { this.resetField(field); },
       save: () => { void this.save(); },
       discard: () => { this.discard(); },
+      checkForUpdate: () => { void this.requestUpdate("check"); },
+      updatePackage: () => { void this.requestUpdate("update"); },
     };
   }
 
   dispose(): void {
     this.disposed = true;
     this.unsubscribe();
+  }
+
+  private async requestUpdate(kind: "check" | "update"): Promise<void> {
+    const rpc = this.updateRpc;
+    if (rpc === undefined || this.updateState.checking || this.updateState.updating) return;
+    this.updateState = {
+      ...this.updateState,
+      checking: kind === "check",
+      updating: kind === "update",
+      error: null,
+    };
+    this.publish();
+    try {
+      const result = await rpc.call(MTM_UPDATE_CHANNEL, "request", { args: { kind } });
+      if (!result.ok) throw new Error(result.error.message);
+      assertMtmUpdateResponse(result.value);
+      this.updateState = { ...result.value, available: true, checking: false, updating: false };
+    } catch (error) {
+      this.updateState = {
+        ...this.updateState,
+        checking: false,
+        updating: false,
+        status: "failed",
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+    this.publish();
   }
 
   private edit(field: MtmCodingField, text: string): void {
@@ -199,6 +257,7 @@ export class MtmCodingCardController {
       saving: this.saving,
       failed: this.failed,
       fields,
+      update: this.updateState,
     };
   }
 

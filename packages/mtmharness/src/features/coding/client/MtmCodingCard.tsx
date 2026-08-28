@@ -98,6 +98,7 @@ export function MtmCodingCard(props: MtmCodingCardProps) {
   const disabled = !state.writable;
   const mode = state.fields.ponytailMode;
   const rtkMode = state.fields.rtkMode;
+  const update = state.update;
   return (
     <li style={cardStyle}>
       <button type="button" style={headerStyle} aria-expanded={open} aria-label={t(open ? "hide" : "show")} onClick={() => { setOpen(value => !value); }}>
@@ -133,6 +134,25 @@ export function MtmCodingCard(props: MtmCodingCardProps) {
           </div>
           <BooleanField t={t} label="rtkAutoInstall" hint="rtkAutoInstallHint" field={state.fields.rtkAutoInstall} disabled={disabled} onChange={(value) => { props.edit("rtkAutoInstall", String(value)); }} onReset={() => { props.resetField("rtkAutoInstall"); }} />
           <TextField t={t} label="rtkCommand" hint="rtkCommandHint" field={state.fields.rtkCommand} disabled={disabled} onChange={(value) => { props.edit("rtkCommand", value); }} onReset={() => { props.resetField("rtkCommand"); }} />
+          {update.available ? (
+            <div style={fieldStyle}>
+              <strong>{t("updateTitle")}</strong>
+              <p style={hintStyle}>{t("updateHint")}</p>
+              <div style={{ display: "grid", gap: 4 }}>
+                <span>{t("currentVersion")}: {update.currentVersion ?? "-"}</span>
+                <span>{t("latestVersion")}: {update.latestVersion ?? "-"}</span>
+              </div>
+              {update.status === "available" ? <p role="status">{t("updateAvailable")}</p> : null}
+              {update.status === "current" ? <p role="status">{t("upToDate")}</p> : null}
+              {update.status === "updated" ? <p role="status">{t("updateComplete")}</p> : null}
+              {update.restartRequired ? <p role="status">{t("restartRequired")}</p> : null}
+              {update.error !== null ? <p role="status" style={{ color: "#b42318" }}>{update.error}</p> : null}
+              <div style={actionStyle}>
+                <button type="button" style={buttonStyle} disabled={update.checking || update.updating} onClick={props.checkForUpdate}>{t(update.checking ? "checkingForUpdates" : "checkForUpdates")}</button>
+                <button type="button" style={buttonStyle} disabled={update.checking || update.updating || update.status !== "available"} onClick={props.updatePackage}>{t(update.updating ? "updatingPackage" : "updateNow")}</button>
+              </div>
+            </div>
+          ) : null}
           <div style={actionStyle}>
             {state.failed ? <span role="status" style={{ color: "#b42318", marginRight: "auto" }}>{t("saveFailed")}</span> : null}
             {state.dirty ? <span style={{ marginRight: "auto", opacity: 0.68 }}>{t("unsaved")}</span> : null}
