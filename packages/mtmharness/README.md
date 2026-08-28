@@ -2,10 +2,10 @@
 
 `mtmharness` is one public npm package with one unified DSH plugin and two explicit client identities:
 
-- **DSH Web plugin**: the package root and `./client` export use the official `dsh.client` lazy-CJS contract. One installation provides the MTM sidebar action, the Connect control panel, and the settings-controlled Codebase Memory/Modern Go/Ponytail coding features.
+- **DSH Web plugin**: the package root and `./client` export use the official `dsh.client` lazy-CJS contract. One installation provides the settings-controlled MTM Connect secondary extension and the Codebase Memory/Modern Go/Ponytail coding features.
 - **Independent web client**: the package also publishes a BrowserHistory static app and a MemoryHistory script/embed entry. These artifacts own their React root, router, styles, and teardown and never load the local coding runtime.
 
-The DSH plugin is assembled from Connect and coding feature domains under one Host/Client lifecycle. Codebase Memory keeps its `codebase_memory` server namespace and `mcp__codebase_memory__*` tool names; Ponytail ships six skills inline, including `/ponytail` and its companion commands. The `mtm-coding` settings namespace remains the configuration contract inside the unified `mtmharness` package.
+The DSH plugin is assembled from coding and secondary frontend domains under one Host/Client lifecycle. Codebase Memory keeps its `codebase_memory` server namespace and `mcp__codebase_memory__*` tool names; Ponytail ships six skills inline, including `/ponytail` and its companion commands. The `mtm-coding` settings namespace contains the runtime extension toggles.
 
 Modern Go Guidelines is enabled by default as the inline `use-modern-go` skill. The skill uses the bundled JetBrains `v0.1.1` wrapper to resolve guidance for the target project version. The wrapper installs its CLI only when a Go task runs it, caches the binary outside the project, and reports a missing Go toolchain instead of assuming the host is prepared. `modernGoCommand` can replace the bundled wrapper command; `modernGoEnabled` removes the skill from the DSH catalog. The redistributed wrapper and license live under `resources/go-modern-guidelines/` and remain Apache-2.0.
 
@@ -18,21 +18,21 @@ Install the package into a web profile:
     dsh plugin --profile web add mtmharness
     dsh --profile web --dump-config
 
-Restart the DSH Web host after changing profile composition. The `MTM` action appears in the sidebar footer. The host owns the React root, session connection, and lifecycle.
+Restart the DSH Web host after changing profile composition. Open Settings > Plugins > Plugin configuration to control MTM Connect. The host owns the React root, session connection, and lifecycle.
 
-The plugin enables the Connect control panel by default and keeps its registry and `/mtm-connect` RPC on the DSH Host loopback boundary. The independent static/embed client remains a separate application surface and is not part of the DSH plugin.
+The plugin registers the `mtm-connect` settings namespace only. No local device backend, filesystem access, token, or loopback RPC is activated by this frontend experiment. The independent static/embed client remains a separate application surface and is not part of the DSH plugin.
 
 ## Secondary Extensions
 
-`mtmharness` owns a runtime frontend-extension loader. The `Dynamic Canvas` setting is off by default; enabling it fetches the exact pinned `mtmcanvas` native ESM artifact, verifies its SHA-256 integrity, and mounts it through the `mount(context) -> cleanup` ABI. The extension contract passes only an owned DOM root, document, version, abort signal, and cleanup-registration callback; it does not expose DSH or Node.js internals. The ESM still runs with normal page privileges, so integrity is an identity check, not a browser security boundary; once native import starts, browser evaluation cannot be cancelled. Disabling the setting awaits cleanup and removes the owned root.
+`mtmharness` owns a runtime frontend-extension loader. The `MTM Connect` setting is enabled by default; disabling it fetches no artifact, and re-enabling it loads the exact pinned `mtm-connect` native ESM artifact, verifies its SHA-256 integrity, and mounts it through the `mount(context) -> cleanup` ABI. The settings card also provides an `Open Connect` action after the panel is hidden. The extension contract passes only an owned DOM root, document, version, abort signal, and cleanup-registration callback; it does not expose DSH or Node.js internals. The ESM still runs with normal page privileges, so integrity is an identity check, not a browser security boundary. Disabling the setting awaits cleanup and removes the owned root.
 
-`mtmcanvas` is an extension artifact, not a standard DSH plugin. Do not add it with `dsh plugin`; install only `mtmharness`. The default URL uses unpkg, but the manifest accepts any exact HTTPS static-host URL with CORS enabled. The host CSP must allow `connect-src` to the artifact origin and `script-src blob:` for the fetched ESM. The first browser-only experiment keeps Canvas data in memory; persistence and host capabilities are deferred.
+`mtm-connect` is an extension artifact, not a standard DSH plugin. Do not add it with `dsh plugin`; install only `mtmharness`. The artifact is currently a browser-only mock of device and execution-world connections. The default URL uses unpkg, but the manifest accepts any exact HTTPS static-host URL with CORS enabled. The host CSP must allow `connect-src` to the artifact origin and `script-src blob:` for the fetched ESM.
+
+`mtmcanvas` remains a separate browser-only secondary artifact controlled by `Dynamic Canvas`, which stays off by default. Publish the pinned `mtm-connect` and `mtmcanvas` artifacts before `mtmharness`; the mtmharness release gate checks local, CDN, and manifest SHA-256 values.
 
 Profiles created from an older `mtmharness` release should remove retired `mtmcanvas`, `mtm-connect`, and `mtm-coding` rows before adding the current package. The committed profile smoke still covers the old-row cleanup and duplicate install path:
 
     pnpm --filter mtmharness run profile:check -- /path/to/mtmharness.tgz
-
-`mtmcanvas` remains a separately published artifact so its browser code can be retrieved at runtime; its package has no `dsh.bundle` or `dsh.client` declaration. Publish the pinned `mtmcanvas` version before `mtmharness`; the mtmharness release gate checks the local, CDN, and manifest SHA-256 values.
 
 ## Static App
 

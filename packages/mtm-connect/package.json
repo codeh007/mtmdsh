@@ -1,0 +1,67 @@
+{
+  "name": "mtm-connect",
+  "version": "0.2.0",
+  "description": "Browser-only mock device connection frontend extension for mtmharness.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.19.0",
+    "pnpm": ">=11.7.0"
+  },
+  "main": "./lib/client.js",
+  "types": "./lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "import": "./lib/client.js",
+      "default": "./lib/client.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "import": "./lib/client.js",
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "mtmharness": {
+    "secondary": {
+      "id": "mtm-connect",
+      "apiVersion": 1,
+      "client": "./lib/client.js"
+    }
+  },
+  "files": [
+    "lib/client.js",
+    "lib/types/**/*.d.ts",
+    "README.md",
+    "package.json",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "pnpm run typecheck && pnpm run test && pnpm run build && pnpm run pack:check",
+    "pack:check": "node scripts/pack-check.mjs",
+    "prepack": "pnpm run build"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codeh007/mtmdsh.git",
+    "directory": "packages/mtm-connect"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.1",
+    "@types/react": "~18.3.1",
+    "@types/react-dom": "~18.3.0",
+    "esbuild": "0.28.2",
+    "jsdom": "30.0.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.11"
+  }
+}

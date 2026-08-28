@@ -17,7 +17,6 @@ if (!/^\d+\.\d+\.\d+$/.test(manifest.version)) fail("version must be stable SemV
 if (manifest.dsh?.bundle?.patch !== "./cordis.patch.yml") fail("dsh.bundle.patch must point to cordis.patch.yml");
 if (manifest.dsh?.client?.platform !== "web") fail("dsh.client.platform must be web");
 const expectedInject = [
-  "@deepseek-ai/dsh-client-connection",
   "@deepseek-ai/dsh-client-runtime",
   "@deepseek-ai/dsh-client-ui-primitives",
   "@deepseek-ai/dsh-client-ui-sidebar",
@@ -70,7 +69,7 @@ for (const required of ["mtm-coding", "codebase_memory", "mtm-coding-modern-go",
 const client = read("lib/client.js");
 if (!client.includes("window.__ModuleLoader__.load") || !client.includes('id: "mtmharness"')) fail("client artifact is not a DSH lazy-CJS bundle");
 for (const required of [
-  "/mtm-connect",
+  "mtm-connect",
   "mtm-coding",
   "mtm.coding",
   "ponytail",
@@ -80,11 +79,13 @@ for (const required of [
   "RTK",
   "shell.overlay",
   "mtmdsh-launcher-overlay",
+  "mtm.connect",
+  "MTM Connect",
   "https://unpkg.com/mtmharness@latest/dist/standalone/index.html",
 ]) {
   if (!client.includes(required)) fail("client artifact is missing unified feature surface: " + required);
 }
-for (const forbidden of ["createRoot", "RouterProvider", "new WebSocket", 'credentials: "include"', "MtmHarnessRuntime", "standalone/src", 'id: "mtm-connect"', "/mtmdsh/"]) {
+for (const forbidden of ["createRoot", "RouterProvider", "new WebSocket", 'credentials: "include"', "MtmHarnessRuntime", "standalone/src", "/mtmdsh/"]) {
   if (client.includes(forbidden)) fail("client artifact contains standalone behavior: " + forbidden);
 }
 

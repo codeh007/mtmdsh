@@ -151,6 +151,13 @@ export class MtmSecondaryClientRuntime {
     return operation;
   }
 
+  show(focusSelector?: string): void {
+    const root = this.root;
+    if (root === undefined) return;
+    root.hidden = false;
+    if (focusSelector !== undefined) root.querySelector<HTMLElement>(focusSelector)?.focus();
+  }
+
   async dispose(): Promise<void> {
     if (this.disposed) return;
     this.disposed = true;
@@ -273,7 +280,7 @@ export class MtmSecondaryClientRuntime {
   }
 }
 
-/** Mount the secondary controller under the primary mtmharness client fiber. */
+/** Mount the Canvas secondary extension under the primary mtmharness client fiber. */
 export function apply(ctx: ClientContext): void {
   const settingsScope = ctx.settingsScope as SecondarySettingsBinder | undefined;
   if (settingsScope === undefined) throw new Error("mtmharness: secondary settings service is unavailable");

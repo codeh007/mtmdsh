@@ -1,27 +1,27 @@
-name: release-mtmharness
-run-name: Release mtmharness ${{ github.ref_name }}
+name: release-mtm-connect
+run-name: Release mtm-connect ${{ github.ref_name }}
 
 on:
   push:
     tags:
-      - 'mtmharness-v[0-9]*.[0-9]*.[0-9]*'
+      - 'mtm-connect-v[0-9]*.[0-9]*.[0-9]*'
 
 permissions:
   contents: read
   id-token: write
 
 concurrency:
-  group: mtmharness-npm-publish
+  group: mtm-connect-npm-publish
   cancel-in-progress: false
 
 env:
-  PACKAGE_NAME: mtmharness
-  PACKAGE_DIR: packages/mtmharness
-  TAG_PREFIX: mtmharness-v
+  PACKAGE_NAME: mtm-connect
+  PACKAGE_DIR: packages/mtm-connect
+  TAG_PREFIX: mtm-connect-v
 
 jobs:
   publish:
-    name: Pack, publish, and read back mtmharness
+    name: Pack, publish, and read back mtm-connect
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -57,64 +57,39 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          package_version="$(node -p "require('./packages/mtmharness/package.json').version")"
+          package_version="$(node -p "require('./${PACKAGE_DIR}/package.json').version")"
           test "$RELEASE_TAG" = "${TAG_PREFIX}${package_version}"
           git fetch --no-tags origin main
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main
           printf 'PACKAGE_VERSION=%s\n' "$package_version" >> "$GITHUB_ENV"
 
-      - name: Check workspace and secondary client contract
+      - name: Check browser extension and manifest pin
         run: |
           set -euo pipefail
-          pnpm --filter mtmharness run check
-          pnpm --filter mtmcanvas run check
           pnpm --filter mtm-connect run check
-          # The pinned secondary artifacts must already be published before mtmharness.
-          canvas_version="$(node -p "require('./packages/mtmcanvas/package.json').version")"
-          canvas_integrity="$(sed -n '/id: "mtmcanvas"/{n;n;n;s/.*clientIntegrity: "\([^\"]*\)".*/\1/p;}' packages/mtmharness/src/features/secondary/manifest.ts)"
-          local_integrity="sha256-$(openssl dgst -sha256 -binary packages/mtmcanvas/lib/client.js | base64 -w0)"
-          test -n "$canvas_integrity"
-          test "$local_integrity" = "$canvas_integrity"
-          test "$(npm view "mtmcanvas@${canvas_version}" version --json | jq -r .)" = "$canvas_version"
-          remote="$RUNNER_TEMP/mtmcanvas-client.js"
-          curl --fail --silent --show-error --output "$remote" "https://unpkg.com/mtmcanvas@${canvas_version}/lib/client.js"
-          remote_integrity="sha256-$(openssl dgst -sha256 -binary "$remote" | base64 -w0)"
-          test "$remote_integrity" = "$canvas_integrity"
-          cmp "packages/mtmcanvas/lib/client.js" "$remote"
-          connect_version="$(node -p "require('./packages/mtm-connect/package.json').version")"
-          connect_integrity="$(sed -n '/id: "mtm-connect"/{n;n;n;s/.*clientIntegrity: "\([^\"]*\)".*/\1/p;}' packages/mtmharness/src/features/secondary/manifest.ts)"
+          package_version="$(node -p "require('./${PACKAGE_DIR}/package.json').version")"
+          manifest_version="$(sed -n '/id: "mtm-connect"/{n;s/.*version: "\([^\"]*\)".*/\1/p;}' packages/mtmharness/src/features/secondary/manifest.ts)"
+          expected_integrity="$(sed -n '/id: "mtm-connect"/{n;n;n;s/.*clientIntegrity: "\([^\"]*\)".*/\1/p;}' packages/mtmharness/src/features/secondary/manifest.ts)"
+          test "$manifest_version" = "$package_version"
           local_integrity="sha256-$(openssl dgst -sha256 -binary packages/mtm-connect/lib/client.js | base64 -w0)"
-          test -n "$connect_integrity"
-          test "$local_integrity" = "$connect_integrity"
-          test "$(npm view "mtm-connect@${connect_version}" version --json | jq -r .)" = "$connect_version"
-          remote="$RUNNER_TEMP/mtm-connect-client.js"
-          curl --fail --silent --show-error --output "$remote" "https://unpkg.com/mtm-connect@${connect_version}/lib/client.js"
-          remote_integrity="sha256-$(openssl dgst -sha256 -binary "$remote" | base64 -w0)"
-          test "$remote_integrity" = "$connect_integrity"
-          cmp "packages/mtm-connect/lib/client.js" "$remote"
+          test "$local_integrity" = "$expected_integrity"
+          printf 'EXPECTED_INTEGRITY=%s\n' "$expected_integrity" >> "$GITHUB_ENV"
 
       - name: Pack release tarball
         id: pack
         run: |
           set -euo pipefail
-          pack_dir="$RUNNER_TEMP/mtmharness"
+          pack_dir="$RUNNER_TEMP/mtm-connect"
           mkdir -p "$pack_dir"
-          pnpm --filter mtmharness pack --pack-destination "$pack_dir"
+          pnpm --filter mtm-connect pack --pack-destination "$pack_dir"
           tarball="$(find "$pack_dir" -maxdepth 1 -type f -name "${PACKAGE_NAME}-*.tgz" -print -quit)"
           test -n "$tarball"
           local_integrity="sha512-$(openssl dgst -sha512 -binary "$tarball" | base64 -w0)"
           printf 'tarball=%s\n' "$tarball" >> "$GITHUB_OUTPUT"
           printf 'LOCAL_INTEGRITY=%s\n' "$local_integrity" >> "$GITHUB_ENV"
 
-      - name: Verify tarball contract
-        run: node "$PACKAGE_DIR/scripts/verify-package.mjs" "${{ steps.pack.outputs.tarball }}"
-
       - name: Lint package metadata
         run: pnpm dlx publint run "${{ steps.pack.outputs.tarball }}" --strict
-
-
-      - name: Verify mtmharness profile migration
-        run: pnpm --filter mtmharness run profile:check -- "${{ steps.pack.outputs.tarball }}"
 
       - name: Preflight registry and token
         env:
@@ -131,15 +106,21 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish "${{ steps.pack.outputs.tarball }}" --access public --provenance --ignore-scripts
 
-      - name: Read back npm integrity
+      - name: Read back npm and CDN artifacts
         run: |
           set -euo pipefail
+          remote="$RUNNER_TEMP/mtm-connect-client.js"
           for attempt in $(seq 1 12); do
-            if published_integrity="$(npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" dist.integrity --json 2>/dev/null | jq -r .)" && published_version="$(npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version --json 2>/dev/null | jq -r .)" && test "$published_integrity" = "$LOCAL_INTEGRITY" && test "$published_version" = "$PACKAGE_VERSION"; then
+            published_integrity="$(npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" dist.integrity --json 2>/dev/null | jq -r . || true)"
+            published_version="$(npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version --json 2>/dev/null | jq -r . || true)"
+            curl --fail --silent --show-error --location --output "$remote" "https://unpkg.com/${PACKAGE_NAME}@${PACKAGE_VERSION}/lib/client.js" || true
+            remote_integrity=""
+            test -f "$remote" && remote_integrity="sha256-$(openssl dgst -sha256 -binary "$remote" | base64 -w0)"
+            if test "$published_integrity" = "$LOCAL_INTEGRITY" && test "$published_version" = "$PACKAGE_VERSION" && test "$remote_integrity" = "$EXPECTED_INTEGRITY" && cmp packages/mtm-connect/lib/client.js "$remote"; then
               break
             fi
             if test "$attempt" -eq 12; then
-              echo "npm registry read-back did not converge after ${attempt} attempts" >&2
+              echo "npm/CDN artifact read-back did not converge after ${attempt} attempts" >&2
               exit 1
             fi
             sleep 5
