@@ -41,7 +41,19 @@ export type MtmCodingLocaleKey =
   | "saveFailed"
   | "readOnly"
   | "show"
-  | "hide";
+  | "hide"
+  | "updateTitle"
+  | "updateHint"
+  | "currentVersion"
+  | "latestVersion"
+  | "checkForUpdates"
+  | "checkingForUpdates"
+  | "updateNow"
+  | "updatingPackage"
+  | "updateAvailable"
+  | "upToDate"
+  | "updateComplete"
+  | "restartRequired";
 
 export const en: Record<MtmCodingLocaleKey, string> = {
   nav: "Coding",
@@ -87,6 +99,18 @@ export const en: Record<MtmCodingLocaleKey, string> = {
   readOnly: "This deployment stores settings read-only.",
   show: "Show settings",
   hide: "Hide settings",
+  updateTitle: "mtmharness update",
+  updateHint: "Check the stable npm release installed in this DSH Web profile. Updating requires a host restart.",
+  currentVersion: "Current version",
+  latestVersion: "Latest version",
+  checkForUpdates: "Check for updates",
+  checkingForUpdates: "Checking...",
+  updateNow: "Update now",
+  updatingPackage: "Updating...",
+  updateAvailable: "A newer stable version is available.",
+  upToDate: "This profile is up to date.",
+  updateComplete: "Update installed.",
+  restartRequired: "Restart DSH Web to load the update.",
 };
 
 export const zh: Record<MtmCodingLocaleKey, string> = {
@@ -133,4 +157,16 @@ export const zh: Record<MtmCodingLocaleKey, string> = {
   readOnly: "本部署的设置为只读。",
   show: "展开设置",
   hide: "收起设置",
+  updateTitle: "mtmharness 更新",
+  updateHint: "检查此 DSH Web profile 中安装的稳定版 npm 包；更新后需要重启 Host。",
+  currentVersion: "当前版本",
+  latestVersion: "最新版本",
+  checkForUpdates: "检查更新",
+  checkingForUpdates: "检查中...",
+  updateNow: "立即更新",
+  updatingPackage: "更新中...",
+  updateAvailable: "有新的稳定版可用。",
+  upToDate: "此 profile 已是最新版本。",
+  updateComplete: "更新已安装。",
+  restartRequired: "请重启 DSH Web 以加载更新。",
 };

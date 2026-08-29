@@ -2,6 +2,7 @@
 import type { Context } from "@deepseek-ai/cordis";
 import { apply as applyCodingHost } from "./features/coding/index.ts";
 import { apply as applyConnectHost } from "./features/connect/index.ts";
+import { apply as applyUpdateHost } from "./features/update/index.ts";
 
 export { buildMcpConfig, resolveConfig } from "./features/coding/index.ts";
 export { MODERN_GO_RESOURCE_BASE, createModernGoSkill } from "./features/coding/modern-go.ts";
@@ -42,11 +43,12 @@ export type {
 } from "./features/secondary/client.ts";
 
 export const name = "mtmharness";
-export const inject = ["connection", "settings"];
+export const inject = ["connection", "settings", "subprocess"];
 
 /** Mount the Host-owned MTM and coding control planes. */
 export async function apply(ctx: Context, config: Record<string, unknown> = {}): Promise<void> {
   if (ctx.connection === undefined) throw new Error("mtmharness: DSH connection service is unavailable");
   applyConnectHost(ctx);
+  applyUpdateHost(ctx);
   await applyCodingHost(ctx, config);
 }
