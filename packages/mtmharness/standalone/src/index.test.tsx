@@ -112,6 +112,9 @@ describe("mtmharness embed runtime", () => {
     const script = document.createElement("script");
     script.dataset.apiOrigin = "https://api.example.test";
     script.dataset.oauthIssuer = "https://auth.example.test";
+    script.dataset.oauthClientId = "mtmharness";
+    script.dataset.oauthRedirectUri = "https://app.example.test/callback";
+    script.dataset.oauthResource = "https://dsh.example.test/api/dsh";
     expect(() => MtmHarnessClient.autoMount(script)).toThrow("OAuth data attributes must be provided together");
   });
 

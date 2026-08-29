@@ -107,8 +107,8 @@ function normalizeOAuthConfig(value: OAuthClientConfig | undefined): OAuthClient
     throw new TypeError("oauth.clientId must be a non-empty safe string");
   }
   const discoveryUrl = value.discoveryUrl === undefined ? undefined : normalizeHttpsUrl(value.discoveryUrl, "oauth.discoveryUrl");
-  const scopes = value.scopes === undefined ? undefined : [...value.scopes];
-  if (scopes !== undefined && (scopes.length === 0 || scopes.some((scope) => typeof scope !== "string" || !scope.trim()))) {
+  const scopes = [...value.scopes];
+  if (scopes.length === 0 || scopes.some((scope) => typeof scope !== "string" || !scope.trim())) {
     throw new TypeError("oauth.scopes must contain non-empty strings");
   }
   return {
@@ -117,16 +117,16 @@ function normalizeOAuthConfig(value: OAuthClientConfig | undefined): OAuthClient
     redirectUri,
     resource,
     ...(discoveryUrl === undefined ? {} : { discoveryUrl }),
-    ...(scopes === undefined ? {} : { scopes }),
+    scopes,
   };
 }
 
 function normalizeIssuer(value: string): string {
   const url = new URL(normalizeUrl(value, "oauth.issuer"));
-  if (url.protocol !== "https:" || url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
-    throw new TypeError("oauth.issuer must be a canonical HTTPS origin");
+  if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) {
+    throw new TypeError("oauth.issuer must be a canonical HTTPS URL");
   }
-  return url.origin;
+  return url.pathname === "/" ? url.origin : url.toString();
 }
 
 function normalizeHttpsUrl(value: string, field: string): string {

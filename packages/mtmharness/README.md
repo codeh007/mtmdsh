@@ -45,7 +45,8 @@ The package tarball contains `dist/standalone/index.html` and its hashed assets.
           issuer: "https://gomtm-dev.yuepa8.com",
           clientId: "<pre-registered-client-id>",
           redirectUri: "https://host.example.test/mtm/callback",
-          resource: "https://gomtm-dev.yuepa8.com/api/dsh"
+          resource: "https://gomtm-dev.yuepa8.com/api/dsh",
+          scopes: ["openid", "dsh:connect"]
         }
       };
     </script>
@@ -66,7 +67,8 @@ Use the ESM export from an application build:
         issuer: "https://auth.example.test",
         clientId: "<pre-registered-client-id>",
         redirectUri: "https://host.example.test/mtm/callback",
-        resource: "https://auth.example.test/api/dsh"
+        resource: "https://dsh.example.test/api/dsh",
+        scopes: ["openid", "dsh:connect"]
       },
       allowedParentOrigins: ["https://host.example.test"],
       mode: "floating"
@@ -77,13 +79,13 @@ Use the ESM export from an application build:
     handle.close();
     handle.unmount();
 
-The CDN IIFE is `dist/embed/mtmharness.iife.js` and is also exposed through the package `unpkg` and `jsdelivr` fields. Declarative auto-mounting accepts only non-sensitive attributes such as `data-api-origin`, `data-mode`, and `data-target`; it never reads a token from markup.
+The CDN IIFE is `dist/embed/mtmharness.iife.js` and is also exposed through the package `unpkg` and `jsdelivr` fields. Declarative auto-mounting accepts only non-sensitive attributes such as `data-api-origin`, `data-mode`, and `data-target`; OAuth attributes must be provided together, with `data-oauth-scopes` as a space-separated list. It never reads a token from markup.
 
 Embed uses memory history and never changes the host page URL. It mounts inside an open ShadowRoot, which is a DOM composition boundary rather than a security boundary, and removes its DOM, styles, observers, router, host bridge, and runtime on `unmount()`.
 
 ## Authentication
 
-The independent client performs discovery-first OAuth/OIDC Authorization Code + PKCE (S256). The issuer, client ID, exact redirect URI, resource, endpoint origins, required `openid`/`dsh:connect` scopes, and provider capabilities are validated before authorization. Dynamic client registration is not implemented; production clients and origin/redirect allowlists must be registered by the server.
+The independent client performs discovery-first OAuth/OIDC Authorization Code + PKCE (S256). The full issuer, client ID, exact redirect URI, independent resource, caller-provided scopes, HTTPS endpoints, and provider capabilities are validated before authorization. `openid` is required for ID-token verification; API and refresh scopes come from the registered authority profile. Dynamic client registration is not implemented; production clients and redirect URIs must be registered by the provider.
 
 Access and refresh tokens live only in the JavaScript memory of the auth client. A short-lived PKCE transaction containing state/verifier/nonce is the only auth state written to partitioned `sessionStorage`, and it is removed on every callback path. Callback URLs are sanitized after consumption. Tokens, tickets, roles, and capabilities are never put in markup, localStorage, iframe messages, logs, or WebSocket URLs.
 
