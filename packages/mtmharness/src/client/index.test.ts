@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { createDemoRegistry } from "../features/connect/core/registry.ts";
 import { apply as applyHost } from "../index.ts";
 import { apply, inject } from "./index.ts";
 
@@ -12,7 +11,6 @@ type Registered = {
 function clientBench(loopback = true): { registered: Registered[]; cleanups: Array<() => void | Promise<void>> } {
   const registered: Registered[] = [];
   const cleanups: Array<() => void | Promise<void>> = [];
-  const snapshot = createDemoRegistry().getSnapshot();
   const codingSettings = {
     status: "ready",
     value: {
@@ -34,9 +32,18 @@ function clientBench(loopback = true): { registered: Registered[]; cleanups: Arr
     writable: true,
     mode: "host",
   };
+  const connectSettings = {
+    status: "ready",
+    value: { enabled: false },
+    base: {},
+    user: {},
+    revision: 1,
+    writable: true,
+    mode: "host",
+  };
   const ctx = {
     get(name: string) {
-      if (name === "connection") return { isLoopback: loopback, rpc: { call: async () => ({ ok: true, value: snapshot }) } };
+      if (name === "connection") return { isLoopback: loopback, rpc: { call: async () => ({ ok: true, value: {} }) } };
       throw new Error("unexpected service: " + name);
     },
     provide() {},
@@ -45,12 +52,17 @@ function clientBench(loopback = true): { registered: Registered[]; cleanups: Arr
       register: () => () => {},
     },
     settingsScope: {
-      bind: () => ({
+      bind: (spec: { namespace: string }) => spec.namespace === "mtm-connect" ? {
+        getSnapshot: () => connectSettings,
+        subscribe: () => () => {},
+        set: async () => {},
+        unset: async () => {},
+      } : {
         getSnapshot: () => codingSettings,
         subscribe: () => () => {},
         set: async () => {},
         unset: async () => {},
-      }),
+      },
     },
     effect(effect: () => (() => void | Promise<void>) | void) {
       const cleanup = effect();
@@ -82,8 +94,8 @@ function clientBench(loopback = true): { registered: Registered[]; cleanups: Arr
   return { registered, cleanups };
 }
 
-async function hostBench(): Promise<{ provided: Record<string, unknown>; cleanups: Array<() => void | Promise<void>> }> {
-  const provided: Record<string, unknown> = {};
+async function hostBench(): Promise<{ registeredNamespaces: string[]; cleanups: Array<() => void | Promise<void>> }> {
+  const registeredNamespaces: string[] = [];
   const cleanups: Array<() => void | Promise<void>> = [];
   const settings = {
     codebaseMemoryEnabled: false,
@@ -114,11 +126,11 @@ async function hostBench(): Promise<{ provided: Record<string, unknown>; cleanup
   const ctx = {
     connection: { rpc: { handle() { return async () => {}; } } },
     settings: {
-      register() {
+      register(namespace: unknown) {
+        registeredNamespaces.push(String(namespace));
         return { get: () => settings, watch: () => () => {} };
       },
     },
-    provide(key: string, value: unknown) { provided[key] = value; },
     effect(effect: () => (() => void | Promise<void>) | void) {
       const cleanup = effect();
       if (typeof cleanup === "function") cleanups.push(cleanup);
@@ -126,24 +138,21 @@ async function hostBench(): Promise<{ provided: Record<string, unknown>; cleanup
     },
   };
   await applyHost(ctx as never);
-  return { provided, cleanups };
+  return { registeredNamespaces, cleanups };
 }
 
 describe("mtmharness Host half", () => {
-  it("assembles the Host-owned Connect control plane", async () => {
-    const { provided, cleanups } = await hostBench();
-    expect(provided.mtmConnect).toBeDefined();
+  it("registers the Connect settings namespace without a local backend", async () => {
+    const { registeredNamespaces, cleanups } = await hostBench();
+    expect(registeredNamespaces).toContain("mtm-connect");
     for (const cleanup of cleanups.reverse()) await cleanup();
   });
 
-  it("fails clearly when the Host connection service is unavailable", async () => {
-    await expect(applyHost({} as never)).rejects.toThrow("mtmharness: DSH connection service is unavailable");
-  });
 });
 
 describe("mtmharness browser half", () => {
   it("declares the combined service dependencies", () => {
-    expect(inject).toEqual(["slots", "connection", "locale", "settingsScope"]);
+    expect(inject).toEqual(["slots", "locale", "settingsScope"]);
   });
 
   it("only exposes update actions for loopback connections", () => {
@@ -160,39 +169,16 @@ describe("mtmharness browser half", () => {
     for (const cleanup of remote.cleanups.reverse()) void cleanup();
   });
 
-  it("fails clearly when the Client connection service is unavailable", () => {
-    const cleanups: Array<() => void | Promise<void>> = [];
-    const ctx = {
-      get(name: string) {
-        if (name === "connection") return undefined;
-        throw new Error("unexpected service: " + name);
-      },
-      provide() {},
-      effect(effect: () => (() => void | Promise<void>) | void) {
-        const cleanup = effect();
-        if (typeof cleanup === "function") cleanups.push(cleanup);
-        return cleanup;
-      },
-      sessions: { provide() { return () => {}; } },
-      slots: {
-        inject(_name: string, callback: () => () => void) {
-          const cleanup = callback();
-          cleanups.push(cleanup);
-          return cleanup;
-        },
-        register() { return () => {}; },
-      },
-    };
-    expect(() => apply(ctx as never)).toThrow("mtmharness: DSH connection service is unavailable");
-    for (const cleanup of cleanups.reverse()) void cleanup();
-  });
-
-  it("registers the MTM Harness surface with Connect under one lifecycle", () => {
+  it("keeps Connect in settings and leaves the sidebar footer for the cloud launcher", () => {
     const { registered, cleanups } = clientBench();
     expect(registered).toEqual(expect.arrayContaining([
-      expect.objectContaining({ name: "sidebar.footer.action", options: expect.objectContaining({ id: "mtmharness", order: 10 }) }),
+      expect.objectContaining({ name: "settings.plugin.item", options: expect.objectContaining({ key: "mtm-coding" }) }),
+      expect.objectContaining({ name: "settings.plugin.item", options: expect.objectContaining({ key: "mtm-connect" }) }),
     ]));
-    expect(registered.filter((entry) => entry.name === "sidebar.footer.action")).toHaveLength(2);
+    expect(registered.filter((entry) => entry.name === "sidebar.footer.action")).toHaveLength(1);
+    expect(registered).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "sidebar.footer.action", options: expect.objectContaining({ id: "mtmharness" }) }),
+    ]));
     expect(registered).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: "sidebar.footer.action", options: expect.objectContaining({ id: "mtmdsh-launcher", order: 12 }) }),
       expect.objectContaining({ name: "shell.overlay", options: expect.objectContaining({ id: "mtmdsh-launcher-overlay", order: 100 }) }),

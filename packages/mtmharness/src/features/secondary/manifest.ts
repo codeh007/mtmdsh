@@ -52,3 +52,12 @@ export const MTM_CANVAS_EXTENSION = {
   clientUrl: "https://unpkg.com/mtmcanvas@0.2.0/lib/client.js",
   clientIntegrity: "sha256-TDJa0tdb9LK87hCigE0aruLJnuNqRG7Ls2UfuHWsKU4=",
 } as const satisfies MtmSecondaryExtensionManifest;
+
+/** The published mock Connect artifact used by the first device UI release. */
+export const MTM_CONNECT_EXTENSION = {
+  apiVersion: 1,
+  id: "mtm-connect",
+  version: "0.2.0",
+  clientUrl: "https://unpkg.com/mtm-connect@0.2.0/lib/client.js",
+  clientIntegrity: "sha256-P2U7C8ILLZHxih3e4GJKqctv8/2hBiAtkJ6ZoDUGSa8=",
+} as const satisfies MtmSecondaryExtensionManifest;

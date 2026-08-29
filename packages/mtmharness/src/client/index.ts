@@ -6,41 +6,19 @@ import type {} from "@deepseek-ai/dsh-client-ui-settings-plugins/client";
 import type {} from "@deepseek-ai/dsh-client-ui-sidebar/client";
 import type {} from "@deepseek-ai/dsh-client-ui-layout/client";
 import { apply as applyCoding } from "../features/coding/client/index.tsx";
+import { apply as applyMtmConnect } from "../features/mtm-connect/client/index.tsx";
 import { apply as applySecondary } from "../features/secondary/client.ts";
-import { apply as applyConnect } from "../features/connect/client/index.ts";
-import type { MtmConnectPanelActions } from "../features/connect/client/MtmConnectPanel.tsx";
-import { MtmHarnessAction, type MtmHarnessActionInjected } from "./MtmHarnessAction.tsx";
 import { MtmHarnessLauncherAction, MtmHarnessLauncherOverlay } from "./launcher.tsx";
 import { disposeMtmHarnessLauncher } from "./launcher-state.ts";
 
 export { applyCoding };
-export const inject = ["slots", "connection", "locale", "settingsScope"];
+export const inject = ["slots", "locale", "settingsScope"];
 
-/** Register every MTM and coding feature under one plugin-owned lifecycle. */
+/** Register coding, secondary, and launcher features under one plugin-owned lifecycle. */
 export function apply(ctx: ClientContext): void {
-  if (ctx.get("connection") === undefined) throw new Error("mtmharness: DSH connection service is unavailable");
   applyCoding(ctx);
+  applyMtmConnect(ctx);
   applySecondary(ctx);
-  const runtime = applyConnect(ctx);
-  const actions: MtmConnectPanelActions = {
-    selectConnection: (connectionId) => { runtime.selectConnection(connectionId); },
-    refresh: () => { runtime.refresh(); },
-    createMockConnection: () => { runtime.createMockConnection(); },
-    enableSelected: () => { runtime.enableSelected(); },
-    disableSelected: () => { runtime.disableSelected(); },
-    revokeSelected: () => { runtime.revokeSelected(); },
-    reconnectSelected: () => { runtime.reconnectSelected(); },
-    setCapabilityEnabled: (capabilityId, enabled) => { runtime.setCapabilityEnabled(capabilityId, enabled); },
-    setModelInvocable: (capabilityId, enabled) => { runtime.setModelInvocable(capabilityId, enabled); },
-    setUserInvocable: (capabilityId, enabled) => { runtime.setUserInvocable(capabilityId, enabled); },
-    setEventPolicy: (capabilityId, policy) => { runtime.setEventPolicy(capabilityId, policy); },
-  };
-  ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
-    name: "sidebar.footer.action",
-    id: "mtmharness",
-    order: 10,
-    inject: (): MtmHarnessActionInjected => ({ actions, hooks: { connect: runtime } }),
-  }, MtmHarnessAction));
   // The launcher loads the latest stable app directly from the package CDN.
   ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
     name: "sidebar.footer.action",

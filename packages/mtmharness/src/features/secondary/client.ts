@@ -125,6 +125,8 @@ export class MtmSecondaryClientRuntime {
   private root: HTMLDivElement | undefined;
   private cleanup: Cleanup | undefined;
   private loadAbort: AbortController | undefined;
+  private pendingShow = false;
+  private pendingFocusSelector: string | undefined;
   private queue: Promise<void> = Promise.resolve();
   private disposed = false;
 
@@ -145,16 +147,37 @@ export class MtmSecondaryClientRuntime {
   setEnabled(enabled: boolean): Promise<void> {
     if (this.disposed) return Promise.resolve();
     this.desired = enabled;
-    if (!enabled) this.loadAbort?.abort();
+    if (!enabled) {
+      this.pendingShow = false;
+      this.pendingFocusSelector = undefined;
+      this.loadAbort?.abort();
+    }
     const operation = this.queue.then(() => this.reconcile());
     this.queue = operation.then(() => undefined, () => undefined);
     return operation;
+  }
+
+  show(focusSelector?: string): void {
+    const root = this.root;
+    if (root === undefined) {
+      if (this.desired) {
+        this.pendingShow = true;
+        this.pendingFocusSelector = focusSelector;
+      }
+      return;
+    }
+    this.pendingShow = false;
+    this.pendingFocusSelector = undefined;
+    root.hidden = false;
+    if (focusSelector !== undefined) root.querySelector<HTMLElement>(focusSelector)?.focus();
   }
 
   async dispose(): Promise<void> {
     if (this.disposed) return;
     this.disposed = true;
     this.desired = false;
+    this.pendingShow = false;
+    this.pendingFocusSelector = undefined;
     this.loadAbort?.abort();
     await this.queue;
     try {
@@ -249,6 +272,12 @@ export class MtmSecondaryClientRuntime {
       if (typeof mountedCleanup === "function") returnedCleanup = mountedCleanup;
       else if (mountedCleanup !== undefined) throw new Error("secondary extension mount must return a cleanup function");
       acceptingCleanups = false;
+      if (this.pendingShow) {
+        const focusSelector = this.pendingFocusSelector;
+        this.pendingShow = false;
+        this.pendingFocusSelector = undefined;
+        this.show(focusSelector);
+      }
       if (this.disposed || !this.desired) await this.unload();
     } finally {
       if (this.loadAbort === controller) this.loadAbort = undefined;
@@ -262,6 +291,8 @@ export class MtmSecondaryClientRuntime {
       if (cleanup !== undefined) await cleanup();
     } finally {
       root?.remove();
+      this.pendingShow = false;
+      this.pendingFocusSelector = undefined;
     }
     this.cleanup = undefined;
     this.root = undefined;
@@ -273,7 +304,7 @@ export class MtmSecondaryClientRuntime {
   }
 }
 
-/** Mount the secondary controller under the primary mtmharness client fiber. */
+/** Mount the Canvas secondary extension under the primary mtmharness client fiber. */
 export function apply(ctx: ClientContext): void {
   const settingsScope = ctx.settingsScope as SecondarySettingsBinder | undefined;
   if (settingsScope === undefined) throw new Error("mtmharness: secondary settings service is unavailable");

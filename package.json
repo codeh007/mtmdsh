@@ -7,7 +7,7 @@
   "scripts": {
     "build": "pnpm --filter mtmharness run build",
     "demo": "pnpm --filter mtmharness run dev",
-    "check": "pnpm --filter mtmharness run check && pnpm --filter mtmcanvas run check",
+    "check": "pnpm --filter mtmharness run check && pnpm --filter mtmcanvas run check && pnpm --filter mtm-connect run check",
     "pack:mtmharness": "pnpm --filter mtmharness run pack:check"
   },
   "devDependencies": { "typescript": "6.0.3" }
