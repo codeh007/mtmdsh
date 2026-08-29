@@ -41,7 +41,6 @@
     "dist/standalone",
     "dist/embed",
     "dist/types/standalone",
-    "resources/go-modern-guidelines",
     "cordis.patch.yml",
     "README.md",
     "package.json",

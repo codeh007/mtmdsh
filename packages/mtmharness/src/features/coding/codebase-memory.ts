@@ -8,7 +8,6 @@ import type { UserMessage } from "@deepseek-ai/dsh-session";
 import type { ToolExecution, ToolExecutionToken, PostToolDecision } from "@deepseek-ai/dsh-tools";
 import type {} from "@deepseek-ai/dsh-system-prompt";
 import {
-  ensureRuntime,
   resolveCommand,
   resolveEnvironment,
   resolveWorkingDirectory,
@@ -23,9 +22,7 @@ const SERVER_NAME_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
 const DEFAULT_SERVER_NAME = "codebase_memory";
 const DEFAULT_TOOL_TIMEOUT_MS = 60_000;
 const DEFAULT_HOOK_TIMEOUT_MS = 2_000;
-const DEFAULT_RUNTIME_CHECK_TIMEOUT_MS = 120_000;
 const MAX_HOOK_TIMEOUT_MS = 10_000;
-const MAX_RUNTIME_CHECK_TIMEOUT_MS = 300_000;
 const MAX_TOOL_TIMEOUT_MS = 2_147_483_647;
 
 export interface Config {
@@ -38,8 +35,6 @@ export interface Config {
   allowedRoot?: string;
   toolCallTimeoutMs?: number;
   hookTimeoutMs?: number;
-  runtimeCheckTimeoutMs?: number;
-  ensureRuntime?: boolean;
   augmentHooks?: boolean;
   failOnStartupError?: boolean;
   reconnect?: ReconnectConfig;
@@ -62,8 +57,6 @@ export const Config: z<Config> = z.object({
   allowedRoot: z.string().default(""),
   toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_TIMEOUT_MS),
   hookTimeoutMs: z.number().default(DEFAULT_HOOK_TIMEOUT_MS),
-  runtimeCheckTimeoutMs: z.number().default(DEFAULT_RUNTIME_CHECK_TIMEOUT_MS),
-  ensureRuntime: z.boolean().default(true),
   augmentHooks: z.boolean().default(true),
   failOnStartupError: z.boolean().default(false),
   reconnect: Reconnect,
@@ -79,8 +72,6 @@ export interface ResolvedConfig {
   readonly allowedRoot: string | undefined;
   readonly toolCallTimeoutMs: number;
   readonly hookTimeoutMs: number;
-  readonly runtimeCheckTimeoutMs: number;
-  readonly ensureRuntime: boolean;
   readonly augmentHooks: boolean;
   readonly failOnStartupError: boolean;
   readonly reconnect: ReconnectConfig | undefined;
@@ -127,11 +118,6 @@ export function resolveConfig(config: Config = {}): ResolvedConfig {
     hookTimeoutMs: timeout(
       "hookTimeoutMs", config.hookTimeoutMs, DEFAULT_HOOK_TIMEOUT_MS, MAX_HOOK_TIMEOUT_MS,
     ),
-    runtimeCheckTimeoutMs: timeout(
-      "runtimeCheckTimeoutMs", config.runtimeCheckTimeoutMs,
-      DEFAULT_RUNTIME_CHECK_TIMEOUT_MS, MAX_RUNTIME_CHECK_TIMEOUT_MS,
-    ),
-    ensureRuntime: config.ensureRuntime ?? true,
     augmentHooks: config.augmentHooks ?? true,
     failOnStartupError: config.failOnStartupError ?? false,
     reconnect: config.reconnect,
@@ -276,15 +262,9 @@ function hookMessage(text: string, summary: string): UserMessage {
 /** Mount CBM tools and DSH-native prompt/context lifecycle behavior. */
 export async function apply(ctx: Context, rawConfig: Config = {}): Promise<void> {
   const config = resolveConfig(rawConfig);
-  let command = resolveCommand(config.command, config.args);
+  const command = resolveCommand(config.command, config.args);
   const env = resolveEnvironment(config.env, config.cacheDir, config.allowedRoot);
   const hookEnv = { ...env, CBM_HOOK_DEADLINE_MS: String(config.hookTimeoutMs) };
-
-  if (command.bundled) {
-    command = await ensureRuntime(
-      ctx, command, config.cwd, env, config.runtimeCheckTimeoutMs, config.args, config.ensureRuntime,
-    );
-  }
 
   await ctx.plugin(McpClient, buildMcpConfig(config, command, env));
   ctx.systemPrompt.section({

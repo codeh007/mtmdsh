@@ -10,8 +10,6 @@ export type MtmCodingLocaleKey =
   | "codebaseMemoryAugmentHooksHint"
   | "modernGoEnabled"
   | "modernGoEnabledHint"
-  | "modernGoCommand"
-  | "modernGoCommandHint"
   | "ponytailEnabled"
   | "ponytailEnabledHint"
   | "ponytailMode"
@@ -20,10 +18,6 @@ export type MtmCodingLocaleKey =
   | "ponytailSubagentsHint"
   | "rtkMode"
   | "rtkModeHint"
-  | "rtkAutoInstall"
-  | "rtkAutoInstallHint"
-  | "rtkCommand"
-  | "rtkCommandHint"
   | "rtkModeOff"
   | "rtkModeGuidance"
   | "rtkModeAuto"
@@ -58,7 +52,7 @@ export type MtmCodingLocaleKey =
 export const en: Record<MtmCodingLocaleKey, string> = {
   nav: "Coding",
   title: "MTM Coding",
-  description: "Codebase Memory, Modern Go, and Ponytail coding assistance.",
+  description: "Codebase Memory, Modern Go, Ponytail, and RTK coding assistance.",
   codebaseMemoryEnabled: "Codebase Memory",
   codebaseMemoryEnabledHint: "Expose graph-first code discovery tools and guidance.",
   dynamicCanvasEnabled: "Dynamic Canvas",
@@ -67,8 +61,6 @@ export const en: Record<MtmCodingLocaleKey, string> = {
   codebaseMemoryAugmentHooksHint: "Add bounded repository context around session and read/search events.",
   modernGoEnabled: "Modern Go Guidelines",
   modernGoEnabledHint: "Use JetBrains Modern Go guidance when working on Go code.",
-  modernGoCommand: "Modern Go wrapper override",
-  modernGoCommandHint: "Optional wrapper command; leave empty for the bundled on-demand wrapper.",
   ponytailEnabled: "Ponytail",
   ponytailEnabledHint: "Apply the lazy-senior-dev rules and bundled skills.",
   ponytailMode: "Ponytail intensity",
@@ -77,10 +69,6 @@ export const en: Record<MtmCodingLocaleKey, string> = {
   ponytailSubagentsHint: "Carry coding rules and explicit skill commands into child agents.",
   rtkMode: "RTK mode",
   rtkModeHint: "Rewrite transparently when supported; otherwise use inline guidance.",
-  rtkAutoInstall: "Install RTK automatically",
-  rtkAutoInstallHint: "Download the pinned RTK release only when rewriting first needs it.",
-  rtkCommand: "RTK executable override",
-  rtkCommandHint: "Optional absolute path or PATH command; leave empty for the DSH-managed runtime.",
   rtkModeOff: "Off",
   rtkModeGuidance: "Guidance",
   rtkModeAuto: "Automatic fallback",
@@ -116,7 +104,7 @@ export const en: Record<MtmCodingLocaleKey, string> = {
 export const zh: Record<MtmCodingLocaleKey, string> = {
   nav: "编程",
   title: "MTM 编程",
-  description: "统一配置 Codebase Memory、Modern Go 与 Ponytail 编程辅助。",
+  description: "统一配置 Codebase Memory、Modern Go、Ponytail 与 RTK 编程辅助。",
   codebaseMemoryEnabled: "Codebase Memory",
   codebaseMemoryEnabledHint: "启用图谱优先的代码发现工具和指导。",
   dynamicCanvasEnabled: "动态画布",
@@ -125,8 +113,6 @@ export const zh: Record<MtmCodingLocaleKey, string> = {
   codebaseMemoryAugmentHooksHint: "在会话和读/搜索事件周围加入有边界的仓库上下文。",
   modernGoEnabled: "Modern Go Guidelines",
   modernGoEnabledHint: "编写 Go 代码时使用 JetBrains Modern Go 指导。",
-  modernGoCommand: "Modern Go wrapper 覆盖",
-  modernGoCommandHint: "可选的 wrapper 命令；留空使用内置的按需 wrapper。",
   ponytailEnabled: "Ponytail",
   ponytailEnabledHint: "启用 lazy senior dev 规则和内置 skills。",
   ponytailMode: "Ponytail 强度",
@@ -135,10 +121,6 @@ export const zh: Record<MtmCodingLocaleKey, string> = {
   ponytailSubagentsHint: "将编程规则和显式 skill 命令传递给子 agent。",
   rtkMode: "RTK 模式",
   rtkModeHint: "在支持时透明重写；否则使用内联指导。",
-  rtkAutoInstall: "自动安装 RTK",
-  rtkAutoInstallHint: "首次需要重写时才下载固定版本的 RTK。",
-  rtkCommand: "RTK 可执行文件覆盖",
-  rtkCommandHint: "可选的绝对路径或 PATH 命令；留空使用 DSH 管理的 runtime。",
   rtkModeOff: "关闭",
   rtkModeGuidance: "指导",
   rtkModeAuto: "自动降级",

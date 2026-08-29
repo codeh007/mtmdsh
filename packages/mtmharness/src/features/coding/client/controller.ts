@@ -12,13 +12,10 @@ const FIELD_NAMES = [
   "dynamicCanvasEnabled",
   "codebaseMemoryAugmentHooks",
   "modernGoEnabled",
-  "modernGoCommand",
   "ponytailEnabled",
   "ponytailMode",
   "ponytailSubagents",
   "rtkMode",
-  "rtkAutoInstall",
-  "rtkCommand",
 ] as const;
 export type MtmCodingField = (typeof FIELD_NAMES)[number];
 
@@ -61,17 +58,16 @@ export interface MtmCodingCardFace {
 }
 
 type StagedEdit = { readonly text: string; readonly clear: boolean };
-type FieldValue = boolean | PonytailMode | RtkMode | string;
+type FieldValue = boolean | PonytailMode | RtkMode;
 
 function format(field: MtmCodingField, value: unknown): string {
-  if (field === "ponytailMode" || field === "rtkMode" || field === "rtkCommand" || field === "modernGoCommand") return typeof value === "string" ? value : "";
+  if (field === "ponytailMode" || field === "rtkMode") return typeof value === "string" ? value : "";
   return typeof value === "boolean" ? String(value) : "";
 }
 
 function parse(field: MtmCodingField, text: string): FieldValue | undefined {
   if (field === "ponytailMode") return MODE_VALUES.includes(text as PonytailMode) ? text as PonytailMode : undefined;
   if (field === "rtkMode") return RTK_MODE_VALUES.includes(text as RtkMode) ? text as RtkMode : undefined;
-  if (field === "rtkCommand" || field === "modernGoCommand") return text;
   if (text === "true" || text === "false") return text === "true";
   return undefined;
 }

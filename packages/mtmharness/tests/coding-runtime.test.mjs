@@ -1,43 +1,36 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
 import { deflateRawSync, gzipSync } from "node:zlib";
+import { join } from "node:path";
 import test from "node:test";
 import {
-  ensureRuntime,
-  extractRtkBinary,
+  bindRtkExecutable,
+  buildMcpConfig,
   extractHookContext,
-  extractNativeCommand,
+  extractRtkBinary,
   resolveBundledCommand,
   resolveCommand,
+  resolveConfig,
   resolveEnvironment,
   resolveWorkingDirectory,
-  RTK_VERSION,
-  bindRtkExecutable,
-  bashInput,
-  rewriteRtk,
   rtkAssetFor,
   rtkAssetUrl,
-  rtkEnvironment,
   rtkDisabled,
-} from "../lib/index.js";
-import {
-  buildMcpConfig,
-  resolveConfig,
+  rtkEnvironment,
+  rewriteRtk,
+  shouldRewriteRtk,
+  RTK_VERSION,
 } from "../lib/index.js";
 
-test("resolves the pinned lazy runtime without a PATH executable", () => {
-  const command = resolveBundledCommand();
+test("resolves Codebase Memory through the pinned lazy npx command", () => {
+  const command = resolveCommand(undefined, ["--ui"]);
   assert.equal(command.command, process.execPath);
   assert.match(command.args[0], /npm[/\\]bin[/\\]npx-cli\.js$/);
-  assert.deepEqual(command.args.slice(1, 5), ["--yes", "--package", "codebase-memory-mcp@0.10.8", "codebase-memory-mcp"]);
+  assert.deepEqual(command.args.slice(1, 6), ["--yes", "--package", "codebase-memory-mcp@0.10.8", "codebase-memory-mcp", "--ui"]);
   assert.equal(command.bundled, true);
   assert.throws(() => resolveBundledCommand(() => { throw new Error("missing"); }), /npm CLI is unavailable/);
 });
 
-test("explicit command remains an opt-in override", () => {
+test("preserves an explicit Codebase Memory command", () => {
   assert.deepEqual(resolveCommand("/usr/bin/cbm", ["--ui"]), {
     command: "/usr/bin/cbm",
     args: ["--ui"],
@@ -45,91 +38,8 @@ test("explicit command remains an opt-in override", () => {
   });
 });
 
-test("lazily installs and validates the Modern Go wrapper cache", () => {
-  const root = mkdtempSync(join(tmpdir(), "mtmharness-modern-go-"));
-  try {
-    const binDir = join(root, "bin");
-    const cacheDir = join(root, "cache");
-    const installCount = join(root, "install-count");
-    const wrapper = resolve(import.meta.dirname, "../resources/go-modern-guidelines/scripts/run-tool.sh");
-    const version = readFileSync(resolve(import.meta.dirname, "../resources/go-modern-guidelines/scripts/VERSION"), "utf8").trim();
-    const fakeGo = join(binDir, "go");
-    mkdirSync(binDir, { recursive: true });
-    writeFileSync(fakeGo, `#!/bin/sh
-set -eu
-printf 'install\n' >> "$FAKE_GO_INSTALLS"
-printf '%s\n' '#!/bin/sh' 'if [ "$1" = "--version" ]; then printf "%s\\n" "$FAKE_VERSION"; else printf "fake:%s\\n" "$*"; fi' > "$GOBIN/go-modern-guidelines"
-chmod +x "$GOBIN/go-modern-guidelines"
-`);
-    chmodSync(fakeGo, 0o755);
-    const env = {
-      ...process.env,
-      FAKE_GO_INSTALLS: installCount,
-      FAKE_VERSION: version,
-      HOME: root,
-      PATH: binDir + ":" + (process.env.PATH ?? "/usr/bin:/bin"),
-      XDG_CACHE_HOME: cacheDir,
-    };
-    const run = (...args) => spawnSync("/bin/sh", [wrapper, ...args], { env, encoding: "utf8" });
-
-    let result = run("list", "--go-version", "1.27");
-    assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stdout.trim(), "fake:list --go-version 1.27");
-    assert.equal(readFileSync(installCount, "utf8"), "install\n");
-
-    result = run("list", "--go-version", "1.27");
-    assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stdout.trim(), "fake:list --go-version 1.27");
-    assert.equal(readFileSync(installCount, "utf8"), "install\n");
-
-    const cached = join(cacheDir, "go-modern-guidelines", version, "go-modern-guidelines");
-    writeFileSync(cached, "#!/bin/sh\nprintf 'wrong\\n'\n");
-    chmodSync(cached, 0o755);
-    result = run("list", "--go-version", "1.27");
-    assert.equal(result.status, 1);
-    assert.match(result.stderr, /cached binary reports wrong/);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("resolves the native binary for the long-lived MCP connection", async () => {
-  const specs = [];
-  const fake = {
-    subprocess: {
-      spawn(spec) {
-        specs.push(spec);
-        const reader = { readFrom: () => ({ text: process.execPath, nextOffset: process.execPath.length, lossy: false }) };
-        return {
-          collected: { stdout: reader, stderr: { readFrom: () => ({ text: "", nextOffset: 0, lossy: false }) } },
-          done: Promise.resolve({ exitCode: 0, signal: null }),
-          terminate() {},
-        };
-      },
-    },
-  };
-  const resolved = await ensureRuntime(
-    fake,
-    { command: process.execPath, args: [], bundled: true },
-    process.cwd(),
-    {},
-    1000,
-    ["--check"],
-  );
-  assert.equal(extractNativeCommand(process.execPath), process.execPath);
-  assert.equal(extractNativeCommand("not-an-absolute-path"), undefined);
-  assert.equal(resolved.command, process.execPath);
-  assert.deepEqual(resolved.args, ["--check"]);
-  assert.equal(resolved.bundled, true);
-  assert.equal(specs.length, 1);
-  assert.equal(specs[0].argv.at(-3), "node");
-  assert.equal(specs[0].argv.at(-2), "-e");
-  assert.match(specs[0].argv.at(-1), /codebase-memory-mcp/);
-});
-
 test("normalizes working directory and explicit CBM environment", () => {
-  const cwd = resolveWorkingDirectory(".");
-  assert.equal(cwd.startsWith("/"), true);
+  assert.equal(resolveWorkingDirectory(".").startsWith("/"), true);
   assert.equal(resolveWorkingDirectory(undefined, "/workspace/example"), "/workspace/example");
   assert.equal(resolveWorkingDirectory("src", "/workspace/example"), "/workspace/example/src");
   assert.deepEqual(resolveEnvironment({ CBM_LOG_LEVEL: "warn" }, "./cache", "./repo"), {
@@ -150,7 +60,6 @@ test("hook output is fail-open and supports DSH-compatible envelopes", () => {
 test("config defaults are deterministic and MCP config uses the resolved command", () => {
   const config = resolveConfig({ cwd: ".", env: { CBM_LOG_LEVEL: "warn" } });
   assert.equal(config.serverName, "codebase_memory");
-  assert.equal(config.ensureRuntime, true);
   assert.equal(config.augmentHooks, true);
   const mcp = buildMcpConfig(config, {
     command: process.execPath,
@@ -167,7 +76,6 @@ test("config rejects unsafe namespaces and applies timeout-specific bounds", () 
   assert.throws(() => resolveConfig({ serverName: "bad namespace" }), /invalid serverName/);
   assert.throws(() => resolveConfig({ hookTimeoutMs: 0 }), /hookTimeoutMs/);
   assert.throws(() => resolveConfig({ hookTimeoutMs: 10_001 }), /hookTimeoutMs/);
-  assert.throws(() => resolveConfig({ runtimeCheckTimeoutMs: 300_001 }), /runtimeCheckTimeoutMs/);
   assert.equal(resolveConfig({ toolCallTimeoutMs: 600_000 }).toolCallTimeoutMs, 600_000);
 });
 
@@ -192,15 +100,19 @@ test("maps the supported RTK release matrix and isolates its runtime data", () =
   assert.equal(filtered.XDG_CONFIG_HOME, "/tmp/dsh/config");
 });
 
+test("only eligible Bash commands enter the RTK rewrite hook", () => {
+  assert.equal(shouldRewriteRtk("git status"), true);
+  assert.equal(shouldRewriteRtk(""), false);
+  assert.equal(shouldRewriteRtk("rtk git status"), false);
+  assert.equal(shouldRewriteRtk("RTK_DISABLED=1 git status"), false);
+});
+
 test("binds a managed RTK executable without changing ambient PATH", () => {
   assert.equal(bindRtkExecutable("git status", "/tmp/rtk"), "git status");
   assert.equal(bindRtkExecutable("rtk git status", "/tmp/rtk"), "'/tmp/rtk' git status");
   assert.equal(bindRtkExecutable("rtk", "/tmp/a'b"), "'/tmp/a'\\''b'");
   assert.equal(bindRtkExecutable("rtk\tgit status", "/tmp/rtk"), "'/tmp/rtk'\tgit status");
-  assert.deepEqual(bashInput({ command: "git status", workdir: "/repo" }), { command: "git status", cwd: "/repo" });
-  assert.equal(bashInput({ pattern: "git" }), undefined);
 });
-
 
 function tarArchive(entries) {
   const chunks = [];
@@ -233,7 +145,6 @@ function zipArchive(entries) {
     local.writeUInt32LE(body.length, 22);
     local.writeUInt16LE(name.length, 26);
     locals.push(Buffer.concat([local, name, compressed]));
-
     const central = Buffer.alloc(46);
     central.writeUInt32LE(0x02014b50, 0);
     central.writeUInt16LE(20, 4);
@@ -255,6 +166,18 @@ function zipArchive(entries) {
   end.writeUInt32LE(localOffset, 16);
   return Buffer.concat([...locals, centralData, end]);
 }
+
+test("extracts only exact RTK archive members and bounds expansion", () => {
+  const tarAsset = rtkAssetFor("linux", "x64");
+  const zipAsset = rtkAssetFor("win32", "x64");
+  const binary = Buffer.from("rtk-binary");
+  assert.deepEqual(extractRtkBinary(tarArchive([{ name: "rtk", body: binary }]), tarAsset), binary);
+  assert.deepEqual(extractRtkBinary(zipArchive([{ name: "rtk.exe", body: binary, method: 0 }]), zipAsset), binary);
+  assert.throws(() => extractRtkBinary(tarArchive([{ name: "nested/rtk", body: binary }]), tarAsset), /does not contain/);
+  assert.throws(() => extractRtkBinary(tarArchive([{ name: "rtk", body: binary }, { name: "rtk", body: binary }]), tarAsset), /duplicate/);
+  assert.throws(() => extractRtkBinary(tarArchive([{ name: "rtk", body: Buffer.alloc(13 * 1024 * 1024, "x") }]), tarAsset), /(?:larger|size|limit)/i);
+  assert.throws(() => extractRtkBinary(zipArchive([{ name: "rtk.exe", body: Buffer.alloc(7 * 1024 * 1024, "x") }, { name: "other", body: Buffer.alloc(7 * 1024 * 1024, "y") }]), zipAsset), /expanded output/);
+});
 
 function rewriteContext(exitCode, stdout, spawnError = false) {
   const calls = [];
@@ -284,26 +207,6 @@ test("accepts RTK rewrite exits 0 and 3, but never changes DSH policy", async ()
   }
 });
 
-test("extracts only exact RTK archive members and bounds tar/zip expansion", () => {
-  const tarAsset = rtkAssetFor("linux", "x64");
-  const zipAsset = rtkAssetFor("win32", "x64");
-  assert.ok(tarAsset);
-  assert.ok(zipAsset);
-  const binary = Buffer.from("rtk-binary");
-  assert.deepEqual(extractRtkBinary(tarArchive([{ name: "rtk", body: binary }]), tarAsset), binary);
-  assert.deepEqual(extractRtkBinary(zipArchive([{ name: "rtk.exe", body: binary, method: 0 }]), zipAsset), binary);
-  assert.throws(() => extractRtkBinary(tarArchive([{ name: "nested/rtk", body: binary }]), tarAsset), /does not contain/);
-  assert.throws(() => extractRtkBinary(tarArchive([
-    { name: "rtk", body: binary },
-    { name: "rtk", body: binary },
-  ]), tarAsset), /duplicate/);
-  assert.throws(() => extractRtkBinary(tarArchive([{ name: "rtk", body: Buffer.alloc(13 * 1024 * 1024, "x") }]), tarAsset), /(?:larger|size|limit)/i);
-  assert.throws(() => extractRtkBinary(zipArchive([
-    { name: "rtk.exe", body: Buffer.alloc(7 * 1024 * 1024, "x") },
-    { name: "other", body: Buffer.alloc(7 * 1024 * 1024, "y") },
-  ]), zipAsset), /expanded output/);
-});
-
 test("fails open for passthrough, malformed, and process-error RTK results", async () => {
   const disabled = rewriteContext(0, "rtk git status\n");
   assert.equal(await rewriteRtk(disabled, "/tmp/rtk", "RTK_DISABLED=1 git status", "/repo", {}), undefined);
@@ -318,5 +221,4 @@ test("fails open for passthrough, malformed, and process-error RTK results", asy
   }
   assert.equal(await rewriteRtk(rewriteContext(0, ""), "/tmp/rtk", "git status", "/repo", {}), undefined);
   assert.equal(await rewriteRtk(rewriteContext(1, "", true), "/tmp/rtk", "git status", "/repo", {}), undefined);
-  assert.equal(await rewriteRtk(rewriteContext(0, "rtk git status"), "/tmp/rtk", "rtk git status", "/repo", {}), undefined);
 });

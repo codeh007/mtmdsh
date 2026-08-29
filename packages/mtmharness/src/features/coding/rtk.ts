@@ -7,7 +7,7 @@ import { renderSkillContent, type SkillDefinition } from "@deepseek-ai/dsh-skill
 import type {} from "@deepseek-ai/dsh-tools";
 import { RTK_SKILL } from "./rtk-skill.js";
 import { resolveWorkingDirectory } from "./runtime.js";
-import { bashInput, ensureRtk, rewriteRtk, rtkDisabled, type RtkRuntimeOptions } from "./rtk-runtime.js";
+import { bashInput, ensureRtk, rewriteRtk, shouldRewriteRtk } from "./rtk-runtime.js";
 import type { RtkMode } from "./types.js";
 
 export const name = "mtm-coding-rtk";
@@ -90,11 +90,7 @@ function skillMessage(skill: SkillDefinition): ReturnType<typeof createUserMessa
 }
 
 /** Mount RTK's embedded guidance and, when supported, the pre-record rewrite listener. */
-export function apply(ctx: Context, config: {
-  mode?: RtkMode;
-  autoInstall?: boolean;
-  command?: string;
-} = {}): void {
+export function apply(ctx: Context, config: { mode?: RtkMode } = {}): void {
   const requested = config.mode ?? "auto";
   if (requested === "off") return;
   const transparentCapability = hasPreRecordCapability(ctx) && hasSubprocessCapability(ctx);
@@ -132,18 +128,14 @@ export function apply(ctx: Context, config: {
   });
   if (!transparent) return;
 
-  const options: RtkRuntimeOptions = {
-    command: config.command,
-    autoInstall: config.autoInstall,
-  };
   const resolveRuntime = (input: { cwd?: string; signal?: AbortSignal }): Promise<{ command: string; home: string; env: Record<string, string> }> =>
-    ensureRtk(ctx, { ...options, cwd: input.cwd, signal: input.signal });
+    ensureRtk(ctx, { cwd: input.cwd, signal: input.signal });
   const register = ctx.on as unknown as (event: string, listener: RecordListener) => unknown;
   register("tools/pre-record-input", async (candidate, next) => {
     const downstream = await next();
     if (candidate.name !== "bash" || downstream.kind !== "unchanged") return downstream;
     const input = bashInput(candidate.arguments);
-    if (input === undefined || !hasBashTool(ctx, candidate.agent) || rtkDisabled(input.command) || /^rtk(?:\s|$)/.test(input.command.trim())) return downstream;
+    if (input === undefined || !hasBashTool(ctx, candidate.agent) || !shouldRewriteRtk(input.command)) return downstream;
     try {
       const cwd = resolveWorkingDirectory(input.cwd, candidate.agent?.session.header.cwd);
       const runtimeInfo = await resolveRuntime({ cwd, signal: candidate.signal });
