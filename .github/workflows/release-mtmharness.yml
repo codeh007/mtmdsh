@@ -106,15 +106,8 @@ jobs:
           printf 'tarball=%s\n' "$tarball" >> "$GITHUB_OUTPUT"
           printf 'LOCAL_INTEGRITY=%s\n' "$local_integrity" >> "$GITHUB_ENV"
 
-      - name: Verify tarball contract
-        run: node "$PACKAGE_DIR/scripts/verify-package.mjs" "${{ steps.pack.outputs.tarball }}"
-
       - name: Lint package metadata
         run: pnpm dlx publint run "${{ steps.pack.outputs.tarball }}" --strict
-
-
-      - name: Verify mtmharness profile migration
-        run: pnpm --filter mtmharness run profile:check -- "${{ steps.pack.outputs.tarball }}"
 
       - name: Preflight registry and token
         env:

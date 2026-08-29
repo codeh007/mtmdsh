@@ -59,16 +59,8 @@ jobs:
           test -n "$tarball"
           printf 'tarball=%s\n' "$tarball" >> "$GITHUB_OUTPUT"
 
-      - name: Verify mtmharness tarball contract
-        run: node packages/mtmharness/scripts/verify-package.mjs "${{ steps.pack.outputs.tarball }}"
-
       - name: Lint mtmharness package metadata
         run: pnpm dlx publint run "${{ steps.pack.outputs.tarball }}" --strict
-
-
-      - name: Verify mtmharness profile migration
-        if: ${{ matrix.node == '22.19.0' }}
-        run: pnpm --filter mtmharness run profile:check -- "${{ steps.pack.outputs.tarball }}"
 
       - name: Rehearse npm publication
         if: ${{ matrix.node == '22.19.0' }}

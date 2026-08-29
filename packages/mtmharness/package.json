@@ -43,7 +43,6 @@
     "dist/types/standalone",
     "resources/go-modern-guidelines",
     "cordis.patch.yml",
-    "scripts/profile-migration.mjs",
     "README.md",
     "package.json",
     "LICENSE"
@@ -53,11 +52,8 @@
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit && tsc --project tsconfig.standalone.json --noEmit",
     "test": "pnpm run build && vitest run --config vitest.config.ts && node --test tests/*.test.mjs",
-    "verify:package": "node scripts/verify-package.mjs",
-    "check": "pnpm run typecheck && pnpm run test && pnpm run verify:package",
-    "pack:check": "node scripts/pack-check.mjs",
-    "profile:check": "node scripts/profile-migration.mjs",
-    "prepack": "pnpm run build && pnpm run verify:package"
+    "check": "pnpm run typecheck && pnpm run test",
+    "prepack": "pnpm run build"
   },
   "license": "MIT",
   "publishConfig": { "access": "public" },

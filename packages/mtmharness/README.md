@@ -30,9 +30,7 @@ The plugin registers the `mtm-connect` settings namespace only. No local device 
 
 `mtmcanvas` remains a separate browser-only secondary artifact controlled by `Dynamic Canvas`, which stays off by default. Publish the pinned `mtm-connect` and `mtmcanvas` artifacts before `mtmharness`; the mtmharness release gate checks local, CDN, and manifest SHA-256 values.
 
-Profiles created from an older `mtmharness` release should remove retired `mtmcanvas`, `mtm-connect`, and `mtm-coding` rows before adding the current package. The committed profile smoke still covers the old-row cleanup and duplicate install path:
-
-    pnpm --filter mtmharness run profile:check -- /path/to/mtmharness.tgz
+Profiles created from an older `mtmharness` release should remove retired `mtmcanvas`, `mtm-connect`, and `mtm-coding` rows before adding the current package.
 
 ## Static App
 
@@ -99,7 +97,5 @@ The official DSH plugin keeps the host FullShell and local session untouched. It
     pnpm --filter mtmharness run typecheck
     pnpm --filter mtmharness run test
     pnpm --filter mtmharness run build
-    pnpm --filter mtmharness run verify:package
-    pnpm --filter mtmharness run pack:check
 
 The source under `standalone/` was copied from the former gomtm `mtmagent-client` as the migration baseline. It is now an active, token-only app surface; the DSH plugin remains a separate Host/Client implementation.
