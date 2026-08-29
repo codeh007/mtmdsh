@@ -89,7 +89,7 @@ Access and refresh tokens live only in the JavaScript memory of the auth client.
 
 HTTP resource calls, revocation, and `POST /api/dsh/ws-ticket` use an explicit `Authorization: Bearer` header with `credentials: "omit"`. Each socket requests a fresh v1 ticket and sends only `Sec-WebSocket-Protocol: dsh.v1, dsh-ticket.<opaque>`; the socket URL has no sandbox/session credential query. Refresh, logout, expiry, and account switching clear the runtime socket, selection, memory token, and account-partitioned session hint.
 
-The official DSH plugin keeps the host FullShell and local session untouched. Its additive launcher uses the latest stable unpkg app URL, an iframe sandbox/allow policy, and a `ready/open/close/theme/locale/resize` handshake validated by source, origin, nonce, and contract version. The launcher keeps `allow-same-origin` because OAuth transaction storage and API requests require the fixed CDN app origin; do not reuse this policy for arbitrary untrusted frames. The package release and CDN URL must be read back before calling the launcher production-ready.
+The official DSH plugin keeps the host FullShell and local session untouched.
 
 ## Development
 
