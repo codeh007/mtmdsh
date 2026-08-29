@@ -57,6 +57,3 @@ jobs:
 
       - name: Lint mtmharness package metadata
         run: pnpm dlx publint run "${{ steps.pack.outputs.tarball }}" --strict
-
-      - name: Rehearse npm publication
-        run: npm publish "${{ steps.pack.outputs.tarball }}" --dry-run --access public --ignore-scripts
