@@ -1,8 +1,8 @@
 import type { Context, Fiber } from "@deepseek-ai/cordis";
 import { settingsNamespace } from "@deepseek-ai/dsh-settings";
 import { apply as applyCodebaseMemory, type Config as CodebaseMemoryConfig } from "./codebase-memory.js";
-import { apply as applyModernGo } from "./modern-go.js";
 import { apply as applyPonytail } from "./ponytail.js";
+import { applyManifestPackage, MTM_CODING_PACKAGES } from "./manifest.js";
 import { apply as applyRtk } from "./rtk.js";
 import {
   MtmCodingSettingsSchema,
@@ -13,8 +13,8 @@ import {
 
 export { buildMcpConfig, resolveConfig } from "./codebase-memory.js";
 export { MtmCodingSettingsSchema, codebaseMemoryConfig } from "./types.js";
-export { createModernGoSkill } from "./modern-go.js";
-export { PONYTAIL_SKILLS } from "./ponytail-skills.js";
+export { MTM_CODING_PACKAGES } from "./manifest.js";
+export type { MtmCodingPackageKind, MtmCodingPackageManifest } from "./manifest.js";
 export {
   extractHookContext,
   resolveBundledCommand,
@@ -23,7 +23,6 @@ export {
   resolveWorkingDirectory,
 } from "./runtime.js";
 export { apply as applyCodebaseMemory } from "./codebase-memory.js";
-export { apply as applyModernGo } from "./modern-go.js";
 export { apply as applyPonytail } from "./ponytail.js";
 export { apply as applyRtk } from "./rtk.js";
 export type { MtmCodingConfig, MtmCodingSettings, PonytailMode, RtkMode } from "./types.js";
@@ -40,7 +39,7 @@ const CodebaseMemoryFeature = {
 const ModernGoFeature = {
   name: "mtm-coding-modern-go",
   inject: ["skills"],
-  apply: applyModernGo,
+  apply: (ctx: Context) => { applyManifestPackage(ctx, MTM_CODING_PACKAGES.modernGo); },
 };
 
 const PonytailFeature = {

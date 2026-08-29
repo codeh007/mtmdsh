@@ -5,7 +5,7 @@ import type { AssembleContext } from "@deepseek-ai/dsh-system-prompt";
 import type { CommandResult } from "@deepseek-ai/dsh-commands";
 import { renderSkillContent, type SkillDefinition } from "@deepseek-ai/dsh-skill";
 import type {} from "@deepseek-ai/dsh-tools";
-import { RTK_SKILL } from "./rtk-skill.js";
+import { applyManifestPackage, MTM_CODING_PACKAGES } from "./manifest.js";
 import { resolveWorkingDirectory } from "./runtime.js";
 import { bashInput, ensureRtk, rewriteRtk, shouldRewriteRtk } from "./rtk-runtime.js";
 import type { RtkMode } from "./types.js";
@@ -77,8 +77,6 @@ function prompt(status: RtkStatus): string {
   return [
     "RTK STATUS: " + status,
     statusText(status),
-    "RTK only concerns Bash shell commands. DSH read, grep, glob, PowerShell, and persistent terminal calls are not covered by this integration.",
-    "RTK failures and unsupported commands pass through; RTK_DISABLED=1 disables one command.",
   ].join("\n");
 }
 
@@ -89,38 +87,38 @@ function skillMessage(skill: SkillDefinition): ReturnType<typeof createUserMessa
   });
 }
 
-/** Mount RTK's embedded guidance and, when supported, the pre-record rewrite listener. */
+/** Mount RTK's file-backed guidance and, when supported, the pre-record rewrite listener. */
 export function apply(ctx: Context, config: { mode?: RtkMode } = {}): void {
   const requested = config.mode ?? "auto";
   if (requested === "off") return;
+  applyManifestPackage(ctx, MTM_CODING_PACKAGES.rtk);
   const transparentCapability = hasPreRecordCapability(ctx) && hasSubprocessCapability(ctx);
   const transparent = (requested === "auto" || requested === "rewrite") && transparentCapability;
   const status: RtkStatus = requested === "rewrite"
     ? (transparent ? "rewrite" : "unavailable")
     : transparent ? "rewrite" : "guidance";
-  const skill: SkillDefinition = {
-    ...RTK_SKILL,
-    source: "runtime",
-    provider: "mtm-coding",
-    invocation: { modelInvocable: true, userInvocable: true },
-  };
-  ctx.skills.register(skill);
   ctx.systemPrompt.section({
-    name: "mtm-coding:rtk",
-    order: 109,
+    name: "mtm-coding:rtk:status",
+    order: 109.1,
     text: (_assembly: AssembleContext) => prompt(status),
   });
   ctx.commands.register({
     name: "rtk",
     description: "show RTK integration status",
     input: { hint: "[skill]" },
-    handler: (invocation): CommandResult => {
+    handler: async (invocation): Promise<CommandResult> => {
       if (invocation.rawInput.trim() === "") return result(statusText(status));
       if (invocation.rawInput.trim() === "skill") {
+        const skill = await ctx.skills.get("rtk", {
+          cwd: invocation.agent.session.header.cwd,
+          signal: invocation.signal,
+          scope: invocation.agent,
+        });
+        if (skill === undefined) return { kind: "error", text: "rtk is unavailable." };
         invocation.agent.inject(skillMessage(skill));
         return result("Loaded rtk.");
       }
-      return { kind: "error", text: "Use /rtk for status or /rtk skill for the inline RTK guidance." };
+      return { kind: "error", text: "Use /rtk for status or /rtk skill for the file-backed RTK guidance." };
     },
   });
   ctx.on("agent/session-start", ({ agent }) => {
