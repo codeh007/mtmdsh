@@ -1,3 +1,4 @@
+import type { ConnectionHandle } from "@deepseek-ai/dsh-client-connection/client";
 import type { ClientContext } from "@deepseek-ai/dsh-client-runtime/client";
 import type {} from "@deepseek-ai/dsh-client-locale/client";
 import type {} from "@deepseek-ai/dsh-client-ui-settings/client";
@@ -15,12 +16,14 @@ declare module "@deepseek-ai/dsh-client-ui-slots" {
 }
 
 export const name = "mtm-coding-client";
-export const inject = ["slots", "locale", "settingsScope"];
+export const inject = ["slots", "locale", "settingsScope", "connection"];
 
 export function apply(ctx: ClientContext): void {
   const t = ctx.locale.bind("mtm.coding");
   ctx.effect(() => ctx.locale.register("mtm.coding", { en, zh }), "mtm-coding: locale");
-  const controller = new MtmCodingCardController(ctx.settingsScope.bind({ namespace: SETTINGS_NAMESPACE }));
+  const connection = typeof ctx.get === "function" ? ctx.get("connection") as ConnectionHandle | undefined : undefined;
+  const updateRpc = connection?.isLoopback === true ? connection.rpc : undefined;
+  const controller = new MtmCodingCardController(ctx.settingsScope.bind({ namespace: SETTINGS_NAMESPACE }), updateRpc);
   ctx.effect(() => () => { controller.dispose(); }, "mtm-coding: settings card");
   ctx.slots.inject("settings.plugin.item", () => ctx.slots.register({
     name: "settings.plugin.item",

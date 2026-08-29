@@ -1,4 +1,5 @@
 import { createElement, useSyncExternalStore } from "react";
+import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { ConnectView } from "./ConnectView.tsx";
 import { ConnectRuntime } from "./runtime.ts";
@@ -64,9 +65,12 @@ export function mount(context: MtmharnessFrontendExtensionContext): () => void {
     style.dataset.mtmSecondaryExtension = context.id;
     style.textContent = MTM_CONNECT_CSS;
     context.document.head.append(style);
-    reactRoot = createRoot(context.root);
+    const root = createRoot(context.root);
+    reactRoot = root;
     context.signal.addEventListener("abort", dispose, { once: true });
-    reactRoot.render(createElement(ConnectExtension, { runtime, onClose: () => { context.root.hidden = true; } }));
+    flushSync(() => {
+      root.render(createElement(ConnectExtension, { runtime, onClose: () => { context.root.hidden = true; } }));
+    });
     return dispose;
   } catch (error) {
     dispose();

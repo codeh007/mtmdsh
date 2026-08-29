@@ -167,6 +167,33 @@ describe("secondary extension lifecycle", () => {
     expect(state.cleanup).toHaveBeenCalledTimes(2);
   });
 
+  it("replays show requested while loading after mount", async () => {
+    document.body.replaceChildren();
+    let resolveImport!: (value: unknown) => void;
+    const importing = new Promise<unknown>((resolve) => { resolveImport = resolve; });
+    const runtime = new MtmSecondaryClientRuntime({
+      document,
+      fetch: async () => new Response("export function mount() {}", { status: 200 }),
+      digest: async () => MANIFEST.clientIntegrity,
+      importModule: async () => importing,
+    }, MANIFEST);
+    const enabling = runtime.setEnabled(true);
+    await vi.waitFor(() => { expect(runtime.getSnapshot().status).toBe("loading"); });
+    runtime.show("[data-secondary-focus]");
+    resolveImport({
+      mount: ({ root }: { root: HTMLElement }) => {
+        root.hidden = true;
+        root.innerHTML = "<button data-secondary-focus>Focus</button>";
+        return () => {};
+      },
+    });
+    await enabling;
+    const root = document.querySelector<HTMLElement>("[data-mtm-secondary-extension=mtmcanvas]");
+    expect(root?.hidden).toBe(false);
+    expect(document.activeElement).toBe(root?.querySelector("[data-secondary-focus]"));
+    await runtime.dispose();
+  });
+
   it("does not mount after disposal", async () => {
     const state = bench();
     await state.runtime.dispose();

@@ -8,7 +8,7 @@ type Registered = {
   component: unknown;
 };
 
-function clientBench(): { registered: Registered[]; cleanups: Array<() => void | Promise<void>> } {
+function clientBench(loopback = true): { registered: Registered[]; cleanups: Array<() => void | Promise<void>> } {
   const registered: Registered[] = [];
   const cleanups: Array<() => void | Promise<void>> = [];
   const codingSettings = {
@@ -42,6 +42,10 @@ function clientBench(): { registered: Registered[]; cleanups: Array<() => void |
     mode: "host",
   };
   const ctx = {
+    get(name: string) {
+      if (name === "connection") return { isLoopback: loopback, rpc: { call: async () => ({ ok: true, value: {} }) } };
+      throw new Error("unexpected service: " + name);
+    },
     provide() {},
     locale: {
       bind: () => (key: string) => key,
@@ -149,6 +153,20 @@ describe("mtmharness Host half", () => {
 describe("mtmharness browser half", () => {
   it("declares the combined service dependencies", () => {
     expect(inject).toEqual(["slots", "locale", "settingsScope"]);
+  });
+
+  it("only exposes update actions for loopback connections", () => {
+    const local = clientBench(true);
+    const localCard = local.registered.find((entry) => entry.options.key === "mtm-coding");
+    const localFace = (localCard?.options.inject as (() => { hooks: { mtmCodingCard: { getSnapshot: () => { update: { available: boolean } } } } }) | undefined)?.();
+    expect(localFace?.hooks.mtmCodingCard.getSnapshot().update.available).toBe(true);
+    for (const cleanup of local.cleanups.reverse()) void cleanup();
+
+    const remote = clientBench(false);
+    const remoteCard = remote.registered.find((entry) => entry.options.key === "mtm-coding");
+    const remoteFace = (remoteCard?.options.inject as (() => { hooks: { mtmCodingCard: { getSnapshot: () => { update: { available: boolean } } } } }) | undefined)?.();
+    expect(remoteFace?.hooks.mtmCodingCard.getSnapshot().update.available).toBe(false);
+    for (const cleanup of remote.cleanups.reverse()) void cleanup();
   });
 
   it("keeps Connect in settings and leaves the sidebar footer for the cloud launcher", () => {

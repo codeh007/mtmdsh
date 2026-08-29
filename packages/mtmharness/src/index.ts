@@ -1,7 +1,9 @@
 /** Host assembly entry for the unified mtmharness DSH plugin. */
 import type { Context } from "@deepseek-ai/cordis";
+import type {} from "@deepseek-ai/dsh-client-connection";
 import { apply as applyCodingHost } from "./features/coding/index.ts";
 import { apply as applyMtmConnectSettings } from "./features/mtm-connect/index.ts";
+import { apply as applyUpdateHost } from "./features/update/index.ts";
 
 export { buildMcpConfig, resolveConfig } from "./features/coding/index.ts";
 export { MODERN_GO_RESOURCE_BASE, createModernGoSkill } from "./features/coding/modern-go.ts";
@@ -44,10 +46,12 @@ export type {
 } from "./features/secondary/client.ts";
 
 export const name = "mtmharness";
-export const inject = ["settings"];
+export const inject = ["connection", "settings", "subprocess"];
 
 /** Mount the Host-owned MTM and coding control planes. */
 export async function apply(ctx: Context, config: Record<string, unknown> = {}): Promise<void> {
+  if (ctx.connection === undefined) throw new Error("mtmharness: DSH connection service is unavailable");
   applyMtmConnectSettings(ctx, typeof config["mtm-connect"] === "object" && config["mtm-connect"] !== null ? config["mtm-connect"] as { enabled?: boolean } : {});
+  applyUpdateHost(ctx);
   await applyCodingHost(ctx, config);
 }

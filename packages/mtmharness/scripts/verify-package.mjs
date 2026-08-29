@@ -17,6 +17,7 @@ if (!/^\d+\.\d+\.\d+$/.test(manifest.version)) fail("version must be stable SemV
 if (manifest.dsh?.bundle?.patch !== "./cordis.patch.yml") fail("dsh.bundle.patch must point to cordis.patch.yml");
 if (manifest.dsh?.client?.platform !== "web") fail("dsh.client.platform must be web");
 const expectedInject = [
+  "@deepseek-ai/dsh-client-connection",
   "@deepseek-ai/dsh-client-runtime",
   "@deepseek-ai/dsh-client-ui-primitives",
   "@deepseek-ai/dsh-client-ui-sidebar",
