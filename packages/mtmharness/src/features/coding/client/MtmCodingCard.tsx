@@ -72,24 +72,6 @@ function BooleanField(props: {
   );
 }
 
-function TextField(props: {
-  t: (key: MtmCodingLocaleKey) => string;
-  label: MtmCodingLocaleKey;
-  hint: MtmCodingLocaleKey;
-  field: { text: string; overridden: boolean };
-  disabled: boolean;
-  onChange: (value: string) => void;
-  onReset: () => void;
-}) {
-  return (
-    <div style={fieldStyle}>
-      {fieldLabel(props.t, props.label, props.field, props.onReset, props.disabled)}
-      <input type="text" value={props.field.text} disabled={props.disabled} onChange={(event) => { props.onChange(event.target.value); }} />
-      <p style={hintStyle}>{props.t(props.hint)}</p>
-    </div>
-  );
-}
-
 export function MtmCodingCard(props: MtmCodingCardProps) {
   const t = props.t;
   const state = props.useMtmCodingCard((snapshot: MtmCodingCardState) => snapshot);
@@ -115,7 +97,6 @@ export function MtmCodingCard(props: MtmCodingCardProps) {
           <BooleanField t={t} label="dynamicCanvasEnabled" hint="dynamicCanvasEnabledHint" field={state.fields.dynamicCanvasEnabled} disabled={disabled} onChange={(value) => { props.edit("dynamicCanvasEnabled", String(value)); }} onReset={() => { props.resetField("dynamicCanvasEnabled"); }} />
           <BooleanField t={t} label="codebaseMemoryAugmentHooks" hint="codebaseMemoryAugmentHooksHint" field={state.fields.codebaseMemoryAugmentHooks} disabled={disabled} onChange={(value) => { props.edit("codebaseMemoryAugmentHooks", String(value)); }} onReset={() => { props.resetField("codebaseMemoryAugmentHooks"); }} />
           <BooleanField t={t} label="modernGoEnabled" hint="modernGoEnabledHint" field={state.fields.modernGoEnabled} disabled={disabled} onChange={(value) => { props.edit("modernGoEnabled", String(value)); }} onReset={() => { props.resetField("modernGoEnabled"); }} />
-          <TextField t={t} label="modernGoCommand" hint="modernGoCommandHint" field={state.fields.modernGoCommand} disabled={disabled} onChange={(value) => { props.edit("modernGoCommand", value); }} onReset={() => { props.resetField("modernGoCommand"); }} />
           <BooleanField t={t} label="ponytailEnabled" hint="ponytailEnabledHint" field={state.fields.ponytailEnabled} disabled={disabled} onChange={(value) => { props.edit("ponytailEnabled", String(value)); }} onReset={() => { props.resetField("ponytailEnabled"); }} />
           <div style={fieldStyle}>
             {fieldLabel(t, "ponytailMode", mode, () => { props.resetField("ponytailMode"); }, disabled)}
@@ -132,8 +113,6 @@ export function MtmCodingCard(props: MtmCodingCardProps) {
             </select>
             <p style={hintStyle}>{t("rtkModeHint")}</p>
           </div>
-          <BooleanField t={t} label="rtkAutoInstall" hint="rtkAutoInstallHint" field={state.fields.rtkAutoInstall} disabled={disabled} onChange={(value) => { props.edit("rtkAutoInstall", String(value)); }} onReset={() => { props.resetField("rtkAutoInstall"); }} />
-          <TextField t={t} label="rtkCommand" hint="rtkCommandHint" field={state.fields.rtkCommand} disabled={disabled} onChange={(value) => { props.edit("rtkCommand", value); }} onReset={() => { props.resetField("rtkCommand"); }} />
           {update.available ? (
             <div style={fieldStyle}>
               <strong>{t("updateTitle")}</strong>

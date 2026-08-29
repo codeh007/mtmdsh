@@ -13,12 +13,10 @@ import {
 
 export { buildMcpConfig, resolveConfig } from "./codebase-memory.js";
 export { MtmCodingSettingsSchema, codebaseMemoryConfig } from "./types.js";
-export { MODERN_GO_RESOURCE_BASE, createModernGoSkill } from "./modern-go.js";
+export { createModernGoSkill } from "./modern-go.js";
 export { PONYTAIL_SKILLS } from "./ponytail-skills.js";
 export {
-  ensureRuntime,
   extractHookContext,
-  extractNativeCommand,
   resolveBundledCommand,
   resolveCommand,
   resolveEnvironment,
@@ -85,15 +83,12 @@ function ponytailKey(settings: MtmCodingSettings): string {
 function modernGoKey(settings: MtmCodingSettings): string {
   return jsonKey({
     enabled: settings.modernGoEnabled,
-    command: settings.modernGoCommand,
   });
 }
 
 function rtkKey(settings: MtmCodingSettings): string {
   return jsonKey({
     mode: settings.rtkMode,
-    autoInstall: settings.rtkAutoInstall,
-    command: settings.rtkCommand,
   });
 }
 
@@ -139,7 +134,7 @@ export async function apply(ctx: Context, rawConfig: MtmCodingConfig = {}): Prom
       modernGoFiber = undefined;
       activeModernGoKey = "";
       if (next.modernGoEnabled) {
-        modernGoFiber = await ctx.plugin(ModernGoFeature, { command: next.modernGoCommand });
+        modernGoFiber = await ctx.plugin(ModernGoFeature);
       }
       activeModernGoKey = nextModernGoKey;
     }
@@ -162,11 +157,7 @@ export async function apply(ctx: Context, rawConfig: MtmCodingConfig = {}): Prom
       rtkFiber = undefined;
       activeRtkKey = "";
       if (next.rtkMode !== "off" && typeof ctx.plugin === "function") {
-        rtkFiber = await ctx.plugin(RtkFeature, {
-          mode: next.rtkMode,
-          autoInstall: next.rtkAutoInstall,
-          command: next.rtkCommand,
-        });
+        rtkFiber = await ctx.plugin(RtkFeature, { mode: next.rtkMode });
       }
       activeRtkKey = nextRtkKey;
     }

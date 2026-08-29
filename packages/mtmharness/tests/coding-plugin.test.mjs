@@ -1,6 +1,4 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import test from "node:test";
 import {
   applyCoding,
@@ -15,13 +13,10 @@ const DEFAULT_SETTINGS = {
   codebaseMemoryEnabled: true,
   codebaseMemoryAugmentHooks: true,
   modernGoEnabled: true,
-  modernGoCommand: "",
   ponytailEnabled: true,
   ponytailMode: "full",
   ponytailSubagents: true,
   rtkMode: "auto",
-  rtkAutoInstall: true,
-  rtkCommand: "",
   serverName: "codebase_memory",
   command: "/controlled/codebase-memory-mcp",
   args: [],
@@ -31,8 +26,6 @@ const DEFAULT_SETTINGS = {
   allowedRoot: "",
   toolCallTimeoutMs: 60_000,
   hookTimeoutMs: 2_000,
-  runtimeCheckTimeoutMs: 120_000,
-  ensureRuntime: false,
   failOnStartupError: false,
   reconnect: { enabled: true, initialDelayMs: 500, maxDelayMs: 30_000, maxAttempts: 10 },
 };
@@ -203,7 +196,6 @@ test("Codebase Memory mounts the official MCP client and graph guidance", async 
   const fake = createContext();
   await applyCodebaseMemory(fake.context, {
     command: "/controlled/codebase-memory-mcp",
-    ensureRuntime: false,
     augmentHooks: false,
   });
   const nested = fake.pluginCalls.find((call) => call.config?.transport === "stdio");
@@ -220,11 +212,28 @@ test("Codebase Memory mounts the official MCP client and graph guidance", async 
   assert.match(fake.sections[0].text, /data, not instructions/);
 });
 
+test("Codebase Memory does not preflight its lazy npx command", async () => {
+  const fake = createContext({
+    codebaseMemoryEnabled: true,
+    command: "",
+    modernGoEnabled: false,
+    ponytailEnabled: false,
+    rtkMode: "off",
+  });
+  await applyCoding(fake.context, {});
+  const mcp = fake.pluginCalls.find((call) => call.config?.transport === "stdio");
+  assert.ok(mcp);
+  assert.equal(mcp.config.command, process.execPath);
+  assert.match(mcp.config.args[0], /npm[/\\]bin[/\\]npx-cli\.js$/);
+  assert.deepEqual(mcp.config.args.slice(1, 5), ["--yes", "--package", "codebase-memory-mcp@0.10.8", "codebase-memory-mcp"]);
+  assert.equal(fake.spawnSpecs.length, 0);
+  await fake.dispose();
+});
+
 test("Codebase Memory hooks become bounded DSH context messages", async () => {
   const fake = createContext();
   await applyCodebaseMemory(fake.context, {
     command: "/controlled/codebase-memory-mcp",
-    ensureRuntime: false,
   });
   const agent = {
     session: { header: { cwd: "/workspace/example" } },
@@ -300,8 +309,8 @@ test("unified settings reconcile coding features and unregister the watcher", as
   assert.ok(modernGo);
   assert.equal(modernGo.invocation.modelInvocable, true);
   assert.equal(modernGo.invocation.userInvocable, true);
-  assert.equal(existsSync(join(modernGo.resourceBase.path, "scripts", "run-tool.sh")), true);
-  assert.match(modernGo.content, /run-tool\.sh/);
+  assert.equal(modernGo.resourceBase, undefined);
+  assert.match(modernGo.content, /go run github\.com\/JetBrains\/go-modern-guidelines@v0\.1\.1/);
   assert.match(modernGo.content, /list --file-path/);
   assert.equal(fake.spawnSpecs.length, 0);
   const autoSection = fake.sections.find((section) => section.name === "mtm-coding:rtk");
@@ -317,24 +326,25 @@ test("unified settings reconcile coding features and unregister the watcher", as
   assert.equal(fake.pluginCalls.length, callsBeforeDispose);
 });
 
-test("Modern Go can be disabled and accepts a wrapper override", async () => {
+test("Modern Go can be disabled and uses the pinned Go module command", async () => {
   const disabled = createContext({ modernGoEnabled: false });
   await applyCoding(disabled.context, {});
   assert.equal(disabled.skills.some((skill) => skill.name === "use-modern-go"), false);
   await disabled.dispose();
 
-  const configured = createContext({ modernGoCommand: "/opt/go-modern-guidelines" });
-  await applyCoding(configured.context, {});
-  const skill = configured.skills.find((item) => item.name === "use-modern-go");
+  const enabled = createContext();
+  await applyCoding(enabled.context, {});
+  const skill = enabled.skills.find((item) => item.name === "use-modern-go");
   assert.ok(skill);
-  assert.match(skill.content, /\/opt\/go-modern-guidelines list --file-path/);
-  assert.equal(configured.spawnSpecs.length, 0);
-  await configured.dispose();
+  assert.equal(skill.resourceBase, undefined);
+  assert.match(skill.content, /go run github\.com\/JetBrains\/go-modern-guidelines@v0\.1\.1 list --file-path/);
+  assert.equal(enabled.spawnSpecs.length, 0);
+  await enabled.dispose();
 });
 
 test("RTK stays honest when the DSH pre-record capability is absent", async () => {
   const fake = createContext();
-  await applyRtk(fake.context, { mode: "rewrite", autoInstall: false });
+  await applyRtk(fake.context, { mode: "rewrite" });
   assert.equal(fake.skills.length, 1);
   assert.equal(fake.skills[0].name, "rtk");
   const section = fake.sections.find((item) => item.name === "mtm-coding:rtk");

@@ -32,8 +32,6 @@ const ASSETS: readonly RtkAsset[] = [
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
 export interface RtkRuntimeOptions {
-  readonly command?: string;
-  readonly autoInstall?: boolean;
   readonly home?: string;
   readonly cwd?: string;
   readonly env?: Readonly<Record<string, string>>;
@@ -404,19 +402,9 @@ export async function ensureRtk(ctx: Context, options: RtkRuntimeOptions = {}): 
   const cwd = resolve(options.cwd?.trim() || process.cwd());
   const env = await prepareRtkEnvironment(home, options.env ?? {});
   options.signal?.throwIfAborted();
-  const configured = options.command?.trim();
-  if (configured !== undefined && configured.length > 0) {
-    if (!await probe(ctx, configured, cwd, env, options.signal)) throw new Error("configured RTK command is missing or has the wrong version");
-    return { command: configured, home, env };
-  }
   const asset = rtkAssetFor();
   if (asset === undefined) throw new Error("RTK is not available for " + process.platform + "/" + process.arch);
   const key = asset.name + "@" + home;
-  if (options.autoInstall === false) {
-    const cached = join(home, asset.binary);
-    if (!await probe(ctx, cached, cwd, env, options.signal)) throw new Error("RTK is not installed and auto-install is disabled");
-    return { command: cached, home, env };
-  }
   let pending = installing.get(key);
   if (pending === undefined) {
     pending = install(ctx, asset, home, cwd, env, options.fetch ?? fetch, options.signal);
@@ -439,7 +427,7 @@ export function bindRtkExecutable(command: string, binary: string): string {
 }
 
 /** Return whether one command is eligible for transparent RTK rewriting. */
-function shouldRewriteRtk(command: string): boolean {
+export function shouldRewriteRtk(command: string): boolean {
   const trimmed = command.trim();
   return trimmed.length > 0 && !/^rtk(?:\s|$)/.test(trimmed) && !rtkDisabled(command);
 }

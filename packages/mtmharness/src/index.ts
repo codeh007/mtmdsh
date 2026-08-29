@@ -6,12 +6,10 @@ import { apply as applyMtmConnectSettings } from "./features/mtm-connect/index.t
 import { apply as applyUpdateHost } from "./features/update/index.ts";
 
 export { buildMcpConfig, resolveConfig } from "./features/coding/index.ts";
-export { MODERN_GO_RESOURCE_BASE, createModernGoSkill } from "./features/coding/modern-go.ts";
+export { createModernGoSkill } from "./features/coding/modern-go.ts";
 export { PONYTAIL_SKILLS } from "./features/coding/ponytail-skills.ts";
 export {
-  ensureRuntime,
   extractHookContext,
-  extractNativeCommand,
   resolveBundledCommand,
   resolveCommand,
   resolveEnvironment,
@@ -37,6 +35,7 @@ export {
   rtkAssetUrl,
   rtkDisabled,
   rtkEnvironment,
+  shouldRewriteRtk,
 } from "./features/coding/rtk-runtime.ts";
 export type { MtmCodingConfig, MtmCodingSettings, PonytailMode, RtkMode } from "./features/coding/types.ts";
 export type {
