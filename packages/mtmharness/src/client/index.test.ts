@@ -161,20 +161,14 @@ describe("mtmharness browser half", () => {
     for (const cleanup of remote.cleanups.reverse()) void cleanup();
   });
 
-  it("keeps Connect in settings and leaves the sidebar footer for the cloud launcher", () => {
+  it("keeps configuration actions out of the sidebar footer", () => {
     const { registered, cleanups } = clientBench();
     expect(registered).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: "settings.plugin.item", options: expect.objectContaining({ key: "mtm-coding" }) }),
       expect.objectContaining({ name: "settings.plugin.item", options: expect.objectContaining({ key: "mtm-connect" }) }),
     ]));
-    expect(registered.filter((entry) => entry.name === "sidebar.footer.action")).toHaveLength(1);
-    expect(registered).not.toEqual(expect.arrayContaining([
-      expect.objectContaining({ name: "sidebar.footer.action", options: expect.objectContaining({ id: "mtmharness" }) }),
-    ]));
-    expect(registered).toEqual(expect.arrayContaining([
-      expect.objectContaining({ name: "sidebar.footer.action", options: expect.objectContaining({ id: "mtmdsh-launcher", order: 12 }) }),
-      expect.objectContaining({ name: "shell.overlay", options: expect.objectContaining({ id: "mtmdsh-launcher-overlay", order: 100 }) }),
-    ]));
+    expect(registered.filter((entry) => entry.name === "sidebar.footer.action")).toHaveLength(0);
+    expect(registered.filter((entry) => entry.name === "shell.overlay")).toHaveLength(0);
     for (const cleanup of cleanups.reverse()) void cleanup();
     expect(registered).toHaveLength(0);
   });
