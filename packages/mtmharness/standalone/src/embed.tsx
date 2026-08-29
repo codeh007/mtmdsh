@@ -75,10 +75,12 @@ export function autoMount(script: HTMLScriptElement): MtmHarnessClientHandle | n
   const apiOrigin = script.dataset.apiOrigin;
   if (!apiOrigin) return null;
   const bootstrap = window.__MTM_HARNESS_CONFIG__ ?? {};
-  const oauthValues = [script.dataset.oauthIssuer, script.dataset.oauthClientId, script.dataset.oauthRedirectUri, script.dataset.oauthResource];
+  const oauthValues = [script.dataset.oauthIssuer, script.dataset.oauthClientId, script.dataset.oauthRedirectUri, script.dataset.oauthResource, script.dataset.oauthScopes];
   const hasOAuthAttributes = oauthValues.some((value) => value !== undefined);
   if (hasOAuthAttributes && oauthValues.some((value) => value === undefined)) throw new TypeError("OAuth data attributes must be provided together");
-  const oauth = hasOAuthAttributes ? { issuer: oauthValues[0]!, clientId: oauthValues[1]!, redirectUri: oauthValues[2]!, resource: oauthValues[3]! } : bootstrap.oauth;
+  const oauth = hasOAuthAttributes
+    ? { issuer: oauthValues[0]!, clientId: oauthValues[1]!, redirectUri: oauthValues[2]!, resource: oauthValues[3]!, scopes: oauthValues[4]!.split(/\s+/u) }
+    : bootstrap.oauth;
   const handle = mountClient({
     apiOrigin,
     oauth,

@@ -1,5 +1,4 @@
-export const OAUTH_CONTRACT_VERSION = 1 as const;
-export const DEFAULT_OAUTH_SCOPES = ["openid", "profile", "email", "offline_access", "dsh:connect"] as const;
+export const OAUTH_CONTRACT_VERSION = 2 as const;
 const TRANSACTION_TTL_MS = 10 * 60_000;
 const REFRESH_SKEW_MS = 30_000;
 const MAX_ACCESS_TOKEN_LIFETIME_MS = 24 * 60 * 60_000;
@@ -12,7 +11,7 @@ export interface OAuthClientConfig {
   redirectUri: string;
   resource: string;
   discoveryUrl?: string;
-  scopes?: readonly string[];
+  scopes: readonly string[];
 }
 
 export interface OAuthDiscovery {
@@ -100,11 +99,11 @@ function safeString(value: unknown, label: string, maxLength = 4096): string {
   return value;
 }
 
-function urlValue(value: unknown, label: string, issuerOrigin: string, allowQuery = false): string {
+function urlValue(value: unknown, label: string, allowQuery = false): string {
   const raw = safeString(value, label);
   let url: URL;
   try { url = new URL(raw); } catch { throw new OAuthError("Invalid OAuth " + label, "oauth_metadata_invalid"); }
-  if (url.protocol !== "https:" || url.username || url.password || url.hash || (!allowQuery && url.search) || url.origin !== issuerOrigin) {
+  if (url.protocol !== "https:" || url.username || url.password || url.hash || (!allowQuery && url.search)) {
     throw new OAuthError("Untrusted OAuth " + label, "oauth_endpoint_untrusted");
   }
   return url.toString();
@@ -113,10 +112,10 @@ function urlValue(value: unknown, label: string, issuerOrigin: string, allowQuer
 function canonicalIssuer(value: string): string {
   let url: URL;
   try { url = new URL(value); } catch { throw new OAuthError("OAuth issuer is invalid", "oauth_issuer_invalid"); }
-  if (url.protocol !== "https:" || url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
-    throw new OAuthError("OAuth issuer must be a canonical HTTPS origin", "oauth_issuer_invalid");
+  if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) {
+    throw new OAuthError("OAuth issuer must be a canonical HTTPS URL", "oauth_issuer_invalid");
   }
-  return url.origin;
+  return url.pathname === "/" ? url.origin : url.toString();
 }
 
 function redirectUriValue(value: string): string {
@@ -166,9 +165,11 @@ export function oauthTransactionStorageKey(config: OAuthClientConfig): string {
 }
 
 function scopesFor(config: OAuthClientConfig): readonly string[] {
-  const scopes = config.scopes === undefined ? DEFAULT_OAUTH_SCOPES : config.scopes;
-  if (scopes.some((scope) => typeof scope !== "string" || !scope.trim())) throw new OAuthError("OAuth scopes are invalid", "oauth_scope_invalid");
-  for (const scope of ["openid", "dsh:connect"]) if (!scopes.includes(scope)) throw new OAuthError("OAuth scope is missing: " + scope, "oauth_scope_invalid");
+  const scopes = config.scopes;
+  if (scopes.length === 0 || scopes.some((scope) => typeof scope !== "string" || !scope.trim())) {
+    throw new OAuthError("OAuth scopes are invalid", "oauth_scope_invalid");
+  }
+  if (!scopes.includes("openid")) throw new OAuthError("OAuth scope is missing: openid", "oauth_scope_invalid");
   return [...new Set(scopes)];
 }
 
@@ -239,9 +240,9 @@ export class OAuthClient implements MtmHarnessAuthClient {
       issuer,
       clientId: safeString(config.clientId, "clientId", 256),
       redirectUri: redirectUriValue(config.redirectUri),
-      resource: urlValue(config.resource, "resource", issuer, true),
-      ...(config.discoveryUrl === undefined ? {} : { discoveryUrl: urlValue(config.discoveryUrl, "discovery URL", issuer, true) }),
-      ...(config.scopes === undefined ? {} : { scopes: [...config.scopes] }),
+      resource: urlValue(config.resource, "resource", true),
+      ...(config.discoveryUrl === undefined ? {} : { discoveryUrl: urlValue(config.discoveryUrl, "discovery URL", true) }),
+      scopes: [...config.scopes],
     };
     this.fetcher = options.fetch ?? (typeof fetch === "function" ? fetch.bind(globalThis) : (() => { throw new OAuthError("Fetch is unavailable", "oauth_network_unavailable"); }) as typeof fetch);
     this.storage = options.storage ?? (typeof sessionStorage === "undefined" ? undefined : sessionStorage);
@@ -263,7 +264,7 @@ export class OAuthClient implements MtmHarnessAuthClient {
     this.ensureActive();
     if (this.metadata !== undefined) return this.metadata;
     this.publish({ status: "discovering", error: undefined });
-    const endpoint = this.config.discoveryUrl ?? this.config.issuer + "/.well-known/openid-configuration";
+    const endpoint = this.config.discoveryUrl ?? this.config.issuer.replace(/\/$/u, "") + "/.well-known/openid-configuration";
     let response: Response;
     try {
       response = await this.fetcher(endpoint, { method: "GET", credentials: "omit", cache: "no-store", redirect: "error", headers: { accept: "application/json" } });
@@ -275,19 +276,19 @@ export class OAuthClient implements MtmHarnessAuthClient {
       const item = responseBody(body, "discovery metadata");
       const issuer = canonicalIssuer(safeString(item.issuer, "issuer"));
       if (issuer !== this.config.issuer) throw new OAuthError("OAuth issuer mismatch", "oauth_issuer_mismatch");
-      const authorizationEndpoint = urlValue(item.authorization_endpoint, "authorization endpoint", issuer);
-      const tokenEndpoint = urlValue(item.token_endpoint, "token endpoint", issuer);
-      const userinfoEndpoint = item.userinfo_endpoint === undefined ? undefined : urlValue(item.userinfo_endpoint, "userinfo endpoint", issuer);
-      const jwksUri = urlValue(item.jwks_uri, "JWKS URI", issuer);
-      const revocationEndpoint = item.revocation_endpoint === undefined ? undefined : urlValue(item.revocation_endpoint, "revocation endpoint", issuer);
-      const endSessionEndpoint = item.end_session_endpoint === undefined ? undefined : urlValue(item.end_session_endpoint, "end-session endpoint", issuer);
+      const authorizationEndpoint = urlValue(item.authorization_endpoint, "authorization endpoint");
+      const tokenEndpoint = urlValue(item.token_endpoint, "token endpoint");
+      const userinfoEndpoint = item.userinfo_endpoint === undefined ? undefined : urlValue(item.userinfo_endpoint, "userinfo endpoint");
+      const jwksUri = urlValue(item.jwks_uri, "JWKS URI");
+      const revocationEndpoint = item.revocation_endpoint === undefined ? undefined : urlValue(item.revocation_endpoint, "revocation endpoint");
+      const endSessionEndpoint = item.end_session_endpoint === undefined ? undefined : urlValue(item.end_session_endpoint, "end-session endpoint");
       const responseTypes = responseArray(item.response_types_supported, "response types");
       const grantTypes = responseArray(item.grant_types_supported, "grant types");
       const challenges = responseArray(item.code_challenge_methods_supported, "PKCE methods");
       const scopes = responseArray(item.scopes_supported, "scopes");
       const idTokenSigningAlgorithms = responseArray(item.id_token_signing_alg_values_supported, "ID token signing algorithms");
       if (!idTokenSigningAlgorithms.some((algorithm) => (SUPPORTED_ID_TOKEN_ALGORITHMS as readonly string[]).includes(algorithm))) throw new OAuthError("OAuth authority does not support a verified ID token", "oauth_id_token_algorithm_missing");
-      if (!responseTypes.includes("code") || !grantTypes.includes("authorization_code") || !grantTypes.includes("refresh_token") || !challenges.includes("S256")) {
+      if (!responseTypes.includes("code") || !grantTypes.includes("authorization_code") || !challenges.includes("S256")) {
         throw new OAuthError("OAuth authority does not support the required flow", "oauth_capability_missing");
       }
       const advertisedScopes = new Set(scopes);
@@ -466,7 +467,9 @@ export class OAuthClient implements MtmHarnessAuthClient {
     }
     const scope = item.scope === undefined ? scopesFor(this.config).join(" ") : safeString(item.scope, "scope", 2048);
     const scopeSet = new Set(scope.split(/\s+/u));
-    if (!scopeSet.has("dsh:connect") || !scopeSet.has("openid")) throw new OAuthError("OAuth token scope is insufficient", "oauth_scope_missing");
+    for (const requiredScope of scopesFor(this.config)) {
+      if (!scopeSet.has(requiredScope)) throw new OAuthError("OAuth token scope is insufficient", "oauth_scope_missing");
+    }
     if (item.resource !== undefined && item.resource !== this.config.resource) throw new OAuthError("OAuth resource mismatch", "oauth_resource_mismatch");
     const refreshToken = item.refresh_token === undefined ? undefined : safeString(item.refresh_token, "refresh token");
     const idToken = item.id_token === undefined ? undefined : safeString(item.id_token, "ID token", 16_384);

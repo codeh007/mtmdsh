@@ -1,5 +1,5 @@
 export { autoMount, MtmHarnessClient, mount } from "./embed";
-export { createMemoryTokenSource, createPkceChallenge, MemoryTokenSource, OAuthClient, OAUTH_CONTRACT_VERSION, DEFAULT_OAUTH_SCOPES } from "./app/auth";
+export { createMemoryTokenSource, createPkceChallenge, MemoryTokenSource, OAuthClient, OAUTH_CONTRACT_VERSION } from "./app/auth";
 export type {
   MtmHarnessAuthClient,
   MtmHarnessAuthSnapshot,

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_OAUTH_SCOPES, OAuthClient, OAuthError, createPkceChallenge, oauthTransactionStorageKey, type OAuthClientConfig } from "./auth";
+import { OAuthClient, OAuthError, createPkceChallenge, oauthTransactionStorageKey, type OAuthClientConfig } from "./auth";
+import { normalizeConfig } from "./config";
 
 const issuer = "https://auth.example.test";
 const config: OAuthClientConfig = {
@@ -7,6 +8,7 @@ const config: OAuthClientConfig = {
   clientId: "mtm-public-client",
   redirectUri: "http://localhost/callback",
   resource: issuer + "/api/dsh",
+  scopes: ["openid", "dsh:connect"],
 };
 const metadata = {
   issuer,
@@ -17,7 +19,7 @@ const metadata = {
   response_types_supported: ["code"],
   grant_types_supported: ["authorization_code", "refresh_token"],
   code_challenge_methods_supported: ["S256"],
-  scopes_supported: [...DEFAULT_OAUTH_SCOPES],
+  scopes_supported: config.scopes,
   id_token_signing_alg_values_supported: ["EdDSA"],
 };
 
@@ -64,7 +66,7 @@ function discoveryResponse(overrides: Record<string, unknown> = {}): Response {
 }
 
 function tokenResponse(accessToken = "access-1", refreshToken = "refresh-1", expiresIn = 300, idToken?: string): Response {
-  return Response.json({ access_token: accessToken, refresh_token: refreshToken, token_type: "Bearer", expires_in: expiresIn, scope: DEFAULT_OAUTH_SCOPES.join(" "), resource: config.resource, ...(idToken === undefined ? {} : { id_token: idToken }) });
+  return Response.json({ access_token: accessToken, refresh_token: refreshToken, token_type: "Bearer", expires_in: expiresIn, scope: config.scopes.join(" "), resource: config.resource, ...(idToken === undefined ? {} : { id_token: idToken }) });
 }
 
 async function authorizationTokenResponse(nonce: string, accessToken = "access-1", refreshToken = "refresh-1", expiresIn = 300, signedNonce = nonce): Promise<Response> {
@@ -119,6 +121,72 @@ describe("OAuthClient", () => {
     expect(sessionStorage.getItem(oauthTransactionStorageKey(config))).toBeNull();
   });
 
+  it("accepts a path issuer with independent endpoints and caller scopes", async () => {
+    const pathIssuer = "https://issuer.example.test/tenants/alpha";
+    const pathConfig: OAuthClientConfig = {
+      issuer: pathIssuer,
+      clientId: "mtm-path-client",
+      redirectUri: "http://localhost/callback",
+      discoveryUrl: "https://discovery.example.test/oidc",
+      resource: "https://dsh.example.test/api/dsh",
+      scopes: ["openid", "connect:read"],
+    };
+    const pathMetadata = {
+      ...metadata,
+      issuer: pathIssuer,
+      authorization_endpoint: "https://authorize.example.test/authorize",
+      token_endpoint: "https://tokens.example.test/token",
+      jwks_uri: "https://keys.example.test/jwks",
+      grant_types_supported: ["authorization_code"],
+      scopes_supported: pathConfig.scopes,
+    };
+    const fetcher = vi.fn(async (input: string | URL) => {
+      const url = String(input);
+      if (url === pathConfig.discoveryUrl) return Response.json(pathMetadata);
+      if (url === pathMetadata.token_endpoint) {
+        return Response.json({
+          access_token: "path-access",
+          token_type: "Bearer",
+          expires_in: 300,
+          scope: "openid",
+          resource: pathConfig.resource,
+          id_token: "not-used",
+        });
+      }
+      throw new Error("unexpected request");
+    });
+    const auth = new OAuthClient(pathConfig, {
+      fetch: fetcher,
+      storage: sessionStorage,
+      location: window.location,
+      history: window.history,
+      now: () => now,
+    });
+
+    expect(normalizeConfig({ apiOrigin: pathConfig.resource, oauth: pathConfig }).oauth).toMatchObject({
+      issuer: pathIssuer,
+      discoveryUrl: pathConfig.discoveryUrl,
+      resource: pathConfig.resource,
+      scopes: pathConfig.scopes,
+    });
+    const authorization = new URL(await auth.beginLogin());
+    expect(authorization.origin).toBe("https://authorize.example.test");
+    expect(authorization.searchParams.get("resource")).toBe(pathConfig.resource);
+    expect(authorization.searchParams.get("scope")).toBe("openid connect:read");
+
+    const stored = JSON.parse(sessionStorage.getItem(oauthTransactionStorageKey(pathConfig)) ?? "{}") as { state?: string };
+    await expect(
+      auth.consumeCallback("http://localhost/callback?code=code&state=" + encodeURIComponent(stored.state ?? "")),
+    ).rejects.toMatchObject({ code: "oauth_scope_missing" });
+
+    const wrongIssuer = new OAuthClient(pathConfig, {
+      fetch: async () => Response.json({ ...pathMetadata, issuer: pathIssuer + "/other" }),
+    });
+    await expect(wrongIssuer.discover()).rejects.toMatchObject({ code: "oauth_issuer_mismatch" });
+    auth.dispose();
+    wrongIssuer.dispose();
+  });
+
   it("consumes a callback once and sanitizes the URL", async () => {
     const fetcher = vi.fn(async (input: string | URL, init?: RequestInit) => {
       const url = String(input);
@@ -155,7 +223,7 @@ describe("OAuthClient", () => {
     await auth.beginLogin();
     await expect(auth.consumeCallback("http://localhost/callback?code=code&state=wrong-state")).rejects.toMatchObject({ code: "oauth_state_mismatch" });
     expect(sessionStorage.getItem(oauthTransactionStorageKey(config))).toBeNull();
-    const evil = createAuth(vi.fn(async () => discoveryResponse({ token_endpoint: "https://evil.example.test/token" })));
+    const evil = createAuth(vi.fn(async () => discoveryResponse({ token_endpoint: "http://evil.example.test/token" })));
     await expect(evil.discover()).rejects.toMatchObject({ code: "oauth_endpoint_untrusted" });
     auth.dispose();
     evil.dispose();
