@@ -3,7 +3,6 @@ import type { Agent } from "@deepseek-ai/dsh-agent";
 import { createUserMessage } from "@deepseek-ai/dsh-llm";
 import type { AssembleContext } from "@deepseek-ai/dsh-system-prompt";
 import type { CommandResult } from "@deepseek-ai/dsh-commands";
-import { renderSkillContent, type SkillDefinition } from "@deepseek-ai/dsh-skill";
 import type {} from "@deepseek-ai/dsh-tools";
 import { applyManifestPackage, MTM_CODING_PACKAGES } from "./manifest.js";
 import { resolveWorkingDirectory } from "./runtime.js";
@@ -11,7 +10,7 @@ import { bashInput, ensureRtk, rewriteRtk, shouldRewriteRtk } from "./rtk-runtim
 import type { RtkMode } from "./types.js";
 
 export const name = "mtm-coding-rtk";
-export const inject = ["systemPrompt", "skills", "commands"];
+export const inject = ["systemPrompt", "commands"];
 
 export type RtkStatus = "disabled" | "guidance" | "rewrite" | "unavailable";
 
@@ -80,18 +79,11 @@ function prompt(status: RtkStatus): string {
   ].join("\n");
 }
 
-function skillMessage(skill: SkillDefinition): ReturnType<typeof createUserMessage> {
-  return createUserMessage({
-    content: [{ type: "text", text: renderSkillContent(skill) }],
-    source: { ...pluginSource, form: "notice", summary: "Loaded " + skill.name },
-  });
-}
-
-/** Mount RTK's file-backed guidance and, when supported, the pre-record rewrite listener. */
-export function apply(ctx: Context, config: { mode?: RtkMode } = {}): void {
+/** Mount RTK guidance and, when supported, the pre-record rewrite listener. */
+export async function apply(ctx: Context, config: { mode?: RtkMode } = {}): Promise<void> {
   const requested = config.mode ?? "auto";
   if (requested === "off") return;
-  applyManifestPackage(ctx, MTM_CODING_PACKAGES.rtk);
+  await applyManifestPackage(ctx, MTM_CODING_PACKAGES.rtk);
   const transparentCapability = hasPreRecordCapability(ctx) && hasSubprocessCapability(ctx);
   const transparent = (requested === "auto" || requested === "rewrite") && transparentCapability;
   const status: RtkStatus = requested === "rewrite"
@@ -105,20 +97,9 @@ export function apply(ctx: Context, config: { mode?: RtkMode } = {}): void {
   ctx.commands.register({
     name: "rtk",
     description: "show RTK integration status",
-    input: { hint: "[skill]" },
-    handler: async (invocation): Promise<CommandResult> => {
+    handler: (invocation): CommandResult => {
       if (invocation.rawInput.trim() === "") return result(statusText(status));
-      if (invocation.rawInput.trim() === "skill") {
-        const skill = await ctx.skills.get("rtk", {
-          cwd: invocation.agent.session.header.cwd,
-          signal: invocation.signal,
-          scope: invocation.agent,
-        });
-        if (skill === undefined) return { kind: "error", text: "rtk is unavailable." };
-        invocation.agent.inject(skillMessage(skill));
-        return result("Loaded rtk.");
-      }
-      return { kind: "error", text: "Use /rtk for status or /rtk skill for the file-backed RTK guidance." };
+      return { kind: "error", text: "Use /rtk for status." };
     },
   });
   ctx.on("agent/session-start", ({ agent }) => {

@@ -1,7 +1,6 @@
-import { globSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { MTM_CODING_PACKAGES } from "../src/features/coding/manifest.ts";
 
 const packageRoot = resolve(import.meta.dirname, "..");
 
@@ -16,7 +15,6 @@ describe("mtmharness package contract", () => {
       };
       unpkg?: string;
       jsdelivr?: string;
-      files?: string[];
       dsh?: { bundle?: { patch?: string }; client?: { platform?: string; inject?: string[] } };
     };
     expect(manifest.dsh?.bundle?.patch).toBe("./cordis.patch.yml");
@@ -28,22 +26,6 @@ describe("mtmharness package contract", () => {
     expect(manifest.exports["./app"]).toBe("./dist/standalone/index.html");
     expect(manifest.unpkg).toBe("./dist/embed/mtmharness.iife.js");
     expect(manifest.jsdelivr).toBe("./dist/embed/mtmharness.iife.js");
-    expect(manifest.files).toContain("src/skills");
-  });
-
-  it("ships every manifest skill document", () => {
-    const skillsRoot = resolve(packageRoot, "src/skills");
-    const documents = globSync("**/SKILL.md", { cwd: skillsRoot, nodir: true });
-    const expectedNames = Object.values(MTM_CODING_PACKAGES)
-      .flatMap((packageManifest) => packageManifest.skillNames)
-      .sort();
-    const names = documents.map((relativePath) => {
-      const document = readFileSync(resolve(skillsRoot, relativePath), "utf8");
-      const match = /^---\r?\nname:\s*([^\r\n]+)\r?\ndescription:\s*/u.exec(document);
-      if (match === null) throw new Error("invalid skill document: " + relativePath);
-      expect(document).toContain("\n---\n");
-      return match[1].replace(/^['"]|['"]$/gu, "");
-    }).sort();
-    expect(names).toEqual(expectedNames);
+    expect(existsSync(resolve(packageRoot, "src/skills"))).toBe(false);
   });
 });

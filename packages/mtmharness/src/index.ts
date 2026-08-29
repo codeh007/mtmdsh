@@ -6,7 +6,7 @@ import { apply as applyMtmConnectSettings } from "./features/mtm-connect/index.t
 import { apply as applyUpdateHost } from "./features/update/index.ts";
 
 export { buildMcpConfig, resolveConfig, MTM_CODING_PACKAGES } from "./features/coding/index.ts";
-export type { MtmCodingPackageKind, MtmCodingPackageManifest } from "./features/coding/manifest.ts";
+export type { MtmCodingPackageCatalog, MtmCodingPackageKind, MtmCodingPackageManifest, MtmCodingSkillSource } from "./features/coding/manifest.ts";
 export {
   extractHookContext,
   resolveBundledCommand,

@@ -14,7 +14,7 @@ import {
 export { buildMcpConfig, resolveConfig } from "./codebase-memory.js";
 export { MtmCodingSettingsSchema, codebaseMemoryConfig } from "./types.js";
 export { MTM_CODING_PACKAGES } from "./manifest.js";
-export type { MtmCodingPackageKind, MtmCodingPackageManifest } from "./manifest.js";
+export type { MtmCodingPackageCatalog, MtmCodingPackageKind, MtmCodingPackageManifest, MtmCodingSkillSource } from "./manifest.js";
 export {
   extractHookContext,
   resolveBundledCommand,
@@ -39,7 +39,7 @@ const CodebaseMemoryFeature = {
 const ModernGoFeature = {
   name: "mtm-coding-modern-go",
   inject: ["skills"],
-  apply: (ctx: Context) => { applyManifestPackage(ctx, MTM_CODING_PACKAGES.modernGo); },
+  apply: (ctx: Context) => applyManifestPackage(ctx, MTM_CODING_PACKAGES.modernGo),
 };
 
 const PonytailFeature = {
@@ -50,7 +50,7 @@ const PonytailFeature = {
 
 const RtkFeature = {
   name: "mtm-coding-rtk",
-  inject: ["systemPrompt", "skills", "commands"],
+  inject: ["systemPrompt", "commands"],
   apply: applyRtk,
 };
 

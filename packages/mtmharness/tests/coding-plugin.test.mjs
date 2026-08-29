@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import {
   applyCoding,
@@ -28,6 +31,28 @@ const DEFAULT_SETTINGS = {
   failOnStartupError: false,
   reconnect: { enabled: true, initialDelayMs: 500, maxDelayMs: 30_000, maxAttempts: 10 },
 };
+
+const previousDshHome = process.env.DSH_HOME;
+const testDshHome = mkdtempSync(join(tmpdir(), "mtmharness-coding-skills-"));
+process.env.DSH_HOME = testDshHome;
+const managedSkillsRoot = join(testDshHome, "mtmharness", "skills");
+
+function writeSkill(root, name, description, body) {
+  const directory = join(root, name);
+  mkdirSync(directory, { recursive: true });
+  writeFileSync(join(directory, "SKILL.md"), "---\nname: " + name + "\ndescription: " + description + "\n---\n\n" + body + "\n");
+}
+
+writeSkill(join(managedSkillsRoot, "modern-go"), "use-modern-go", "Modern Go test guidance.", "Run go run github.com/JetBrains/go-modern-guidelines@v0.1.1 list --file-path.");
+for (const name of ["ponytail", "ponytail-review", "ponytail-audit", "ponytail-debt", "ponytail-gain", "ponytail-help"]) {
+  writeSkill(join(managedSkillsRoot, "ponytail"), name, "Ponytail test guidance.", "Ponytail skill body.");
+}
+
+test.after(() => {
+  if (previousDshHome === undefined) delete process.env.DSH_HOME;
+  else process.env.DSH_HOME = previousDshHome;
+  rmSync(testDshHome, { recursive: true, force: true });
+});
 
 function createContext(settingsValue = {}) {
   const listeners = new Map();
@@ -337,17 +362,17 @@ test("unified settings reconcile coding features and unregister the watcher", as
   await applyCoding(fake.context, {});
   assert.equal(name, "mtmharness");
   const listedSkills = await fake.context.skills.list({});
-  assert.equal(listedSkills.length, 8);
-  assert.equal(fake.skillProviders.length, 3);
+  assert.equal(listedSkills.length, 7);
+  assert.equal(fake.skillProviders.length, 2);
   const modernGo = await fake.context.skills.get("use-modern-go");
   assert.ok(modernGo);
   assert.equal(modernGo.invocation.modelInvocable, true);
   assert.equal(modernGo.invocation.userInvocable, true);
   assert.equal(modernGo.provider, "mtm-coding-modern-go");
-  assert.equal(modernGo.source, "bundled");
+  assert.equal(modernGo.source, "custom");
   assert.equal(modernGo.resourceBase.kind, "directory");
-  assert.match(modernGo.resourceBase.path, /src[/\\]skills[/\\]use-modern-go$/);
-  assert.match(modernGo.path, /src[/\\]skills[/\\]use-modern-go[/\\]SKILL\.md$/);
+  assert.match(modernGo.resourceBase.path, /mtmharness[/\\]skills[/\\]modern-go[/\\]use-modern-go$/);
+  assert.match(modernGo.path, /mtmharness[/\\]skills[/\\]modern-go[/\\]use-modern-go[/\\]SKILL\.md$/);
   assert.match(modernGo.content, /go run github\.com\/JetBrains\/go-modern-guidelines@v0\.1\.1/);
   assert.match(modernGo.content, /list --file-path/);
   assert.equal(fake.spawnSpecs.length, 0);
@@ -360,16 +385,16 @@ test("unified settings reconcile coding features and unregister the watcher", as
   await fake.trigger({ ...fake.getSettings(), codebaseMemoryEnabled: true });
   assert.equal(fake.pluginCalls.filter((call) => call.config?.transport === "stdio").length, 1);
   await fake.trigger({ ...fake.getSettings(), modernGoEnabled: false });
-  assert.equal(fake.skillProviders.length, 2);
+  assert.equal(fake.skillProviders.length, 1);
   assert.equal((await fake.context.skills.list({})).some((skill) => skill.name === "use-modern-go"), false);
   await fake.trigger({ ...fake.getSettings(), modernGoEnabled: true });
-  assert.equal(fake.skillProviders.length, 3);
+  assert.equal(fake.skillProviders.length, 2);
   await fake.trigger({ ...fake.getSettings(), rtkMode: "off" });
   assert.equal(fake.skillProviders.length, 2);
   assert.equal(fake.sections.some((section) => section.name === "mtm-coding:rtk:prompt"), false);
   assert.equal((await fake.context.skills.list({})).some((skill) => skill.name === "rtk"), false);
   await fake.trigger({ ...fake.getSettings(), rtkMode: "guidance" });
-  assert.equal(fake.skillProviders.length, 3);
+  assert.equal(fake.skillProviders.length, 2);
   assert.equal(fake.sections.some((section) => section.name === "mtm-coding:rtk:prompt"), true);
   const callsBeforeDispose = fake.pluginCalls.length;
   await fake.dispose();
@@ -389,8 +414,9 @@ test("Modern Go can be disabled and uses the pinned Go module command", async ()
   await applyCoding(enabled.context, {});
   const skill = await enabled.context.skills.get("use-modern-go");
   assert.ok(skill);
-  assert.equal(skill.source, "bundled");
+  assert.equal(skill.source, "custom");
   assert.equal(skill.resourceBase.kind, "directory");
+  assert.match(skill.path, /mtmharness[/\\]skills[/\\]modern-go[/\\]use-modern-go[/\\]SKILL\.md$/);
   assert.match(skill.content, /go run github\.com\/JetBrains\/go-modern-guidelines@v0\.1\.1 list --file-path/);
   assert.equal(enabled.spawnSpecs.length, 0);
   await enabled.dispose();
@@ -400,11 +426,7 @@ test("Modern Go can be disabled and uses the pinned Go module command", async ()
 test("RTK stays honest when the DSH pre-record capability is absent", async () => {
   const fake = createContext();
   await applyRtk(fake.context, { mode: "rewrite" });
-  const rtk = await fake.context.skills.get("rtk");
-  assert.ok(rtk);
-  assert.equal(rtk.provider, "mtm-coding-rtk");
-  assert.equal(rtk.source, "bundled");
-  assert.equal(rtk.resourceBase.kind, "directory");
+  assert.equal(await fake.context.skills.get("rtk"), undefined);
   const section = fake.sections.find((item) => item.name === "mtm-coding:rtk:status");
   assert.ok(section);
   assert.match(section.text({}), /unavailable/);
@@ -416,13 +438,12 @@ test("RTK stays honest when the DSH pre-record capability is absent", async () =
   assert.match(fake.injected[0].content[0].text, /unavailable/);
   const command = fake.commands.find((item) => item.name === "rtk");
   assert.equal((await command.handler({ rawInput: "", agent })).text.includes("unavailable"), true);
-  assert.equal((await command.handler({ rawInput: "skill", agent })).text, "Loaded rtk.");
-  assert.match(fake.injected.at(-1).content[0].text, /<skill_content name="rtk">/);
+  assert.equal((await command.handler({ rawInput: "skill", agent })).kind, "error");
   await fake.dispose();
   assert.equal(fake.skillProviders.length, 0);
 });
 
-test("Ponytail loads six file-backed skills and supports agent-scoped commands", async () => {
+test("Ponytail loads six externally managed skills and supports agent-scoped commands", async () => {
   const fake = createContext();
   await applyPonytail(fake.context, { mode: "full", applyToSubagents: true });
   const ponytailSkills = await fake.context.skills.list({});
@@ -430,7 +451,7 @@ test("Ponytail loads six file-backed skills and supports agent-scoped commands",
     "ponytail", "ponytail-audit", "ponytail-debt", "ponytail-gain", "ponytail-help", "ponytail-review",
   ]);
   assert.equal(ponytailSkills.length, 6);
-  assert.ok(ponytailSkills.every((skill) => skill.provider === "mtm-coding-ponytail" && skill.source === "bundled" && skill.invocation.modelInvocable));
+  assert.ok(ponytailSkills.every((skill) => skill.provider === "mtm-coding-ponytail" && skill.source === "custom" && skill.invocation.modelInvocable));
   const agent = { session: { header: { origin: "main" } }, inject(message) { fake.injected.push(message); } };
   const start = onlyListener(fake.listeners, "agent/session-start");
   start({ agent });
