@@ -1,0 +1,81 @@
+{
+  "codebaseMemory": {
+    "id": "codebase-memory",
+    "label": "Codebase Memory",
+    "description": "Graph-first code discovery and repository context.",
+    "icon": "search",
+    "kind": "runtime-backed"
+  },
+  "modernGo": {
+    "id": "modern-go",
+    "label": "Modern Go Guidelines",
+    "description": "Version-specific guidance for modern Go code.",
+    "icon": "code",
+    "kind": "data-only",
+    "skills": {
+      "repository": "https://github.com/JetBrains/go-modern-guidelines",
+      "revision": "937827b86eeff98f45150ce00236bc34a30ed20f",
+      "files": [
+        {
+          "name": "use-modern-go",
+          "path": "plugin/skills/use-modern-go/SKILL.md",
+          "sha256": "333346bebb212d7acded062cdeb1f5a01e421ebdab976c4c4fcb02cca31508f7"
+        }
+      ]
+    }
+  },
+  "ponytail": {
+    "id": "ponytail",
+    "label": "Ponytail",
+    "description": "Minimal coding rules and over-engineering reviews.",
+    "icon": "code",
+    "kind": "runtime-backed",
+    "skills": {
+      "repository": "https://github.com/dietrichgebert/ponytail",
+      "revision": "0a4dd63ad4541f4f655c4108a295916f3c1d8fda",
+      "files": [
+        {
+          "name": "ponytail",
+          "path": "skills/ponytail/SKILL.md",
+          "sha256": "1316a2f3f95741d2300b116fe0c2d81ce4a9568656ed0a62643f54aaf09957f2"
+        },
+        {
+          "name": "ponytail-audit",
+          "path": "skills/ponytail-audit/SKILL.md",
+          "sha256": "5560b8e383dbe2ddfddc873a1e2bf2e586e23e0cd7d995537482b2315331f6d1"
+        },
+        {
+          "name": "ponytail-debt",
+          "path": "skills/ponytail-debt/SKILL.md",
+          "sha256": "c84fba75f0ca12bfe83f9a78ea02fd125c5dd3f1fbb18124105a489937f284e6"
+        },
+        {
+          "name": "ponytail-gain",
+          "path": "skills/ponytail-gain/SKILL.md",
+          "sha256": "24e01d1c9715cb136ba1c4f1e52a95940c0193558b876828e537736480d6408b"
+        },
+        {
+          "name": "ponytail-help",
+          "path": "skills/ponytail-help/SKILL.md",
+          "sha256": "2264d1615117b02b0fd5a69ec84cd2757006471a78e4d6c22eed6d581c1d37a4"
+        },
+        {
+          "name": "ponytail-review",
+          "path": "skills/ponytail-review/SKILL.md",
+          "sha256": "40df33b58fc6ef889b93585733feb9566b76e9586efa7f376785c1e995197ac0"
+        }
+      ]
+    }
+  },
+  "rtk": {
+    "id": "rtk",
+    "label": "RTK",
+    "description": "Reduced shell output with transparent Bash rewriting.",
+    "icon": "terminal",
+    "kind": "runtime-backed",
+    "prompt": {
+      "order": 109,
+      "text": "RTK only concerns Bash shell commands. DSH read, grep, glob, PowerShell, and persistent terminal calls are not covered by this integration.\nRTK failures and unsupported commands pass through; RTK_DISABLED=1 disables one command."
+    }
+  }
+}

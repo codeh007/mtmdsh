@@ -5,15 +5,13 @@ import type { AssembleContext } from "@deepseek-ai/dsh-system-prompt";
 import { renderSkillContent } from "@deepseek-ai/dsh-skill";
 import type { SkillDefinition } from "@deepseek-ai/dsh-skill";
 import type { CommandResult } from "@deepseek-ai/dsh-commands";
-import { readSkillContent } from "../../skill-files.js";
 import { applyManifestPackage, MTM_CODING_PACKAGES } from "./manifest.js";
 import type { PonytailMode } from "./types.js";
 
 export const name = "mtm-coding-ponytail";
 export const inject = ["systemPrompt", "skills", "commands"];
 
-const SKILL_NAMES = MTM_CODING_PACKAGES.ponytail.skillNames;
-
+const SKILL_NAMES = MTM_CODING_PACKAGES.ponytail.skills.files.map((file) => file.name);
 const MODE_NAMES = new Set<PonytailMode>(["off", "lite", "full", "ultra"]);
 const pluginSource = { kind: "plugin" as const, plugin: name };
 
@@ -45,9 +43,9 @@ function modeForAgent(states: WeakMap<Agent, PonytailMode>, agent: Agent | undef
   return agent === undefined ? fallback : states.get(agent) ?? fallback;
 }
 
-function coreSkillContent(ctx: Context): string | undefined {
+async function loadCoreSkill(ctx: Context): Promise<SkillDefinition | undefined> {
   try {
-    return readSkillContent("ponytail");
+    return await ctx.skills.get("ponytail");
   } catch (error) {
     ctx.logger.warn("mtm-coding: Ponytail skill document unavailable: " + String(error));
     return undefined;
@@ -65,15 +63,29 @@ function result(text: string): CommandResult {
   return { kind: "success", text };
 }
 
-/** Mount Ponytail rules, file-backed skills, and human commands. */
-export function apply(ctx: Context, config: {
+/** Mount Ponytail rules, externally managed skills, and human commands. */
+export async function apply(ctx: Context, config: {
   mode?: PonytailMode;
   applyToSubagents?: boolean;
-} = {}): void {
-  applyManifestPackage(ctx, MTM_CODING_PACKAGES.ponytail);
+} = {}): Promise<void> {
+  if (!await applyManifestPackage(ctx, MTM_CODING_PACKAGES.ponytail)) return;
   const defaultMode = normalizeMode(config.mode);
   const applyToSubagents = config.applyToSubagents ?? true;
   const states = new WeakMap<Agent, PonytailMode>();
+  let coreSkill = await loadCoreSkill(ctx);
+  let active = true;
+  let refreshing = Promise.resolve();
+
+  ctx.on("skills/change", () => {
+    refreshing = refreshing.then(async () => {
+      const next = await loadCoreSkill(ctx);
+      if (active && next !== undefined) coreSkill = next;
+    });
+  });
+  ctx.effect(() => async () => {
+    active = false;
+    await refreshing;
+  }, "mtm-coding.ponytail-skill-refresh");
 
   ctx.systemPrompt.section({
     name: "mtm-coding:ponytail",
@@ -82,9 +94,8 @@ export function apply(ctx: Context, config: {
       const agent = (assembly as AssembleContext & { agent?: Agent }).agent;
       if (!applyToSubagents && agent?.session.header.origin === "subagent") return "";
       const mode = modeForAgent(states, agent, defaultMode);
-      if (mode === "off") return "";
-      const content = coreSkillContent(ctx);
-      return content === undefined ? "" : instructions({ name: "ponytail", content }, mode);
+      if (mode === "off" || coreSkill === undefined) return "";
+      return instructions(coreSkill, mode);
     },
   });
 

@@ -118,20 +118,26 @@ function createContext() {
   };
 }
 
-test("packed mtmharness resolves file-backed skills from its installed path", async () => {
+test("packed mtmharness discovers skills from its editable DSH home", async () => {
   const tempRoot = mkdtempSync(join(packageRoot, ".tmp-packed-install-"));
+  const previousDshHome = process.env.DSH_HOME;
   try {
     const packRoot = join(tempRoot, "pack");
     const installRoot = join(tempRoot, "install");
+    const dshHome = join(tempRoot, "dsh-home");
     mkdirSync(packRoot);
     mkdirSync(installRoot);
+    const skillPath = join(dshHome, "mtmharness", "skills", "modern-go", "use-modern-go", "SKILL.md");
+    mkdirSync(join(skillPath, ".."), { recursive: true });
+    writeFileSync(skillPath, "---\nname: use-modern-go\ndescription: Modern Go guidance.\n---\n\ngo run github.com/JetBrains/go-modern-guidelines@v0.1.1 list --file-path\n");
+    process.env.DSH_HOME = dshHome;
+
     execFileSync("npm", ["pack", "--pack-destination", packRoot], { cwd: packageRoot, stdio: "pipe" });
     const archiveName = readdirSync(packRoot).find((name) => name.endsWith(".tgz"));
     assert.ok(archiveName);
     const archive = join(packRoot, archiveName);
     const archiveFiles = execFileSync("tar", ["-tzf", archive], { encoding: "utf8" });
-    assert.match(archiveFiles, /package\/src\/skills\/ponytail\/ponytail-review\/SKILL\.md/);
-    assert.doesNotMatch(archiveFiles, /ponytail-skills|rtk-skill|features\/coding\/modern-go/);
+    assert.doesNotMatch(archiveFiles, /package\/src\/skills\/|ponytail-skills|rtk-skill|features\/coding\/modern-go/);
 
     writeFileSync(join(installRoot, "package.json"), JSON.stringify({ private: true, type: "module" }));
     execFileSync("npm", ["install", "--ignore-scripts", "--no-package-lock", "--no-save", "--legacy-peer-deps", archive], {
@@ -141,7 +147,7 @@ test("packed mtmharness resolves file-backed skills from its installed path", as
 
     const installedPackage = resolve(installRoot, "node_modules", "mtmharness");
     const installed = await import(pathToFileURL(join(installedPackage, "lib/index.js")).href);
-    assert.deepEqual(installed.MTM_CODING_PACKAGES.modernGo.skillNames, ["use-modern-go"]);
+    assert.deepEqual(installed.MTM_CODING_PACKAGES.modernGo.skills.files.map((file) => file.name), ["use-modern-go"]);
 
     const fake = createContext();
     await installed.applyCoding(fake.context, {
@@ -154,12 +160,14 @@ test("packed mtmharness resolves file-backed skills from its installed path", as
     assert.deepEqual(skills.map((skill) => skill.name), ["use-modern-go"]);
     const skill = await fake.context.skills.get("use-modern-go");
     assert.ok(skill);
-    assert.equal(skill.source, "bundled");
-    assert.equal(skill.path, join(installedPackage, "src/skills/use-modern-go/SKILL.md"));
+    assert.equal(skill.source, "custom");
+    assert.equal(skill.path, skillPath);
     assert.match(skill.content, /go-modern-guidelines@v0\.1\.1/);
     await fake.dispose();
     assert.equal(fake.providers.length, 0);
   } finally {
+    if (previousDshHome === undefined) delete process.env.DSH_HOME;
+    else process.env.DSH_HOME = previousDshHome;
     rmSync(tempRoot, { recursive: true, force: true });
   }
 });
