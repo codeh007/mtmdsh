@@ -2,14 +2,18 @@
 
 `mtmharness` is one public npm package with one unified DSH plugin and two explicit client identities:
 
-- **DSH Web plugin**: the package root and `./client` export use the official `dsh.client` lazy-CJS contract. One installation provides the settings-controlled MTM Connect secondary extension and the Codebase Memory/Modern Go/Ponytail coding features.
+- **DSH Web plugin**: the package root and `./client` export use the official `dsh.client` lazy-CJS contract. One installation provides the settings-controlled MTM Connect secondary extension and the Codebase Memory/Modern Go/Ponytail/RTK coding features.
 - **Independent web client**: the package also publishes a BrowserHistory static app and a MemoryHistory script/embed entry. These artifacts own their React root, router, styles, and teardown and never load the local coding runtime.
 
-The DSH plugin is assembled from coding and secondary frontend domains under one Host/Client lifecycle. Codebase Memory keeps its `codebase_memory` server namespace and `mcp__codebase_memory__*` tool names; Ponytail ships six skills inline, including `/ponytail` and its companion commands. The `mtm-coding` settings namespace contains the runtime extension toggles.
+The DSH plugin is assembled from coding and secondary frontend domains under one Host/Client lifecycle. Codebase Memory keeps its `codebase_memory` server namespace and `mcp__codebase_memory__*` tool names; Ponytail loads six file-backed skills, including `/ponytail` and its companion commands. The `mtm-coding` settings namespace contains the runtime extension toggles.
 
-Modern Go Guidelines is enabled by default as the inline `use-modern-go` skill. It invokes the pinned JetBrains `v0.1.1` module with `go run github.com/JetBrains/go-modern-guidelines@v0.1.1`, so Go fetches and builds it only when the skill command is used. `modernGoEnabled` removes the skill from the DSH catalog; no wrapper or guideline resource files are bundled.
+Modern Go Guidelines is enabled by default as the file-backed `use-modern-go` skill. Its document lives at `src/skills/use-modern-go/SKILL.md` and invokes the pinned JetBrains `v0.1.1` module with `go run github.com/JetBrains/go-modern-guidelines@v0.1.1`, so Go fetches and builds it only when the skill command is used. `modernGoEnabled` removes the skill from the DSH catalog.
 
-RTK is an optional coding feature in the same `mtm-coding` settings namespace. `rtkMode` defaults to `auto`: it transparently rewrites Bash calls when the DSH `tools/pre-record-input` capability is available and falls back to inline guidance when it is not. Explicit `rewrite` is strict and reports `unavailable` on older DSH runtimes instead of changing frozen tool inputs. The pinned RTK `v0.45.0` binary is resolved and installed lazily from the matching command hook under the DSH home with checksum verification; there is no separate install or init setting. RTK telemetry, tracking, and tee output are disabled for plugin-managed runs.
+RTK is an optional coding feature in the same `mtm-coding` settings namespace. Its document lives at `src/skills/rtk/SKILL.md`. `rtkMode` defaults to `auto`: it transparently rewrites Bash calls when the DSH `tools/pre-record-input` capability is available and falls back to guidance when it is not. Explicit `rewrite` is strict and reports `unavailable` on older DSH runtimes instead of changing frozen tool inputs. The pinned RTK `v0.45.0` binary is resolved and installed lazily from the matching command hook under the DSH home with checksum verification; there is no separate install or init setting. RTK telemetry, tracking, and tee output are disabled for plugin-managed runs.
+
+## Coding Skill Files
+
+The package ships Ponytail, Modern Go, and RTK documents as file-backed skill bundles under `src/skills/**/SKILL.md`. The trusted package manifest in `src/features/coding/manifest.ts` owns labels, icon keys, skill roots, and static prompt declarations; mutable enabled state remains in the `mtm-coding` settings namespace. Each enabled package mounts one official `@deepseek-ai/dsh-skill-filesystem` provider against its installed package-relative root, so agents can read and edit the source documents without relying on a development checkout path. Skill bodies are loaded from disk on demand. Static manifest prompts are mounted only while their package is enabled.
 
 ## DSH Web Plugin
 
@@ -20,7 +24,7 @@ Install the package into a web profile:
 
 Restart the DSH Web host after changing profile composition. Open Settings > Plugins > Plugin configuration to control MTM Connect. The host owns the React root, session connection, and lifecycle.
 
-The plugin registers the `mtm-connect` settings namespace only. No local device backend, filesystem access, token, or loopback RPC is activated by this frontend experiment. The independent static/embed client remains a separate application surface and is not part of the DSH plugin.
+The plugin registers the `mtm-connect` settings namespace and its file-backed coding skills. No local device backend, token, or loopback RPC is activated by this frontend experiment. The independent static/embed client remains a separate application surface and is not part of the DSH plugin.
 
 ## Secondary Extensions
 

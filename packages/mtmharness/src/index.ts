@@ -5,9 +5,8 @@ import { apply as applyCodingHost } from "./features/coding/index.ts";
 import { apply as applyMtmConnectSettings } from "./features/mtm-connect/index.ts";
 import { apply as applyUpdateHost } from "./features/update/index.ts";
 
-export { buildMcpConfig, resolveConfig } from "./features/coding/index.ts";
-export { createModernGoSkill } from "./features/coding/modern-go.ts";
-export { PONYTAIL_SKILLS } from "./features/coding/ponytail-skills.ts";
+export { buildMcpConfig, resolveConfig, MTM_CODING_PACKAGES } from "./features/coding/index.ts";
+export type { MtmCodingPackageKind, MtmCodingPackageManifest } from "./features/coding/manifest.ts";
 export {
   extractHookContext,
   resolveBundledCommand,
@@ -19,7 +18,6 @@ export { apply as applyCoding } from "./features/coding/index.ts";
 export { MtmConnectSettingsSchema, SETTINGS_NAMESPACE as MTM_CONNECT_SETTINGS_NAMESPACE } from "./features/mtm-connect/index.ts";
 export type { MtmConnectConfig, MtmConnectSettings } from "./features/mtm-connect/index.ts";
 export { apply as applyCodebaseMemory } from "./features/coding/codebase-memory.ts";
-export { apply as applyModernGo } from "./features/coding/modern-go.ts";
 export { apply as applyPonytail } from "./features/coding/ponytail.ts";
 export { apply as applyRtk } from "./features/coding/rtk.ts";
 export {

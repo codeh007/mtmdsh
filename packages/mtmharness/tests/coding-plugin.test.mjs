@@ -6,7 +6,6 @@ import {
   applyPonytail,
   applyRtk,
   name,
-  PONYTAIL_SKILLS,
 } from "../lib/index.js";
 
 const DEFAULT_SETTINGS = {
@@ -38,6 +37,7 @@ function createContext(settingsValue = {}) {
   const pluginCalls = [];
   const commands = [];
   const skills = [];
+  const skillProviders = [];
   const root = makeFiber("root");
   let currentFiber = root;
   let settings = { ...DEFAULT_SETTINGS, ...settingsValue };
@@ -127,6 +127,36 @@ function createContext(settingsValue = {}) {
         currentFiber.effects.push(disposeSkill);
         return disposeSkill;
       },
+      registerProvider(create) {
+        const lifecycle = new AbortController();
+        const provider = create({ signal: lifecycle.signal, invalidate() {} });
+        skillProviders.push(provider);
+        const disposeProvider = async () => {
+          lifecycle.abort();
+          const index = skillProviders.indexOf(provider);
+          if (index >= 0) skillProviders.splice(index, 1);
+          await provider.dispose?.();
+        };
+        currentFiber.effects.push(disposeProvider);
+        return disposeProvider;
+      },
+      async list(options = {}) {
+        const candidates = [];
+        for (const provider of skillProviders) {
+          const listed = await provider.list(options);
+          candidates.push(...(Array.isArray(listed) ? listed : listed.candidates));
+        }
+        return candidates;
+      },
+      async get(name, options = {}) {
+        for (const provider of skillProviders) {
+          const listed = await provider.list(options);
+          const candidates = Array.isArray(listed) ? listed : listed.candidates;
+          const candidate = candidates.find((item) => item.name === name);
+          if (candidate !== undefined) return provider.get(candidate, options);
+        }
+        return skills.find((skill) => skill.name === name);
+      },
     },
     commands: {
       register(definition) {
@@ -156,6 +186,7 @@ function createContext(settingsValue = {}) {
       },
     },
     logger: { debug() {}, error() {}, warn() {} },
+    get() { return undefined; },
     effect(execute) {
       const disposer = execute();
       currentFiber.effects.push(disposer);
@@ -173,6 +204,7 @@ function createContext(settingsValue = {}) {
     pluginCalls,
     commands,
     skills,
+    skillProviders,
     async trigger(next) {
       settings = next;
       await Promise.all([...watchers].map((watcher) => watcher(next, undefined)));
@@ -304,24 +336,44 @@ test("unified settings reconcile coding features and unregister the watcher", as
   const fake = createContext({ codebaseMemoryEnabled: false, ponytailMode: "lite" });
   await applyCoding(fake.context, {});
   assert.equal(name, "mtmharness");
-  assert.equal(fake.skills.length, 8);
-  const modernGo = fake.skills.find((skill) => skill.name === "use-modern-go");
+  const listedSkills = await fake.context.skills.list({});
+  assert.equal(listedSkills.length, 8);
+  assert.equal(fake.skillProviders.length, 3);
+  const modernGo = await fake.context.skills.get("use-modern-go");
   assert.ok(modernGo);
   assert.equal(modernGo.invocation.modelInvocable, true);
   assert.equal(modernGo.invocation.userInvocable, true);
-  assert.equal(modernGo.resourceBase, undefined);
+  assert.equal(modernGo.provider, "mtm-coding-modern-go");
+  assert.equal(modernGo.source, "bundled");
+  assert.equal(modernGo.resourceBase.kind, "directory");
+  assert.match(modernGo.resourceBase.path, /src[/\\]skills[/\\]use-modern-go$/);
+  assert.match(modernGo.path, /src[/\\]skills[/\\]use-modern-go[/\\]SKILL\.md$/);
   assert.match(modernGo.content, /go run github\.com\/JetBrains\/go-modern-guidelines@v0\.1\.1/);
   assert.match(modernGo.content, /list --file-path/);
   assert.equal(fake.spawnSpecs.length, 0);
-  const autoSection = fake.sections.find((section) => section.name === "mtm-coding:rtk");
+  const autoSection = fake.sections.find((section) => section.name === "mtm-coding:rtk:status");
   assert.ok(autoSection);
   assert.match(autoSection.text({}), /guidance is active/);
+  assert.equal(fake.sections.find((section) => section.name === "mtm-coding:rtk:prompt")?.text, "RTK only concerns Bash shell commands. DSH read, grep, glob, PowerShell, and persistent terminal calls are not covered by this integration.\nRTK failures and unsupported commands pass through; RTK_DISABLED=1 disables one command.");
   assert.equal(fake.listeners.has("tools/pre-record-input"), false);
   assert.equal(fake.pluginCalls.filter((call) => call.config?.transport === "stdio").length, 0);
   await fake.trigger({ ...fake.getSettings(), codebaseMemoryEnabled: true });
   assert.equal(fake.pluginCalls.filter((call) => call.config?.transport === "stdio").length, 1);
+  await fake.trigger({ ...fake.getSettings(), modernGoEnabled: false });
+  assert.equal(fake.skillProviders.length, 2);
+  assert.equal((await fake.context.skills.list({})).some((skill) => skill.name === "use-modern-go"), false);
+  await fake.trigger({ ...fake.getSettings(), modernGoEnabled: true });
+  assert.equal(fake.skillProviders.length, 3);
+  await fake.trigger({ ...fake.getSettings(), rtkMode: "off" });
+  assert.equal(fake.skillProviders.length, 2);
+  assert.equal(fake.sections.some((section) => section.name === "mtm-coding:rtk:prompt"), false);
+  assert.equal((await fake.context.skills.list({})).some((skill) => skill.name === "rtk"), false);
+  await fake.trigger({ ...fake.getSettings(), rtkMode: "guidance" });
+  assert.equal(fake.skillProviders.length, 3);
+  assert.equal(fake.sections.some((section) => section.name === "mtm-coding:rtk:prompt"), true);
   const callsBeforeDispose = fake.pluginCalls.length;
   await fake.dispose();
+  assert.equal(fake.skillProviders.length, 0);
   await fake.trigger({ ...fake.getSettings(), codebaseMemoryEnabled: false, ponytailEnabled: false });
   assert.equal(fake.pluginCalls.length, callsBeforeDispose);
 });
@@ -329,44 +381,56 @@ test("unified settings reconcile coding features and unregister the watcher", as
 test("Modern Go can be disabled and uses the pinned Go module command", async () => {
   const disabled = createContext({ modernGoEnabled: false });
   await applyCoding(disabled.context, {});
-  assert.equal(disabled.skills.some((skill) => skill.name === "use-modern-go"), false);
+  assert.equal((await disabled.context.skills.list({})).some((skill) => skill.name === "use-modern-go"), false);
   await disabled.dispose();
+  assert.equal(disabled.skillProviders.length, 0);
 
   const enabled = createContext();
   await applyCoding(enabled.context, {});
-  const skill = enabled.skills.find((item) => item.name === "use-modern-go");
+  const skill = await enabled.context.skills.get("use-modern-go");
   assert.ok(skill);
-  assert.equal(skill.resourceBase, undefined);
+  assert.equal(skill.source, "bundled");
+  assert.equal(skill.resourceBase.kind, "directory");
   assert.match(skill.content, /go run github\.com\/JetBrains\/go-modern-guidelines@v0\.1\.1 list --file-path/);
   assert.equal(enabled.spawnSpecs.length, 0);
   await enabled.dispose();
+  assert.equal(enabled.skillProviders.length, 0);
 });
 
 test("RTK stays honest when the DSH pre-record capability is absent", async () => {
   const fake = createContext();
   await applyRtk(fake.context, { mode: "rewrite" });
-  assert.equal(fake.skills.length, 1);
-  assert.equal(fake.skills[0].name, "rtk");
-  const section = fake.sections.find((item) => item.name === "mtm-coding:rtk");
+  const rtk = await fake.context.skills.get("rtk");
+  assert.ok(rtk);
+  assert.equal(rtk.provider, "mtm-coding-rtk");
+  assert.equal(rtk.source, "bundled");
+  assert.equal(rtk.resourceBase.kind, "directory");
+  const section = fake.sections.find((item) => item.name === "mtm-coding:rtk:status");
   assert.ok(section);
   assert.match(section.text({}), /unavailable/);
-  assert.match(section.text({}), /Bash/);
+  const manifestPrompt = fake.sections.find((item) => item.name === "mtm-coding:rtk:prompt");
+  assert.ok(manifestPrompt);
+  assert.match(manifestPrompt.text, /Bash/);
   const agent = { session: { header: {} }, inject(message) { fake.injected.push(message); } };
   onlyListener(fake.listeners, "agent/session-start")({ agent });
   assert.match(fake.injected[0].content[0].text, /unavailable/);
   const command = fake.commands.find((item) => item.name === "rtk");
-  assert.equal(command.handler({ rawInput: "", agent }).text.includes("unavailable"), true);
+  assert.equal((await command.handler({ rawInput: "", agent })).text.includes("unavailable"), true);
+  assert.equal((await command.handler({ rawInput: "skill", agent })).text, "Loaded rtk.");
+  assert.match(fake.injected.at(-1).content[0].text, /<skill_content name="rtk">/);
   await fake.dispose();
+  assert.equal(fake.skillProviders.length, 0);
 });
 
-test("Ponytail embeds all six skills and supports agent-scoped commands", async () => {
+test("Ponytail loads six file-backed skills and supports agent-scoped commands", async () => {
   const fake = createContext();
   await applyPonytail(fake.context, { mode: "full", applyToSubagents: true });
-  assert.deepEqual(Object.keys(PONYTAIL_SKILLS), [
-    "ponytail", "ponytail-review", "ponytail-audit", "ponytail-debt", "ponytail-gain", "ponytail-help",
+  const ponytailSkills = await fake.context.skills.list({});
+  assert.deepEqual(ponytailSkills.map((skill) => skill.name).sort(), [
+    "ponytail", "ponytail-audit", "ponytail-debt", "ponytail-gain", "ponytail-help", "ponytail-review",
   ]);
-  assert.equal(fake.skills.length, 6);
-  assert.ok(fake.skills.every((skill) => skill.provider === "mtm-coding" && skill.invocation.modelInvocable));
+  assert.equal(ponytailSkills.length, 6);
+  assert.ok(ponytailSkills.every((skill) => skill.provider === "mtm-coding-ponytail" && skill.source === "bundled" && skill.invocation.modelInvocable));
   const agent = { session: { header: { origin: "main" } }, inject(message) { fake.injected.push(message); } };
   const start = onlyListener(fake.listeners, "agent/session-start");
   start({ agent });
@@ -379,9 +443,10 @@ test("Ponytail embeds all six skills and supports agent-scoped commands", async 
   assert.match(section.text({ agent }), /PONYTAIL MODE ACTIVE - level: ultra/);
   const skillCommand = fake.commands.find((command) => command.name === "ponytail-review");
   assert.ok(skillCommand);
-  assert.equal(skillCommand.handler({ rawInput: "", agent }).text, "Loaded ponytail-review.");
+  assert.equal((await skillCommand.handler({ rawInput: "", agent })).text, "Loaded ponytail-review.");
   assert.match(fake.injected.at(-1).content[0].text, /<skill_content name="ponytail-review">/);
   await fake.dispose();
+  assert.equal(fake.skillProviders.length, 0);
 });
 
 test("Ponytail can be excluded from subagent system prompts", async () => {
@@ -390,4 +455,6 @@ test("Ponytail can be excluded from subagent system prompts", async () => {
   const subagent = { session: { header: { origin: "subagent" } }, inject() {} };
   const section = fake.sections[0];
   assert.equal(section.text({ agent: subagent }), "");
+  await fake.dispose();
+  assert.equal(fake.skillProviders.length, 0);
 });

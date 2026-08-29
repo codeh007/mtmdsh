@@ -1,4 +1,3 @@
-import { PONYTAIL_SKILLS } from "./ponytail-skills.js";
 import type { Context } from "@deepseek-ai/cordis";
 import type { Agent } from "@deepseek-ai/dsh-agent";
 import { createUserMessage } from "@deepseek-ai/dsh-llm";
@@ -6,39 +5,17 @@ import type { AssembleContext } from "@deepseek-ai/dsh-system-prompt";
 import { renderSkillContent } from "@deepseek-ai/dsh-skill";
 import type { SkillDefinition } from "@deepseek-ai/dsh-skill";
 import type { CommandResult } from "@deepseek-ai/dsh-commands";
+import { readSkillContent } from "../../skill-files.js";
+import { applyManifestPackage, MTM_CODING_PACKAGES } from "./manifest.js";
 import type { PonytailMode } from "./types.js";
 
 export const name = "mtm-coding-ponytail";
 export const inject = ["systemPrompt", "skills", "commands"];
 
-const SKILL_NAMES = [
-  "ponytail",
-  "ponytail-review",
-  "ponytail-audit",
-  "ponytail-debt",
-  "ponytail-gain",
-  "ponytail-help",
-] as const;
-
-type PonytailSkillName = keyof typeof PONYTAIL_SKILLS;
+const SKILL_NAMES = MTM_CODING_PACKAGES.ponytail.skillNames;
 
 const MODE_NAMES = new Set<PonytailMode>(["off", "lite", "full", "ultra"]);
 const pluginSource = { kind: "plugin" as const, plugin: name };
-
-interface LoadedSkill {
-  readonly name: PonytailSkillName;
-  readonly description: string;
-  readonly content: string;
-}
-
-function loadSkill(skillName: PonytailSkillName): LoadedSkill {
-  const skill = PONYTAIL_SKILLS[skillName];
-  return {
-    name: skillName,
-    description: skill.description,
-    content: skill.content,
-  };
-}
 
 function normalizeMode(value: unknown): PonytailMode {
   return typeof value === "string" && MODE_NAMES.has(value as PonytailMode)
@@ -68,6 +45,15 @@ function modeForAgent(states: WeakMap<Agent, PonytailMode>, agent: Agent | undef
   return agent === undefined ? fallback : states.get(agent) ?? fallback;
 }
 
+function coreSkillContent(ctx: Context): string | undefined {
+  try {
+    return readSkillContent("ponytail");
+  } catch (error) {
+    ctx.logger.warn("mtm-coding: Ponytail skill document unavailable: " + String(error));
+    return undefined;
+  }
+}
+
 function skillMessage(skill: SkillDefinition): ReturnType<typeof createUserMessage> {
   return createUserMessage({
     content: [{ type: "text", text: renderSkillContent(skill) }],
@@ -79,31 +65,16 @@ function result(text: string): CommandResult {
   return { kind: "success", text };
 }
 
-/** Mount Ponytail rules, embedded skills, and human commands. */
+/** Mount Ponytail rules, file-backed skills, and human commands. */
 export function apply(ctx: Context, config: {
   mode?: PonytailMode;
   applyToSubagents?: boolean;
 } = {}): void {
+  applyManifestPackage(ctx, MTM_CODING_PACKAGES.ponytail);
   const defaultMode = normalizeMode(config.mode);
   const applyToSubagents = config.applyToSubagents ?? true;
   const states = new WeakMap<Agent, PonytailMode>();
-  const skills = new Map<PonytailSkillName, SkillDefinition>();
 
-  for (const skillName of SKILL_NAMES) {
-    const loaded = loadSkill(skillName);
-    const definition: SkillDefinition = {
-      ...loaded,
-      source: "runtime",
-      provider: "mtm-coding",
-      invocation: { modelInvocable: true, userInvocable: true },
-      content: loaded.content,
-    };
-    skills.set(skillName, definition);
-    ctx.skills.register(definition);
-  }
-
-  const coreSkill = skills.get("ponytail");
-  if (coreSkill === undefined) throw new Error("mtm-coding: core ponytail skill is unavailable");
   ctx.systemPrompt.section({
     name: "mtm-coding:ponytail",
     order: 90,
@@ -111,7 +82,9 @@ export function apply(ctx: Context, config: {
       const agent = (assembly as AssembleContext & { agent?: Agent }).agent;
       if (!applyToSubagents && agent?.session.header.origin === "subagent") return "";
       const mode = modeForAgent(states, agent, defaultMode);
-      return mode === "off" ? "" : instructions(coreSkill, mode);
+      if (mode === "off") return "";
+      const content = coreSkillContent(ctx);
+      return content === undefined ? "" : instructions({ name: "ponytail", content }, mode);
     },
   });
 
@@ -139,11 +112,15 @@ export function apply(ctx: Context, config: {
     ctx.commands.register({
       name: skillName,
       description: "load the " + skillName + " Ponytail skill for this agent",
-      handler: (invocation): CommandResult => {
+      handler: async (invocation): Promise<CommandResult> => {
         if (!applyToSubagents && invocation.agent.session.header.origin === "subagent") {
           return result(skillName + " is disabled for subagents.");
         }
-        const skill = skills.get(skillName);
+        const skill = await ctx.skills.get(skillName, {
+          cwd: invocation.agent.session.header.cwd,
+          signal: invocation.signal,
+          scope: invocation.agent,
+        });
         if (skill === undefined) return { kind: "error", text: skillName + " is unavailable." };
         invocation.agent.inject(skillMessage(skill));
         return result("Loaded " + skillName + ".");
