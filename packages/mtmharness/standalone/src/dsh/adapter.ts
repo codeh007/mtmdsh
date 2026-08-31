@@ -9,6 +9,7 @@ export class DshApiError extends Error {
 
 export interface DshApiClientOptions {
   tokenProvider?: () => string | undefined | Promise<string | undefined>;
+  fetch?: typeof fetch;
   now?: () => number;
   onAuthFailure?: () => void;
 }
@@ -294,16 +295,25 @@ function parseEnvelope(value: unknown): unknown {
 export class DshApiClient implements DshClient {
   private readonly apiOrigin: string;
   private readonly tokenProvider: () => string | undefined | Promise<string | undefined>;
+  private readonly fetcher: typeof fetch;
   private readonly now: () => number;
   private readonly onAuthFailure: (() => void) | undefined;
   private sandboxScope: SandboxScope | undefined;
 
   constructor(apiOrigin: string, options: DshApiClientOptions | string = {}) {
     this.apiOrigin = new URL(apiOrigin).origin;
+    const defaultFetch =
+      typeof fetch === "function"
+        ? fetch.bind(globalThis)
+        : (() => {
+            throw new DshApiError("Fetch is unavailable", "dsh_network_unavailable");
+          }) as typeof fetch;
     if (typeof options === "string") {
       this.tokenProvider = () => options;
+      this.fetcher = defaultFetch;
     } else {
       this.tokenProvider = options.tokenProvider ?? (() => undefined);
+      this.fetcher = options.fetch ?? defaultFetch;
       this.now = options.now ?? (() => Date.now());
       this.onAuthFailure = options.onAuthFailure;
       return;
@@ -349,7 +359,7 @@ export class DshApiClient implements DshClient {
     const accessToken = await this.readAccessToken();
     let response: Response;
     try {
-      response = await fetch(new URL("/api/dsh/ws-ticket", this.apiOrigin), {
+      response = await this.fetcher(new URL("/api/dsh/ws-ticket", this.apiOrigin), {
         method: "POST",
         credentials: "omit",
         cache: "no-store",
@@ -388,7 +398,7 @@ export class DshApiClient implements DshClient {
     try {
       const target = new URL(`/api/dsh/${method}`, this.apiOrigin);
       if (this.sandboxScope !== undefined) target.searchParams.set("sandboxId", this.sandboxScope.sandboxId);
-      response = await fetch(target, {
+      response = await this.fetcher(target, {
         method: "POST",
         credentials: "omit",
         cache: "no-store",
