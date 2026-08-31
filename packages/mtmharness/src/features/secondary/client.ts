@@ -5,7 +5,7 @@
  * The artifact is fetched as bytes so the host can verify SHA-256 before importing
  * it as native ESM; the release must therefore publish a self-contained bundle.
  */
-import type { ClientContext } from "@deepseek-ai/dsh-client-runtime/client";
+import type { Context as ClientContext } from "@deepseek-ai/cordis";
 import { assertSecondaryManifest, MTM_CANVAS_EXTENSION, type MtmSecondaryExtensionManifest } from "./manifest.js";
 export { assertSecondaryManifest } from "./manifest.js";
 
