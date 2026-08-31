@@ -8,6 +8,7 @@ import {
   applyCodebaseMemory,
   applyPonytail,
   applyRtk,
+  MTM_CODING_PACKAGES,
   name,
 } from "../lib/index.js";
 
@@ -41,6 +42,11 @@ function writeSkill(root, name, description, body) {
   const directory = join(root, name);
   mkdirSync(directory, { recursive: true });
   writeFileSync(join(directory, "SKILL.md"), "---\nname: " + name + "\ndescription: " + description + "\n---\n\n" + body + "\n");
+}
+
+function manifestSkillNames() {
+  return Object.values(MTM_CODING_PACKAGES).flatMap((packageManifest) =>
+    packageManifest.skills?.files.map((file) => file.name) ?? []);
 }
 
 writeSkill(join(managedSkillsRoot, "modern-go"), "use-modern-go", "Modern Go test guidance.", "Run go run github.com/JetBrains/go-modern-guidelines@v0.1.1 list --file-path.");
@@ -401,6 +407,16 @@ test("unified settings reconcile coding features and unregister the watcher", as
   assert.equal(fake.skillProviders.length, 0);
   await fake.trigger({ ...fake.getSettings(), codebaseMemoryEnabled: false, ponytailEnabled: false });
   assert.equal(fake.pluginCalls.length, callsBeforeDispose);
+});
+
+test("coding features do not duplicate manifest skills as commands", async () => {
+  const fake = createContext();
+  await applyCoding(fake.context, {});
+  const commandNames = new Set(fake.commands.map((command) => command.name));
+  const skillCommandNames = manifestSkillNames().filter((name) => commandNames.has(name));
+  assert.deepEqual(skillCommandNames, ["ponytail"]);
+  await fake.dispose();
+  assert.equal(fake.skillProviders.length, 0);
 });
 
 test("Modern Go can be disabled and uses the pinned Go module command", async () => {
