@@ -124,6 +124,7 @@ describe("FullShellFrame", () => {
     for (const slot of FULL_SHELL_SLOTS) expect(container.querySelector('[data-slot="' + slot + '"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="shell-content"]')).not.toBeNull();
     expect(container.textContent).toContain("No sessions yet");
+    expect(container.textContent).toContain("Not connected");
 
     await act(async () => {
       root.unmount();

@@ -55,7 +55,7 @@ function AuthControlsView({ auth }: { auth: MtmHarnessAuthClient }): ReactElemen
       <div className="flex shrink-0 items-center gap-1" data-auth-status="authenticated">
         <span className="hidden items-center gap-1 text-muted-foreground text-xs sm:flex" title="Authenticated account">
           <UserRound className="size-3.5" aria-hidden="true" />
-          Connected
+          Signed in
         </span>
         <Button type="button" variant="ghost" size="icon-sm" aria-label="Switch account" title="Switch account" disabled={busy} onClick={() => void signIn(true)}>
           <RefreshCcw />

@@ -13,7 +13,9 @@ function statusLabel(snapshot: RuntimeSnapshot): string {
   if (snapshot.status === "streaming") return "Working";
   if (snapshot.status === "auth-required") return "Sign in required";
   if (snapshot.status === "error") return "Unavailable";
-  return "Ready";
+  if (snapshot.connectionStatus === "connected") return "Ready";
+  if (snapshot.connectionStatus === "connecting") return "Connecting";
+  return "Not connected";
 }
 
 function statusVariant(snapshot: RuntimeSnapshot): "default" | "secondary" | "destructive" | "outline" {

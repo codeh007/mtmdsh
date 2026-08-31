@@ -150,9 +150,9 @@ export async function createPkceChallenge(verifier: string): Promise<string> {
   return base64Url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))));
 }
 
-async function hashPartition(subject: string): Promise<string> {
+async function hashPartition(issuer: string, subject: string): Promise<string> {
   if (typeof crypto === "undefined" || !crypto.subtle) throw new OAuthError("Web Crypto is unavailable", "oauth_crypto_unavailable");
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(subject)));
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(issuer + "|" + subject)));
   return [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
@@ -361,7 +361,7 @@ export class OAuthClient implements MtmHarnessAuthClient {
       if (code === null || code.length === 0 || code.length > 4096 || !SAFE_VALUE.test(code)) throw new OAuthError("OAuth authorization code is invalid", "oauth_code_invalid");
       const tokenSet = await this.exchangeCode(code, transaction.verifier);
       const subject = await this.verifyIdToken(tokenSet.idToken, transaction.nonce);
-      const accountPartition = await hashPartition(subject);
+      const accountPartition = await hashPartition(this.config.issuer, subject);
       this.tokens = { ...tokenSet, accountPartition };
       this.sanitizeCallbackUrl();
       this.publish({ status: "authenticated", accountPartition, expiresAt: tokenSet.expiresAt, error: undefined });
