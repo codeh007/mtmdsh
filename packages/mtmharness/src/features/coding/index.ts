@@ -1,5 +1,5 @@
 import type { Context, Fiber } from "@deepseek-ai/cordis";
-import { settingsNamespace } from "@deepseek-ai/dsh-settings";
+import type {} from "@deepseek-ai/dsh-settings";
 import { apply as applyCodebaseMemory, type Config as CodebaseMemoryConfig } from "./codebase-memory.js";
 import { apply as applyPonytail } from "./ponytail.js";
 import { applyManifestPackage, MTM_CODING_PACKAGES } from "./manifest.js";
@@ -94,7 +94,7 @@ function rtkKey(settings: MtmCodingSettings): string {
 /** Mount the unified coding domains and expose one persisted settings namespace. */
 export async function apply(ctx: Context, rawConfig: MtmCodingConfig = {}): Promise<void> {
   const settings = ctx.settings.register(
-    settingsNamespace("mtm-coding"),
+    "mtm-coding",
     MtmCodingSettingsSchema,
     { base: rawConfig },
   );

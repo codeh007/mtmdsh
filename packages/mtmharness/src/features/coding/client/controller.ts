@@ -1,6 +1,6 @@
 import type { ClientConnectionRpc } from "@deepseek-ai/dsh-client-connection/client";
-import type { SettingsScope, SnapshotStore } from "@deepseek-ai/dsh-client-runtime/client";
-import { createSnapshotStore } from "@deepseek-ai/dsh-client-runtime/client";
+import { createSnapshotStore, type SnapshotStore } from "@deepseek-ai/dsh-client-store";
+import type { SettingsScope } from "@deepseek-ai/dsh-client-ui-settings/client";
 import { assertMtmUpdateResponse, MTM_UPDATE_CHANNEL, type MtmUpdateStatus } from "../../update/contract.js";
 import type { MtmCodingSettings, PonytailMode, RtkMode } from "../types.js";
 

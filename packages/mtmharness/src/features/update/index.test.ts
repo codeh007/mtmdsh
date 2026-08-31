@@ -111,9 +111,9 @@ describe("mtm-update contract", () => {
 });
 
 describe("mtm-update Host", () => {
-  it("registers a loopback-only channel and removes it on cleanup", async () => {
+  it("registers the update channel and removes it on cleanup", async () => {
     const profileDir = profile();
-    let registration: { channel: string; options: unknown } | undefined;
+    let registration: { channel: string } | undefined;
     let removed = false;
     const cleanups: Array<() => void | Promise<void>> = [];
     const fake = fakeContext(profileDir);
@@ -121,8 +121,8 @@ describe("mtm-update Host", () => {
       ...fake.ctx,
       connection: {
         rpc: {
-          handle(channel: string, _handler: unknown, options: unknown) {
-            registration = { channel, options };
+          handle(channel: string, _handler: unknown) {
+            registration = { channel };
             return async () => { removed = true; };
           },
         },
@@ -134,7 +134,7 @@ describe("mtm-update Host", () => {
       },
     };
     apply(ctx as never);
-    expect(registration).toEqual({ channel: MTM_UPDATE_CHANNEL, options: { authority: "loopback" } });
+    expect(registration).toEqual({ channel: MTM_UPDATE_CHANNEL });
     for (const cleanup of cleanups.reverse()) await cleanup();
     expect(removed).toBe(true);
   });

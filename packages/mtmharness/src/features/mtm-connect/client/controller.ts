@@ -1,5 +1,5 @@
-import type { SettingsScope, SnapshotStore } from "@deepseek-ai/dsh-client-runtime/client";
-import { createSnapshotStore } from "@deepseek-ai/dsh-client-runtime/client";
+import { createSnapshotStore, type SnapshotStore } from "@deepseek-ai/dsh-client-store";
+import type { SettingsScope } from "@deepseek-ai/dsh-client-ui-settings/client";
 import type { MtmSecondaryClientRuntime, MtmSecondarySnapshot } from "../../secondary/client.js";
 import type { MtmConnectSettings } from "../index.js";
 

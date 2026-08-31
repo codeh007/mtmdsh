@@ -226,7 +226,7 @@ export function createMtmUpdateRpcHandler(ctx: Context): (endpoint: string, payl
 export function apply(ctx: Context): void {
   const handler = createMtmUpdateRpcHandler(ctx);
   ctx.effect(() => {
-    const remove = ctx.connection.rpc.handle(MTM_UPDATE_CHANNEL, handler, { authority: "loopback" });
+    const remove = ctx.connection.rpc.handle(MTM_UPDATE_CHANNEL, handler);
     return async () => { await remove(); };
   }, "mtm-update: Host RPC");
 }
