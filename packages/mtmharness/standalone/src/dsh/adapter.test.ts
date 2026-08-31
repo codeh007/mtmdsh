@@ -15,9 +15,9 @@ describe("DshApiClient", () => {
       expect(request).toMatchObject({ type: "client-request", method: "session.list", payload: {} });
       return Response.json({ type: "server-response", result: { ok: true, value: { items: [{ sessionId: "session-1", updatedAt: 100, running: false, blank: false, cwd: "/workspace/project", projections: { asOfSeq: 4, values: { title: "Plan" } } }] } } });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("fetch", vi.fn(() => { throw new Error("ambient fetch must not be used"); }));
 
-    const result = await new DshApiClient("https://api.example.test/path", "test-token").listSessions();
+    const result = await new DshApiClient("https://api.example.test/path", { tokenProvider: () => "test-token", fetch: fetchMock }).listSessions();
 
     expect(result.items[0]).toMatchObject({ sessionId: "session-1", title: "Plan", cwd: "/workspace/project" });
     expect(fetchMock).toHaveBeenCalledOnce();
@@ -74,7 +74,7 @@ describe("DshApiClient", () => {
       expect(JSON.parse(String(init?.body))).toEqual({ sandboxId: "sbx_1", channel: "mux", sessionId: "session-1" });
       return Response.json({ ok: true, ticket: TICKET, expiresAt: Date.now() + 30_000, contractVersion: 1 });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("fetch", vi.fn(() => { throw new Error("ambient fetch must not be used"); }));
     const factory = vi.fn(async (url: URL, protocols: readonly string[]) => {
       expect(url.toString()).toBe("wss://api.example.test/api/dsh/events.mux");
       expect(url.search).toBe("");
@@ -82,7 +82,7 @@ describe("DshApiClient", () => {
       return {} as WebSocket;
     });
 
-    const socket = await new DshApiClient("https://api.example.test", "access-token").openSocket({ sandboxId: "sbx_1", channel: "mux", sessionId: "session-1" }, factory);
+    const socket = await new DshApiClient("https://api.example.test", { tokenProvider: () => "access-token", fetch: fetchMock }).openSocket({ sandboxId: "sbx_1", channel: "mux", sessionId: "session-1" }, factory);
     expect(socket).toBeDefined();
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(factory).toHaveBeenCalledOnce();
