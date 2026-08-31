@@ -5,7 +5,7 @@
 - **DSH Web plugin**: the package root and `./client` export use the official `dsh.client` lazy-CJS contract. One installation provides the settings-controlled MTM Connect secondary extension and the Codebase Memory/Modern Go/Ponytail/RTK coding features.
 - **Independent web client**: the package also publishes a BrowserHistory static app and a MemoryHistory script/embed entry. These artifacts own their React root, router, styles, and teardown and never load the local coding runtime.
 
-The DSH plugin is assembled from coding and secondary frontend domains under one Host/Client lifecycle. Codebase Memory keeps its `codebase_memory` server namespace and `mcp__codebase_memory__*` tool names; Ponytail manages six externally installed skills, including `/ponytail` and its companion commands. The `mtm-coding` settings namespace contains the runtime extension toggles.
+The DSH plugin is assembled from coding and secondary frontend domains under one Host/Client lifecycle. Codebase Memory keeps its `codebase_memory` server namespace and `mcp__codebase_memory__*` tool names; Ponytail exposes six externally installed skills through DSH's native skill surface. The `/ponytail` command controls per-agent intensity; the five companion names remain available as native skills and are not duplicated as host commands. The `mtm-coding` settings namespace contains the runtime extension toggles.
 
 Modern Go Guidelines is enabled by default as the externally installed `use-modern-go` skill. Its trusted manifest pins the JetBrains `v0.1.1` source and SHA-256; the first enable downloads it into `$DSH_HOME/mtmharness/skills/modern-go`, and `modernGoEnabled` removes the skill from the DSH catalog. Existing files are user-owned and are never overwritten automatically.
 

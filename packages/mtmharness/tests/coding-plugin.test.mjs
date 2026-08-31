@@ -443,7 +443,7 @@ test("RTK stays honest when the DSH pre-record capability is absent", async () =
   assert.equal(fake.skillProviders.length, 0);
 });
 
-test("Ponytail loads six externally managed skills and supports agent-scoped commands", async () => {
+test("Ponytail exposes skills without duplicating companion commands", async () => {
   const fake = createContext();
   await applyPonytail(fake.context, { mode: "full", applyToSubagents: true });
   const ponytailSkills = await fake.context.skills.list({});
@@ -451,8 +451,12 @@ test("Ponytail loads six externally managed skills and supports agent-scoped com
     "ponytail", "ponytail-audit", "ponytail-debt", "ponytail-gain", "ponytail-help", "ponytail-review",
   ]);
   assert.equal(ponytailSkills.length, 6);
-  assert.ok(ponytailSkills.every((skill) => skill.provider === "mtm-coding-ponytail" && skill.source === "custom" && skill.invocation.modelInvocable));
-  const agent = { session: { header: { origin: "main" } }, inject(message) { fake.injected.push(message); } };
+  assert.ok(ponytailSkills.every((skill) => skill.provider === "mtm-coding-ponytail" && skill.source === "custom" && skill.invocation.modelInvocable && skill.invocation.userInvocable));
+  const reviewSkill = await fake.context.skills.get("ponytail-review");
+  assert.ok(reviewSkill);
+  assert.match(reviewSkill.content, /Ponytail skill body/);
+  assert.deepEqual(fake.commands.map((command) => command.name), ["ponytail"]);
+  const agent = { session: { header: { origin: "main" } } };
   const start = onlyListener(fake.listeners, "agent/session-start");
   start({ agent });
   const section = fake.sections.find((item) => item.name === "mtm-coding:ponytail");
@@ -462,10 +466,6 @@ test("Ponytail loads six externally managed skills and supports agent-scoped com
   assert.ok(modeCommand);
   assert.equal(modeCommand.handler({ rawInput: "ultra", agent }).text, "Ponytail mode: ultra");
   assert.match(section.text({ agent }), /PONYTAIL MODE ACTIVE - level: ultra/);
-  const skillCommand = fake.commands.find((command) => command.name === "ponytail-review");
-  assert.ok(skillCommand);
-  assert.equal((await skillCommand.handler({ rawInput: "", agent })).text, "Loaded ponytail-review.");
-  assert.match(fake.injected.at(-1).content[0].text, /<skill_content name="ponytail-review">/);
   await fake.dispose();
   assert.equal(fake.skillProviders.length, 0);
 });
