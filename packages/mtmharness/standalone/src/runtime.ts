@@ -14,6 +14,7 @@ import {
 import { SandboxApiClient, type SandboxClient, type SandboxRecord, type SandboxStatus } from "@/sandbox/adapter";
 
 export type RuntimeStatus = "idle" | "loading" | "streaming" | "auth-required" | "error";
+export type RuntimeConnectionStatus = "disconnected" | "connecting" | "connected";
 export type RegistryStatus = "idle" | "loading" | "error";
 export type SandboxCatalogStatus = "idle" | "loading" | "error";
 export type RuntimeOperation = "refreshing" | "creating" | "selecting" | "renaming" | "forking" | "switching-sandbox" | "creating-sandbox" | "reconnecting";
@@ -27,6 +28,7 @@ export interface ChatMessage {
 
 export interface RuntimeSnapshot {
   status: RuntimeStatus;
+  connectionStatus: RuntimeConnectionStatus;
   messages: ChatMessage[];
   error?: string;
   registryStatus: RegistryStatus;
@@ -180,6 +182,7 @@ export class MtmHarnessRuntime {
   private readonly unsubscribeTokenSource: () => void;
   private snapshot: RuntimeSnapshot = {
     status: "idle",
+    connectionStatus: "disconnected",
     messages: [],
     registryStatus: "idle",
     sandboxCatalogStatus: "idle",
@@ -570,7 +573,7 @@ export class MtmHarnessRuntime {
     const version = ++this.selectionVersion;
     let nextSocket: WebSocket | undefined;
     this.sessionId = sessionId;
-    this.update({ selectedSessionId: sessionId, status: "loading", messages: [], error: undefined, operation: "selecting" });
+    this.update({ selectedSessionId: sessionId, status: "loading", connectionStatus: "disconnected", messages: [], error: undefined, operation: "selecting" });
     try {
       const history = await this.client.loadHistory({ sessionId, maxMessages: 50 });
       if (version !== this.selectionVersion || this.disposed) return;
@@ -600,6 +603,7 @@ export class MtmHarnessRuntime {
         messages: previousMessages,
         operation: undefined,
         error: normalized.message,
+        connectionStatus: previousSessionId !== undefined && this.socket?.readyState === WebSocket.OPEN ? "connected" : "disconnected",
       });
       throw normalized;
     }
@@ -608,6 +612,7 @@ export class MtmHarnessRuntime {
   private async openSocket(sessionId: string, version: number): Promise<WebSocket> {
     const scope = this.currentSandboxScope();
     if (scope === undefined) throw new MtmHarnessError("Sandbox scope is required", "sandbox_scope_required");
+    if (this.sessionId === sessionId && this.selectionVersion === version) this.update({ connectionStatus: "connecting" });
     let socket: WebSocket;
     try {
       const request: DshSocketRequest = { sandboxId: scope.sandboxId, channel: "mux", sessionId };
@@ -626,6 +631,7 @@ export class MtmHarnessRuntime {
         settled = true;
         this.pendingSockets.delete(socket);
         this.closeSocketInstance(socket);
+        if (this.sessionId === sessionId && this.selectionVersion === version) this.update({ connectionStatus: "disconnected" });
         reject(new MtmHarnessError(message, code));
       };
       socket.onopen = () => {
@@ -633,19 +639,28 @@ export class MtmHarnessRuntime {
         settled = true;
         this.pendingSockets.delete(socket);
         this.reconnectAttempt = 0;
+        if (this.sessionId === sessionId && this.selectionVersion === version) this.update({ connectionStatus: "connected" });
         resolve(socket);
       };
       socket.onmessage = (event) => this.handleSocketMessage(event.data, sessionId, version);
-      socket.onerror = () => { if (!settled) fail("Unable to connect to the conversation stream", "websocket_auth_failed"); };
+      socket.onerror = () => {
+        if (!settled) {
+          fail("Unable to connect to the conversation stream", "websocket_auth_failed");
+        } else if (this.sessionId === sessionId && this.selectionVersion === version && this.socket === socket) {
+          this.update({ connectionStatus: "disconnected" });
+        }
+      };
       socket.onclose = () => {
         this.pendingSockets.delete(socket);
         if (!settled) {
           settled = true;
+          if (this.sessionId === sessionId && this.selectionVersion === version) this.update({ connectionStatus: "disconnected" });
           reject(new MtmHarnessError("The conversation stream closed", "websocket_closed"));
           return;
         }
         if (!this.disposed && this.sessionId === sessionId && this.selectionVersion === version && this.socket === socket) {
           this.socket = undefined;
+          this.update({ connectionStatus: "disconnected" });
           this.scheduleReconnect(sessionId, version);
         }
       };
@@ -676,12 +691,14 @@ export class MtmHarnessRuntime {
     const nextPartition = snapshot.status === "authenticated" ? snapshot.accountPartition : undefined;
     const changedAccount = nextPartition !== undefined && this.activeAccountPartition !== undefined && nextPartition !== this.activeAccountPartition;
     const signedOut = snapshot.status === "signed-out";
-    if (signedOut || changedAccount) this.resetAccountState("auth-required");
+    const hasAccountState = this.activeAccountPartition !== undefined || this.sessionId !== undefined || this.snapshot.selectedSessionId !== undefined || this.snapshot.selectedSandboxId !== undefined || this.snapshot.messages.length > 0 || this.snapshot.sandboxes.length > 0 || this.snapshot.workspaces.length > 0 || this.snapshot.sessions.length > 0;
+    if ((signedOut || changedAccount) && hasAccountState) this.resetAccountState("auth-required");
     this.activeAccountPartition = nextPartition;
   }
 
   private resetAccountState(status: RuntimeStatus): void {
     const previousPartition = this.activeAccountPartition;
+    this.activeAccountPartition = undefined;
     this.selectionVersion += 1;
     this.sandboxGeneration += 1;
     this.cancelReconnect();
@@ -709,13 +726,14 @@ export class MtmHarnessRuntime {
       archivedSessionIds: [],
       sessions: [],
       selectedSessionId: undefined,
+      connectionStatus: "disconnected",
     });
   }
 
   private scheduleReconnect(sessionId: string, version: number): void {
     if (this.disposed || this.reconnectTimer !== undefined || !this.reconnectEnabled) return;
     if (this.reconnectAttempt >= 5) {
-      this.update({ status: "error", operation: undefined, error: "The conversation stream was disconnected" });
+      this.update({ status: "error", operation: undefined, connectionStatus: "disconnected", error: "The conversation stream was disconnected" });
       return;
     }
     const delay = Math.min(250 * 2 ** this.reconnectAttempt, 5_000);
@@ -741,10 +759,11 @@ export class MtmHarnessRuntime {
     } catch (error) {
       const normalized = normalizeError(error);
       if (isAuthError(normalized)) {
+        this.resetAccountState("auth-required");
         this.tokenSource?.clear();
         return;
       }
-      this.update({ status: "error", operation: undefined, error: normalized.message });
+      this.update({ status: "error", operation: undefined, connectionStatus: "disconnected", error: normalized.message });
       this.scheduleReconnect(sessionId, version);
     }
   }
@@ -793,6 +812,7 @@ export class MtmHarnessRuntime {
     this.cancelReconnect();
     const socket = this.socket;
     this.socket = undefined;
+    if (this.snapshot.connectionStatus !== "disconnected") this.update({ connectionStatus: "disconnected" });
     if (socket) this.closeSocketInstance(socket);
   }
 

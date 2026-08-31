@@ -10,6 +10,7 @@ import { ConversationSurface } from "./conversation-surface";
 
 const snapshot: RuntimeSnapshot = {
   status: "auth-required",
+  connectionStatus: "disconnected",
   messages: [],
   registryStatus: "idle",
   sandboxCatalogStatus: "idle",

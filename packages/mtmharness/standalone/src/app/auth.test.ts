@@ -77,6 +77,11 @@ function createAuth(fetcher: typeof fetch): OAuthClient {
   return new OAuthClient(config, { fetch: fetcher, storage: sessionStorage, location: window.location, history: window.history, now: () => now });
 }
 
+async function authPartition(otherIssuer: string, subject: string): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(otherIssuer + "|" + subject)));
+  return [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 function transaction(): { state: string; verifier: string; nonce: string } {
   const raw = sessionStorage.getItem(oauthTransactionStorageKey(config));
   if (raw === null) throw new Error("transaction missing");
@@ -213,6 +218,7 @@ describe("OAuthClient", () => {
     await expect(auth.consumeCallback("http://localhost/callback?code=one-time-code&state=" + encodeURIComponent(state))).resolves.toBe(true);
     await expect(auth.getAccessToken()).resolves.toBe("access-1");
     expect(auth.getSnapshot()).toMatchObject({ status: "authenticated", accountPartition: expect.stringMatching(/^[0-9a-f]{64}$/u) });
+    expect(auth.getSnapshot().accountPartition).not.toBe(await authPartition("other-issuer", "user-1"));
     expect(sessionStorage.getItem(oauthTransactionStorageKey(config))).toBeNull();
     expect(window.location.pathname).toBe("/callback");
     auth.dispose();

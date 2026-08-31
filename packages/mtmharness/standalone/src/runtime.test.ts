@@ -7,6 +7,7 @@ import { MtmHarnessRuntime } from "./runtime";
 class TestWebSocket {
   static readonly OPEN = 1;
   static readonly CLOSING = 2;
+  static autoOpen = true;
   static last: TestWebSocket | undefined;
   static instances: TestWebSocket[] = [];
   readyState = 0;
@@ -18,10 +19,12 @@ class TestWebSocket {
   constructor(readonly url: URL, readonly protocols: readonly string[] = []) {
     TestWebSocket.last = this;
     TestWebSocket.instances.push(this);
-    setTimeout(() => {
-      this.readyState = TestWebSocket.OPEN;
-      this.onopen?.();
-    }, 0);
+    if (TestWebSocket.autoOpen) setTimeout(() => this.open(), 0);
+  }
+
+  open(): void {
+    this.readyState = TestWebSocket.OPEN;
+    this.onopen?.();
   }
 
   emit(data: unknown): void {
@@ -126,6 +129,7 @@ function createClient() {
 
 beforeEach(() => {
   vi.stubGlobal("WebSocket", TestWebSocket);
+  TestWebSocket.autoOpen = true;
   TestWebSocket.last = undefined;
   TestWebSocket.instances = [];
   sessionStorage.clear();
@@ -137,6 +141,39 @@ afterEach(() => {
 });
 
 describe("MtmHarnessRuntime registry", () => {
+  it("stays disconnected when the ticket request fails", async () => {
+    const base = createClient();
+    const client: DshClient = {
+      ...base.client,
+      openSocket: async () => { throw new DshApiError("Ticket request failed", "ticket_unauthorized", undefined, 401); },
+    };
+    const runtime = new MtmHarnessRuntime("https://api.example.test", createRuntimeOptions(client, base.sandboxClient));
+
+    await runtime.refreshRegistry();
+    await expect(runtime.selectSession("session-1")).rejects.toMatchObject({ code: "ticket_unauthorized" });
+    expect(runtime.getSnapshot().connectionStatus).toBe("disconnected");
+    runtime.dispose();
+  });
+
+  it("starts disconnected and reports a connection only after the socket opens", async () => {
+    const { client, sandboxClient } = createClient();
+    const runtime = new MtmHarnessRuntime("https://api.example.test", createRuntimeOptions(client, sandboxClient));
+
+    expect(runtime.getSnapshot().connectionStatus).toBe("disconnected");
+    await runtime.refreshRegistry();
+    TestWebSocket.autoOpen = false;
+    const selection = runtime.selectSession("session-1");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(runtime.getSnapshot().connectionStatus).toBe("connecting");
+    TestWebSocket.last?.open();
+    await selection;
+    expect(runtime.getSnapshot().connectionStatus).toBe("connected");
+
+    TestWebSocket.last?.close();
+    expect(runtime.getSnapshot().connectionStatus).toBe("disconnected");
+    runtime.dispose();
+  });
+
   it("refreshes the registry, loads selected history, and keeps session actions in one snapshot", async () => {
     const { client, calls, scopes, sandboxClient } = createClient();
     const runtime = new MtmHarnessRuntime("https://api.example.test", createRuntimeOptions(client, sandboxClient));
@@ -333,6 +370,75 @@ describe("MtmHarnessRuntime registry", () => {
       expect(TestWebSocket.instances).toHaveLength(2);
       expect(TestWebSocket.instances[1]?.protocols).toEqual(["dsh.v1", "dsh-ticket.fixture"]);
       expect(runtime.getSnapshot().status).toBe("idle");
+      runtime.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reports auth-required when a reconnect ticket is rejected", async () => {
+    vi.useFakeTimers();
+    try {
+      const base = createClient();
+      let openCalls = 0;
+      const client: DshClient = {
+        ...base.client,
+        openSocket: async (input, factory) => {
+          openCalls += 1;
+          if (openCalls === 2) throw new DshApiError("Authentication is required", "auth_required");
+          return base.client.openSocket(input, factory);
+        },
+      };
+      const runtime = new MtmHarnessRuntime("https://api.example.test", {
+        client,
+        sandboxClient: base.sandboxClient,
+        webSocketFactory: (url: URL, protocols: readonly string[]) => new TestWebSocket(url, protocols) as unknown as WebSocket,
+      });
+      await runtime.refreshRegistry();
+      const selecting = runtime.selectSession("session-1");
+      await vi.runAllTimersAsync();
+      await selecting;
+
+      TestWebSocket.last?.close();
+      await vi.advanceTimersByTimeAsync(250);
+      await vi.runAllTimersAsync();
+
+      expect(openCalls).toBe(2);
+      expect(runtime.getSnapshot()).toMatchObject({ status: "auth-required", connectionStatus: "disconnected", selectedSessionId: undefined });
+      runtime.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ends reconnect attempts as disconnected after ticket failures", async () => {
+    vi.useFakeTimers();
+    try {
+      const base = createClient();
+      let openCalls = 0;
+      const client: DshClient = {
+        ...base.client,
+        openSocket: async (input, factory) => {
+          openCalls += 1;
+          if (openCalls > 1) throw new DshApiError("Ticket is unavailable", "ticket_unavailable");
+          return base.client.openSocket(input, factory);
+        },
+      };
+      const runtime = new MtmHarnessRuntime("https://api.example.test", {
+        client,
+        sandboxClient: base.sandboxClient,
+        webSocketFactory: (url: URL, protocols: readonly string[]) => new TestWebSocket(url, protocols) as unknown as WebSocket,
+      });
+      await runtime.refreshRegistry();
+      const selecting = runtime.selectSession("session-1");
+      await vi.runAllTimersAsync();
+      await selecting;
+
+      TestWebSocket.last?.close();
+      await vi.runAllTimersAsync();
+
+      expect(openCalls).toBe(6);
+      expect(runtime.getSnapshot()).toMatchObject({ status: "error", operation: undefined, connectionStatus: "disconnected" });
       runtime.dispose();
     } finally {
       vi.useRealTimers();

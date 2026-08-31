@@ -52,7 +52,9 @@ function statusLabel(snapshot: RuntimeSnapshot): string {
   if (snapshot.operation === "forking") return "Forking";
   if (snapshot.status === "streaming") return "Working";
   if (snapshot.status === "error") return "Attention";
-  return "Connected";
+  if (snapshot.connectionStatus === "connected") return "Connected";
+  if (snapshot.connectionStatus === "connecting") return "Connecting";
+  return snapshot.selectedSessionId === undefined ? "Not connected" : "Disconnected";
 }
 
 function statusVariant(snapshot: RuntimeSnapshot): "default" | "secondary" | "destructive" | "outline" {
