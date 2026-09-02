@@ -39,7 +39,9 @@ const CodebaseMemoryFeature = {
 const ModernGoFeature = {
   name: "mtm-coding-modern-go",
   inject: ["skills"],
-  apply: (ctx: Context) => applyManifestPackage(ctx, MTM_CODING_PACKAGES.modernGo),
+  apply: async (ctx: Context): Promise<void> => {
+    await applyManifestPackage(ctx, MTM_CODING_PACKAGES.modernGo);
+  },
 };
 
 const PonytailFeature = {
@@ -115,50 +117,74 @@ export async function apply(ctx: Context, rawConfig: MtmCodingConfig = {}): Prom
     const nextPonytailKey = ponytailKey(next);
     const nextRtkKey = rtkKey(next);
 
-    if (nextCodebaseKey !== activeCodebaseKey) {
+    if (nextCodebaseKey !== activeCodebaseKey || (next.codebaseMemoryEnabled && codebaseMemoryFiber === undefined)) {
       await dispose(codebaseMemoryFiber);
       codebaseMemoryFiber = undefined;
       activeCodebaseKey = "";
       if (next.codebaseMemoryEnabled) {
-        codebaseMemoryFiber = await ctx.plugin(
-          CodebaseMemoryFeature,
-          codebaseMemoryConfig(next) as CodebaseMemoryConfig,
-        );
+        try {
+          codebaseMemoryFiber = await ctx.plugin(
+            CodebaseMemoryFeature,
+            codebaseMemoryConfig(next) as CodebaseMemoryConfig,
+          );
+          activeCodebaseKey = nextCodebaseKey;
+        } catch (error) {
+          ctx.logger.warn("mtm-coding: Codebase Memory is unavailable: " + String(error));
+        }
+      } else {
+        activeCodebaseKey = nextCodebaseKey;
       }
-      activeCodebaseKey = nextCodebaseKey;
     }
 
-    if (nextModernGoKey !== activeModernGoKey) {
+    if (nextModernGoKey !== activeModernGoKey || (next.modernGoEnabled && modernGoFiber === undefined)) {
       await dispose(modernGoFiber);
       modernGoFiber = undefined;
       activeModernGoKey = "";
       if (next.modernGoEnabled) {
-        modernGoFiber = await ctx.plugin(ModernGoFeature);
+        try {
+          modernGoFiber = await ctx.plugin(ModernGoFeature);
+          activeModernGoKey = nextModernGoKey;
+        } catch (error) {
+          ctx.logger.warn("mtm-coding: Modern Go is unavailable: " + String(error));
+        }
+      } else {
+        activeModernGoKey = nextModernGoKey;
       }
-      activeModernGoKey = nextModernGoKey;
     }
 
-    if (nextPonytailKey !== activePonytailKey) {
+    if (nextPonytailKey !== activePonytailKey || (next.ponytailEnabled && ponytailFiber === undefined)) {
       await dispose(ponytailFiber);
       ponytailFiber = undefined;
       activePonytailKey = "";
       if (next.ponytailEnabled) {
-        ponytailFiber = await ctx.plugin(PonytailFeature, {
-          mode: next.ponytailMode,
-          applyToSubagents: next.ponytailSubagents,
-        });
+        try {
+          ponytailFiber = await ctx.plugin(PonytailFeature, {
+            mode: next.ponytailMode,
+            applyToSubagents: next.ponytailSubagents,
+          });
+          activePonytailKey = nextPonytailKey;
+        } catch (error) {
+          ctx.logger.warn("mtm-coding: Ponytail is unavailable: " + String(error));
+        }
+      } else {
+        activePonytailKey = nextPonytailKey;
       }
-      activePonytailKey = nextPonytailKey;
     }
 
-    if (nextRtkKey !== activeRtkKey) {
+    if (nextRtkKey !== activeRtkKey || (next.rtkMode !== "off" && rtkFiber === undefined)) {
       await dispose(rtkFiber);
       rtkFiber = undefined;
       activeRtkKey = "";
       if (next.rtkMode !== "off" && typeof ctx.plugin === "function") {
-        rtkFiber = await ctx.plugin(RtkFeature, { mode: next.rtkMode });
+        try {
+          rtkFiber = await ctx.plugin(RtkFeature, { mode: next.rtkMode });
+          activeRtkKey = nextRtkKey;
+        } catch (error) {
+          ctx.logger.warn("mtm-coding: RTK is unavailable: " + String(error));
+        }
+      } else {
+        activeRtkKey = nextRtkKey;
       }
-      activeRtkKey = nextRtkKey;
     }
   };
 
@@ -174,19 +200,12 @@ export async function apply(ctx: Context, rawConfig: MtmCodingConfig = {}): Prom
     if (stopped) return;
     return queueReconcile();
   });
-  await queueReconcile();
 
   ctx.effect(() => async () => {
     stopped = true;
     stopWatching();
     await reconciling;
-    await dispose(rtkFiber);
-    await dispose(modernGoFiber);
-    await dispose(ponytailFiber);
-    await dispose(codebaseMemoryFiber);
-    rtkFiber = undefined;
-    modernGoFiber = undefined;
-    ponytailFiber = undefined;
-    codebaseMemoryFiber = undefined;
   }, "mtm-coding.lifecycle");
+
+  await queueReconcile();
 }

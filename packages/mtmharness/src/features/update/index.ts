@@ -199,9 +199,16 @@ async function update(ctx: Context, signal: AbortSignal, markRestartRequired: ()
 export const name = "mtm-update";
 export const inject = ["connection", "subprocess"];
 
-export function createMtmUpdateRpcHandler(ctx: Context): (endpoint: string, payload: unknown, signal: AbortSignal) => Promise<RpcResult<unknown>> {
+export type MtmUpdateRpcHandler = ((endpoint: string, payload: unknown, signal: AbortSignal) => Promise<RpcResult<unknown>>) & {
+  dispose(): Promise<void>;
+};
+
+export function createMtmUpdateRpcHandler(ctx: Context): MtmUpdateRpcHandler {
   let restartRequired = false;
   let tail: Promise<void> = Promise.resolve();
+  let disposed = false;
+  const owner = new AbortController();
+  const active = new Set<Promise<unknown>>();
 
   const enqueue = <T>(job: () => Promise<T>): Promise<T> => {
     const result = tail.then(job, job);
@@ -209,24 +216,47 @@ export function createMtmUpdateRpcHandler(ctx: Context): (endpoint: string, payl
     return result;
   };
 
-  return async (endpoint, payload, signal) => {
-    if (endpoint !== "request") return failure(new Error("mtm-update: unknown RPC endpoint"));
-    try {
-      const request = parseMtmUpdateRpcRequest((payload as { args?: unknown } | null)?.args);
-      const value = await enqueue(() => request.kind === "check"
-        ? check(ctx, signal)
-        : update(ctx, signal, () => { restartRequired = true; }));
-      return { ok: true, value: { ...value, restartRequired: value.restartRequired || restartRequired } };
-    } catch (error) {
-      return failure(error);
-    }
-  };
+  const handler = Object.assign(
+    async (endpoint: string, payload: unknown, signal: AbortSignal): Promise<RpcResult<unknown>> => {
+      if (owner.signal.aborted) return failure(new Error("mtm-update: operation cancelled"));
+      if (endpoint !== "request") return failure(new Error("mtm-update: unknown RPC endpoint"));
+      try {
+        const request = parseMtmUpdateRpcRequest((payload as { args?: unknown } | null)?.args);
+        const requestSignal = AbortSignal.any([owner.signal, signal]);
+        const pending = enqueue(() => request.kind === "check"
+          ? check(ctx, requestSignal)
+          : update(ctx, requestSignal, () => { restartRequired = true; }));
+        active.add(pending);
+        try {
+          const value = await pending;
+          return { ok: true, value: { ...value, restartRequired: value.restartRequired || restartRequired } };
+        } finally {
+          active.delete(pending);
+        }
+      } catch (error) {
+        return failure(error);
+      }
+    },
+    {
+      async dispose(): Promise<void> {
+        if (!disposed) {
+          disposed = true;
+          owner.abort(new Error("mtm-update disposed"));
+        }
+        await Promise.allSettled([...active]);
+      },
+    },
+  );
+  return handler;
 }
 
 export function apply(ctx: Context): void {
   const handler = createMtmUpdateRpcHandler(ctx);
   ctx.effect(() => {
     const remove = ctx.connection.rpc.handle(MTM_UPDATE_CHANNEL, handler);
-    return async () => { await remove(); };
+    return async () => {
+      await handler.dispose();
+      await remove();
+    };
   }, "mtm-update: Host RPC");
 }

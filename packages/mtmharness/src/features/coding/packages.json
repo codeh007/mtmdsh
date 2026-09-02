@@ -20,6 +20,21 @@
           "name": "use-modern-go",
           "path": "plugin/skills/use-modern-go/SKILL.md",
           "sha256": "333346bebb212d7acded062cdeb1f5a01e421ebdab976c4c4fcb02cca31508f7"
+        },
+        {
+          "name": "use-modern-go",
+          "path": "plugin/skills/use-modern-go/scripts/VERSION",
+          "sha256": "d0b4f9120ba026c00fa23cb84b4e1620a2e6436592e58155a5151653179572c0"
+        },
+        {
+          "name": "use-modern-go",
+          "path": "plugin/skills/use-modern-go/scripts/run-tool.ps1",
+          "sha256": "7bd7bd8c8394e9cdbd290251b143e54639e527d52a1099135f1ba91edb5a677b"
+        },
+        {
+          "name": "use-modern-go",
+          "path": "plugin/skills/use-modern-go/scripts/run-tool.sh",
+          "sha256": "a593b2484834fc7d068e7cbe1a09f92b149ed61b9a07556ea50790d95f50a25b"
         }
       ]
     }

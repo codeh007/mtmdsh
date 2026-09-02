@@ -5,7 +5,9 @@ import packageCatalog from "./packages.json" with { type: "json" };
 export type MtmCodingPackageKind = "data-only" | "runtime-backed";
 
 export interface MtmCodingSkillFile {
+  /** Owning skill name; resource entries may repeat this name. */
   readonly name: string;
+  /** Pinned repository path; the path below the owning skill is preserved locally. */
   readonly path: string;
   readonly sha256: string;
 }
@@ -45,6 +47,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+function skillRelativeParts(name: string, path: string): string[] | undefined {
+  const pathParts = path.split("/");
+  if (!pathParts.every((part) => PATH_PART.test(part) && part !== "." && part !== "..")) return undefined;
+  const skillIndex = pathParts.lastIndexOf(name);
+  if (skillIndex < 0 || skillIndex === pathParts.length - 1) return undefined;
+  const relative = pathParts.slice(skillIndex + 1);
+  return relative.every((part) => PATH_PART.test(part) && part !== "." && part !== "..") ? relative : undefined;
+}
+
 function assertSkillSource(value: unknown, label: string): asserts value is MtmCodingSkillSource {
   if (!isRecord(value) || typeof value.repository !== "string" || typeof value.revision !== "string" || !Array.isArray(value.files)) {
     throw new Error("mtm-coding: invalid skill source metadata for " + label);
@@ -60,15 +71,26 @@ function assertSkillSource(value: unknown, label: string): asserts value is MtmC
     throw new Error("mtm-coding: invalid pinned skill source for " + label);
   }
   const names = new Set<string>();
+  const documents = new Set<string>();
+  const localPaths = new Set<string>();
   for (const file of value.files) {
     if (!isRecord(file) || typeof file.name !== "string" || typeof file.path !== "string" || typeof file.sha256 !== "string") {
       throw new Error("mtm-coding: invalid skill file metadata for " + label);
     }
-    const pathParts = file.path.split("/");
-    if (!ID.test(file.name) || names.has(file.name) || !SHA256.test(file.sha256) || pathParts.at(-1) !== "SKILL.md" || pathParts.some((part) => !PATH_PART.test(part) || part === "." || part === "..")) {
+    const relative = skillRelativeParts(file.name, file.path);
+    const localPath = relative === undefined ? undefined : file.name + "/" + relative.join("/");
+    if (!ID.test(file.name) || !SHA256.test(file.sha256) || relative === undefined || localPath === undefined || localPaths.has(localPath)) {
       throw new Error("mtm-coding: invalid skill file metadata for " + label);
     }
     names.add(file.name);
+    localPaths.add(localPath);
+    if (relative.length === 1 && relative[0] === "SKILL.md") {
+      if (documents.has(file.name)) throw new Error("mtm-coding: duplicate skill document metadata for " + label);
+      documents.add(file.name);
+    }
+  }
+  for (const name of names) {
+    if (!documents.has(name)) throw new Error("mtm-coding: skill source has no SKILL.md for " + name);
   }
 }
 
@@ -95,14 +117,17 @@ assertCatalog(packageCatalog);
 export const MTM_CODING_PACKAGES: MtmCodingPackageCatalog = packageCatalog;
 
 /** Install and mount one package's external skills, then its static prompt. */
-export async function applyManifestPackage(ctx: Context, packageManifest: MtmCodingPackageManifest): Promise<boolean> {
+export async function applyManifestPackage(ctx: Context, packageManifest: MtmCodingPackageManifest): Promise<void> {
   if (packageManifest.skills !== undefined) {
+    const lifecycle = new AbortController();
+    ctx.effect(() => () => { lifecycle.abort(new Error("mtm-coding skill package disposed")); }, "mtm-coding:" + packageManifest.id + ":skill-install");
     try {
-      const root = await ensureSkillPackage(packageManifest as MtmCodingPackageManifest & { readonly skills: MtmCodingSkillSource });
+      const root = await ensureSkillPackage(packageManifest as MtmCodingPackageManifest & { readonly skills: MtmCodingSkillSource }, { signal: lifecycle.signal });
+      if (lifecycle.signal.aborted) throw lifecycle.signal.reason ?? new Error("mtm-coding skill package disposed");
       applyFileSkills(ctx, "mtm-coding-" + packageManifest.id, root);
     } catch (error) {
       ctx.logger.warn("mtm-coding: " + packageManifest.label + " skills are unavailable: " + String(error));
-      return false;
+      throw error;
     }
   }
   if (packageManifest.prompt !== undefined) {
@@ -112,5 +137,4 @@ export async function applyManifestPackage(ctx: Context, packageManifest: MtmCod
       text: packageManifest.prompt.text,
     });
   }
-  return true;
 }

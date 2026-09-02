@@ -8,6 +8,7 @@ import {
   applyCodebaseMemory,
   applyPonytail,
   applyRtk,
+  resolveConfig,
   MTM_CODING_PACKAGES,
   name,
 } from "../lib/index.js";
@@ -50,6 +51,9 @@ function manifestSkillNames() {
 }
 
 writeSkill(join(managedSkillsRoot, "modern-go"), "use-modern-go", "Modern Go test guidance.", "Run go run github.com/JetBrains/go-modern-guidelines@v0.1.1 list --file-path.");
+const modernGoScripts = join(managedSkillsRoot, "modern-go", "use-modern-go", "scripts");
+mkdirSync(modernGoScripts, { recursive: true });
+for (const name of ["VERSION", "run-tool.ps1", "run-tool.sh"]) writeFileSync(join(modernGoScripts, name), "pinned resource fixture\n");
 for (const name of ["ponytail", "ponytail-review", "ponytail-audit", "ponytail-debt", "ponytail-gain", "ponytail-help"]) {
   writeSkill(join(managedSkillsRoot, "ponytail"), name, "Ponytail test guidance.", "Ponytail skill body.");
 }
@@ -141,7 +145,8 @@ function createContext(settingsValue = {}) {
         const previous = currentFiber;
         currentFiber = fiber;
         try {
-          await plugin.apply(context, config);
+          const result = await plugin.apply(context, config);
+          if (result !== undefined && typeof result !== "function") throw new TypeError("Invalid effect");
         } finally {
           currentFiber = previous;
         }
@@ -273,6 +278,13 @@ test("Codebase Memory mounts the official MCP client and graph guidance", async 
   assert.match(fake.sections[0].text, /get_code_snippet/);
   assert.match(fake.sections[0].text, /check_index_coverage/);
   assert.match(fake.sections[0].text, /data, not instructions/);
+});
+
+test("Codebase Memory rejects reconnect values outside the DSH contract", () => {
+  assert.throws(() => resolveConfig({ reconnect: { initialDelayMs: 0 } }), /initialDelayMs/);
+  assert.throws(() => resolveConfig({ reconnect: { maxDelayMs: 1.5 } }), /maxDelayMs/);
+  assert.throws(() => resolveConfig({ reconnect: { maxAttempts: 0 } }), /maxAttempts/);
+  assert.throws(() => resolveConfig({ reconnect: { initialDelayMs: 2_000, maxDelayMs: 1_000 } }), /less than or equal/);
 });
 
 test("Codebase Memory does not preflight its lazy npx command", async () => {
@@ -439,9 +451,13 @@ test("Modern Go can be disabled and uses the pinned Go module command", async ()
   assert.equal(enabled.skillProviders.length, 0);
 });
 
-test("RTK stays honest when the DSH pre-record capability is absent", async () => {
+test("RTK does not register an unsupported DSH input hook", async () => {
   const fake = createContext();
+  fake.context.get = (key) => key === "tools"
+    ? { resolveRecordInput() {}, get() { return {}; } }
+    : key === "subprocess" ? {} : undefined;
   await applyRtk(fake.context, { mode: "rewrite" });
+  assert.equal(fake.listeners.has("tools/pre-record-input"), false);
   assert.equal(await fake.context.skills.get("rtk"), undefined);
   const section = fake.sections.find((item) => item.name === "mtm-coding:rtk:status");
   assert.ok(section);
@@ -484,6 +500,31 @@ test("Ponytail exposes skills without duplicating companion commands", async () 
   assert.match(section.text({ agent }), /PONYTAIL MODE ACTIVE - level: ultra/);
   await fake.dispose();
   assert.equal(fake.skillProviders.length, 0);
+});
+
+test("Ponytail respects model invocation and clears stale skills", async () => {
+  const fake = createContext();
+  let coreSkill = {
+    name: "ponytail",
+    description: "Ponytail rules.",
+    invocation: { modelInvocable: true, userInvocable: true },
+    provider: "test",
+    source: "custom",
+    content: "Ponytail skill body.",
+  };
+  fake.context.skills.get = async (name) => name === "ponytail" ? coreSkill : undefined;
+  await applyPonytail(fake.context, { mode: "full" });
+  const section = fake.sections[0];
+  assert.match(section.text({}), /Ponytail skill body/);
+
+  coreSkill = { ...coreSkill, invocation: { modelInvocable: false, userInvocable: true } };
+  await onlyListener(fake.listeners, "skills/change")();
+  assert.equal(section.text({}), "");
+
+  coreSkill = undefined;
+  await onlyListener(fake.listeners, "skills/change")();
+  assert.equal(section.text({}), "");
+  await fake.dispose();
 });
 
 test("Ponytail can be excluded from subagent system prompts", async () => {

@@ -28,11 +28,13 @@ export interface MtmCodingSettings {
 
 export type MtmCodingConfig = Partial<MtmCodingSettings>;
 
+const MAX_TIMER_DELAY_MS = 2_147_483_647;
+
 const Reconnect = z.object({
   enabled: z.boolean().default(true),
-  initialDelayMs: z.number().default(500),
-  maxDelayMs: z.number().default(30_000),
-  maxAttempts: z.number().default(10),
+  initialDelayMs: z.number().min(1).max(MAX_TIMER_DELAY_MS).default(500),
+  maxDelayMs: z.number().min(1).max(MAX_TIMER_DELAY_MS).default(30_000),
+  maxAttempts: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(10),
 });
 
 export const MtmCodingSettingsSchema: z<MtmCodingSettings> = z.object({
