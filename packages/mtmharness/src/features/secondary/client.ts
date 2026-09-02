@@ -199,6 +199,14 @@ export class MtmSecondaryClientRuntime {
       }
       return;
     }
+    if (this.root === undefined && this.cleanup !== undefined) {
+      try {
+        await this.unload();
+      } catch (error) {
+        this.publish({ desired: true, status: "failed", error: errorText(error) });
+        return;
+      }
+    }
     if (this.root !== undefined) return;
     try {
       await this.load();
@@ -287,15 +295,19 @@ export class MtmSecondaryClientRuntime {
   private async unload(): Promise<void> {
     const cleanup = this.cleanup;
     const root = this.root;
+    let cleaned = cleanup === undefined;
     try {
-      if (cleanup !== undefined) await cleanup();
+      if (cleanup !== undefined) {
+        await cleanup();
+        cleaned = true;
+      }
     } finally {
       root?.remove();
+      this.root = undefined;
       this.pendingShow = false;
       this.pendingFocusSelector = undefined;
+      if (cleaned) this.cleanup = undefined;
     }
-    this.cleanup = undefined;
-    this.root = undefined;
   }
 
   private publish(next: MtmSecondarySnapshot): void {

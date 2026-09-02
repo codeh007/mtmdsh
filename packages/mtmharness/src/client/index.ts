@@ -9,7 +9,7 @@ import { apply as applyMtmConnect } from "../features/mtm-connect/client/index.t
 import { apply as applySecondary } from "../features/secondary/client.ts";
 
 export { applyCoding };
-export const inject = ["slots", "locale", "settingsScope"];
+export const inject = ["slots", "locale", "settingsScope", "connection"];
 
 /** Register coding and secondary features under one plugin-owned lifecycle. */
 export function apply(ctx: ClientContext): void {

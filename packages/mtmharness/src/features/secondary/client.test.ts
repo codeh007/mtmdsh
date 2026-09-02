@@ -165,6 +165,9 @@ describe("secondary extension lifecycle", () => {
     await state.runtime.setEnabled(false);
     expect(state.runtime.getSnapshot()).toEqual({ desired: false, status: "disabled" });
     expect(state.cleanup).toHaveBeenCalledTimes(2);
+    await state.runtime.setEnabled(true);
+    expect(state.runtime.getSnapshot()).toEqual({ desired: true, status: "enabled" });
+    await state.runtime.dispose();
   });
 
   it("replays show requested while loading after mount", async () => {

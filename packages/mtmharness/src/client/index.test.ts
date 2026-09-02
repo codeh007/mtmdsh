@@ -1,3 +1,4 @@
+import { Context } from "@deepseek-ai/cordis";
 import { describe, expect, it } from "vitest";
 import { apply as applyHost } from "../index.ts";
 import { apply, inject } from "./index.ts";
@@ -144,7 +145,23 @@ describe("mtmharness Host half", () => {
 
 describe("mtmharness browser half", () => {
   it("declares the combined service dependencies", () => {
-    expect(inject).toEqual(["slots", "locale", "settingsScope"]);
+    expect(inject).toEqual(["slots", "locale", "settingsScope", "connection"]);
+  });
+
+  it("waits for connection before the direct client entry runs", async () => {
+    const root = new Context();
+    for (const service of ["slots", "locale", "settingsScope"]) root.provide(service, {});
+    let seen: unknown;
+    const consumer = {
+      inject,
+      apply(ctx: { get(name: string): unknown }) { seen = ctx.get("connection"); },
+    };
+    const provider = {
+      apply(ctx: { provide(name: string, value: unknown): void }) { ctx.provide("connection", {}); },
+    };
+    const [consumerFiber, providerFiber] = await Promise.all([root.plugin(consumer), root.plugin(provider)]);
+    expect(seen).toBeDefined();
+    await Promise.all([consumerFiber.dispose(), providerFiber.dispose()]);
   });
 
   it("only exposes update actions for loopback connections", () => {

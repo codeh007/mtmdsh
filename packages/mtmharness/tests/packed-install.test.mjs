@@ -128,11 +128,13 @@ test("packed mtmharness discovers skills from its editable DSH home", async () =
     mkdirSync(packRoot);
     mkdirSync(installRoot);
     const skillPath = join(dshHome, "mtmharness", "skills", "modern-go", "use-modern-go", "SKILL.md");
-    mkdirSync(join(skillPath, ".."), { recursive: true });
+    const skillDirectory = join(skillPath, "..");
+    mkdirSync(join(skillDirectory, "scripts"), { recursive: true });
     writeFileSync(skillPath, "---\nname: use-modern-go\ndescription: Modern Go guidance.\n---\n\ngo run github.com/JetBrains/go-modern-guidelines@v0.1.1 list --file-path\n");
+    for (const name of ["VERSION", "run-tool.ps1", "run-tool.sh"]) writeFileSync(join(skillDirectory, "scripts", name), "pinned resource fixture\n");
     process.env.DSH_HOME = dshHome;
 
-    execFileSync("npm", ["pack", "--pack-destination", packRoot], { cwd: packageRoot, stdio: "pipe" });
+    execFileSync("npm", ["pack", "--ignore-scripts", "--pack-destination", packRoot], { cwd: packageRoot, stdio: "pipe" });
     const archiveName = readdirSync(packRoot).find((name) => name.endsWith(".tgz"));
     assert.ok(archiveName);
     const archive = join(packRoot, archiveName);
@@ -147,7 +149,12 @@ test("packed mtmharness discovers skills from its editable DSH home", async () =
 
     const installedPackage = resolve(installRoot, "node_modules", "mtmharness");
     const installed = await import(pathToFileURL(join(installedPackage, "lib/index.js")).href);
-    assert.deepEqual(installed.MTM_CODING_PACKAGES.modernGo.skills.files.map((file) => file.name), ["use-modern-go"]);
+    assert.deepEqual(installed.MTM_CODING_PACKAGES.modernGo.skills.files.map((file) => file.path), [
+      "plugin/skills/use-modern-go/SKILL.md",
+      "plugin/skills/use-modern-go/scripts/VERSION",
+      "plugin/skills/use-modern-go/scripts/run-tool.ps1",
+      "plugin/skills/use-modern-go/scripts/run-tool.sh",
+    ]);
 
     const fake = createContext();
     await installed.applyCoding(fake.context, {

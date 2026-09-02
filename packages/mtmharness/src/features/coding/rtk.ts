@@ -1,62 +1,21 @@
 import type { Context } from "@deepseek-ai/cordis";
-import type { Agent } from "@deepseek-ai/dsh-agent";
 import { createUserMessage } from "@deepseek-ai/dsh-llm";
 import type { AssembleContext } from "@deepseek-ai/dsh-system-prompt";
 import type { CommandResult } from "@deepseek-ai/dsh-commands";
-import type {} from "@deepseek-ai/dsh-tools";
 import { applyManifestPackage, MTM_CODING_PACKAGES } from "./manifest.js";
-import { resolveWorkingDirectory } from "./runtime.js";
-import { bashInput, ensureRtk, rewriteRtk, shouldRewriteRtk } from "./rtk-runtime.js";
 import type { RtkMode } from "./types.js";
 
 export const name = "mtm-coding-rtk";
 export const inject = ["systemPrompt", "commands"];
 
-export type RtkStatus = "disabled" | "guidance" | "rewrite" | "unavailable";
-
-type RecordCandidate = {
-  readonly name: string;
-  readonly arguments: unknown;
-  readonly agent?: Agent;
-  readonly signal: AbortSignal;
-};
-
-type RecordDecision =
-  | { readonly kind: "unchanged" }
-  | { readonly kind: "rewrite"; readonly arguments: unknown };
-
-type RecordListener = (candidate: RecordCandidate, next: () => Promise<RecordDecision>) => Promise<RecordDecision>;
-type RtkContext = Context & {
-  readonly get?: (key: string) => unknown;
-  readonly tools?: { readonly resolveRecordInput?: unknown; readonly get?: (name: string, agent?: Agent) => unknown };
-  readonly subprocess?: unknown;
-};
+export type RtkStatus = "disabled" | "guidance" | "unavailable";
 
 const pluginSource = { kind: "plugin" as const, plugin: name };
 
-function service(ctx: Context, key: string): unknown {
-  const candidate = ctx as RtkContext;
-  return typeof candidate.get === "function" ? candidate.get(key) : candidate[key as "tools" | "subprocess"];
-}
-
-function hasPreRecordCapability(ctx: Context): boolean {
-  return typeof (service(ctx, "tools") as RtkContext["tools"] | undefined)?.resolveRecordInput === "function";
-}
-
-function hasSubprocessCapability(ctx: Context): boolean {
-  return service(ctx, "subprocess") !== undefined;
-}
-
-function hasBashTool(ctx: Context, agent?: Agent): boolean {
-  const tools = service(ctx, "tools") as RtkContext["tools"] | undefined;
-  return typeof tools?.get === "function" && tools.get("bash", agent) !== undefined;
-}
-
 function statusText(status: RtkStatus): string {
   switch (status) {
-    case "guidance": return "RTK guidance is active; explicit rtk-prefixed Bash commands are available.";
-    case "rewrite": return "RTK transparent rewrite is active for Bash tool calls; DSH policy still decides the effective call.";
-    case "unavailable": return "RTK transparent rewrite is unavailable in this DSH runtime; explicit rtk-prefixed Bash commands remain available.";
+    case "guidance": return "RTK guidance is active; use an explicitly invoked RTK command when the executable is available.";
+    case "unavailable": return "RTK transparent rewrite is unavailable in this DSH runtime; tool arguments remain unchanged.";
     case "disabled": return "RTK is disabled.";
   }
 }
@@ -79,16 +38,12 @@ function prompt(status: RtkStatus): string {
   ].join("\n");
 }
 
-/** Mount RTK guidance and, when supported, the pre-record rewrite listener. */
+/** Mount RTK guidance using the current DSH ToolRuntime contract. */
 export async function apply(ctx: Context, config: { mode?: RtkMode } = {}): Promise<void> {
   const requested = config.mode ?? "auto";
   if (requested === "off") return;
   await applyManifestPackage(ctx, MTM_CODING_PACKAGES.rtk);
-  const transparentCapability = hasPreRecordCapability(ctx) && hasSubprocessCapability(ctx);
-  const transparent = (requested === "auto" || requested === "rewrite") && transparentCapability;
-  const status: RtkStatus = requested === "rewrite"
-    ? (transparent ? "rewrite" : "unavailable")
-    : transparent ? "rewrite" : "guidance";
+  const status: RtkStatus = requested === "rewrite" ? "unavailable" : "guidance";
   ctx.systemPrompt.section({
     name: "mtm-coding:rtk:status",
     order: 109.1,
@@ -104,35 +59,5 @@ export async function apply(ctx: Context, config: { mode?: RtkMode } = {}): Prom
   });
   ctx.on("agent/session-start", ({ agent }) => {
     agent.inject(notice(status));
-  });
-  if (!transparent) return;
-
-  const resolveRuntime = (input: { cwd?: string; signal?: AbortSignal }): Promise<{ command: string; home: string; env: Record<string, string> }> =>
-    ensureRtk(ctx, { cwd: input.cwd, signal: input.signal });
-  const register = ctx.on as unknown as (event: string, listener: RecordListener) => unknown;
-  register("tools/pre-record-input", async (candidate, next) => {
-    const downstream = await next();
-    if (candidate.name !== "bash" || downstream.kind !== "unchanged") return downstream;
-    const input = bashInput(candidate.arguments);
-    if (input === undefined || !hasBashTool(ctx, candidate.agent) || !shouldRewriteRtk(input.command)) return downstream;
-    try {
-      const cwd = resolveWorkingDirectory(input.cwd, candidate.agent?.session.header.cwd);
-      const runtimeInfo = await resolveRuntime({ cwd, signal: candidate.signal });
-      const rewritten = await rewriteRtk(
-        ctx,
-        runtimeInfo.command,
-        input.command,
-        cwd,
-        runtimeInfo.env,
-        candidate.signal,
-      );
-      if (rewritten === undefined) return downstream;
-      return { kind: "rewrite", arguments: { ...(candidate.arguments as Record<string, unknown>), command: rewritten.command } };
-    } catch (error) {
-      candidate.signal.throwIfAborted();
-      // Availability is capability state; one failed rewrite remains fail-open and retryable.
-      ctx.logger.warn("mtm-coding RTK rewrite failed; original command retained: " + String(error));
-      return downstream;
-    }
   });
 }

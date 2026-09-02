@@ -33,6 +33,7 @@ interface FakeOptions {
   readonly updateVersion?: string;
   readonly updateDelayMs?: number;
   readonly missingPnpm?: boolean;
+  readonly onUpdateStart?: () => void;
 }
 
 function fakeContext(profileDir: string, options: FakeOptions = {}) {
@@ -52,7 +53,10 @@ function fakeContext(profileDir: string, options: FakeOptions = {}) {
       active += 1;
       maxActive = Math.max(maxActive, active);
       const isView = spec.argv.includes("view");
-      if (!isView) updateCount += 1;
+      if (!isView) {
+        updateCount += 1;
+        options.onUpdateStart?.();
+      }
       const output = isView ? options.latestOutput ?? "\"0.6.0\"\n" : "";
       const exitCode = isView ? options.latestExitCode ?? 0 : options.updateExitCode ?? 0;
       const delay = isView ? 0 : options.updateDelayMs ?? 0;
@@ -174,6 +178,20 @@ describe("mtm-update Host", () => {
     const failedUpdate = fakeContext(profile(), { updateExitCode: 1 });
     const failedResult = responseValue(await createMtmUpdateRpcHandler(failedUpdate.ctx as never)("request", { args: { kind: "update" } }, new AbortController().signal));
     expect(failedResult).toMatchObject({ status: "failed", currentVersion: "0.5.5", latestVersion: "0.6.0", restartRequired: false });
+  });
+
+  it("drains and cancels requests when the RPC owner is disposed", async () => {
+    const profileDir = profile();
+    let resolveUpdateStarted!: () => void;
+    const updateStarted = new Promise<void>((resolve) => { resolveUpdateStarted = resolve; });
+    const state = fakeContext(profileDir, { updateDelayMs: 20, onUpdateStart: resolveUpdateStarted });
+    const handler = createMtmUpdateRpcHandler(state.ctx as never);
+    const pending = handler("request", { args: { kind: "update" } }, new AbortController().signal);
+    await updateStarted;
+    expect(state.stats().updateCount).toBe(1);
+    await handler.dispose();
+    expect(responseValue(await pending)).toMatchObject({ status: "failed", error: "mtm-update: operation cancelled" });
+    expect(state.stats().updateCount).toBe(1);
   });
 
   it("rejects malformed installed manifests and serializes concurrent updates", async () => {

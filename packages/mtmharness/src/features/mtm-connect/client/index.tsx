@@ -24,6 +24,7 @@ export function apply(ctx: ClientContext): void {
   const settings = ctx.settingsScope.bind<MtmConnectSettings>({ namespace: SETTINGS_NAMESPACE });
   const runtime = new MtmSecondaryClientRuntime({ document: typeof document === "undefined" ? undefined : document }, MTM_CONNECT_EXTENSION);
   const controller = new MtmConnectCardController(settings, runtime);
+  ctx.effect(() => async () => { await controller.dispose(); }, "mtm-connect: client lifecycle");
   const t = ctx.locale.bind("mtm.connect");
   ctx.effect(() => ctx.locale.register("mtm.connect", { en, zh }), "mtm-connect: locale");
   ctx.slots.inject("settings.plugin.item", () => ctx.slots.register({
@@ -32,5 +33,4 @@ export function apply(ctx: ClientContext): void {
     locale: "mtm.connect",
     inject: () => controller.inject(),
   }, (props) => <MtmConnectCard {...props} t={t} />));
-  ctx.effect(() => async () => { await controller.dispose(); }, "mtm-connect: client lifecycle");
 }

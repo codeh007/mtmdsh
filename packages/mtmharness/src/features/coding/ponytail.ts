@@ -1,7 +1,7 @@
 import type { Context } from "@deepseek-ai/cordis";
 import type { Agent } from "@deepseek-ai/dsh-agent";
 import type { AssembleContext } from "@deepseek-ai/dsh-system-prompt";
-import type { SkillDefinition } from "@deepseek-ai/dsh-skill";
+import { isModelInvocable, type SkillDefinition } from "@deepseek-ai/dsh-skill";
 import type { CommandResult } from "@deepseek-ai/dsh-commands";
 import { applyManifestPackage, MTM_CODING_PACKAGES } from "./manifest.js";
 import type { PonytailMode } from "./types.js";
@@ -41,7 +41,8 @@ function modeForAgent(states: WeakMap<Agent, PonytailMode>, agent: Agent | undef
 
 async function loadCoreSkill(ctx: Context): Promise<SkillDefinition | undefined> {
   try {
-    return await ctx.skills.get("ponytail");
+    const skill = await ctx.skills.get("ponytail");
+    return skill !== undefined && isModelInvocable(skill) ? skill : undefined;
   } catch (error) {
     ctx.logger.warn("mtm-coding: Ponytail skill document unavailable: " + String(error));
     return undefined;
@@ -57,7 +58,7 @@ export async function apply(ctx: Context, config: {
   mode?: PonytailMode;
   applyToSubagents?: boolean;
 } = {}): Promise<void> {
-  if (!await applyManifestPackage(ctx, MTM_CODING_PACKAGES.ponytail)) return;
+  await applyManifestPackage(ctx, MTM_CODING_PACKAGES.ponytail);
   const defaultMode = normalizeMode(config.mode);
   const applyToSubagents = config.applyToSubagents ?? true;
   const states = new WeakMap<Agent, PonytailMode>();
@@ -68,8 +69,9 @@ export async function apply(ctx: Context, config: {
   ctx.on("skills/change", () => {
     refreshing = refreshing.then(async () => {
       const next = await loadCoreSkill(ctx);
-      if (active && next !== undefined) coreSkill = next;
+      if (active) coreSkill = next;
     });
+    return refreshing;
   });
   ctx.effect(() => async () => {
     active = false;

@@ -24,6 +24,7 @@ const DEFAULT_TOOL_TIMEOUT_MS = 60_000;
 const DEFAULT_HOOK_TIMEOUT_MS = 2_000;
 const MAX_HOOK_TIMEOUT_MS = 10_000;
 const MAX_TOOL_TIMEOUT_MS = 2_147_483_647;
+const MAX_TIMER_DELAY_MS = 2_147_483_647;
 
 export interface Config {
   serverName?: string;
@@ -42,9 +43,9 @@ export interface Config {
 
 const Reconnect = z.object({
   enabled: z.boolean().default(true),
-  initialDelayMs: z.number().default(500),
-  maxDelayMs: z.number().default(30_000),
-  maxAttempts: z.number().default(10),
+  initialDelayMs: z.number().min(1).max(MAX_TIMER_DELAY_MS).default(500),
+  maxDelayMs: z.number().min(1).max(MAX_TIMER_DELAY_MS).default(30_000),
+  maxAttempts: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(10),
 });
 
 export const Config: z<Config> = z.object({
@@ -92,6 +93,24 @@ export function resolveConfig(config: Config = {}): ResolvedConfig {
     || Object.entries(env).some(([key, value]) => key.length === 0 || typeof value !== "string")) {
     throw new Error("mtm-coding: env must be a string map");
   }
+  const reconnect = config.reconnect === undefined ? undefined : (() => {
+    const initialDelayMs = config.reconnect.initialDelayMs ?? 500;
+    const maxDelayMs = config.reconnect.maxDelayMs ?? 30_000;
+    const maxAttempts = config.reconnect.maxAttempts ?? 10;
+    if (!Number.isFinite(initialDelayMs) || initialDelayMs < 1 || initialDelayMs > MAX_TIMER_DELAY_MS) {
+      throw new Error("mtm-coding: reconnect.initialDelayMs must be a positive finite number no greater than " + MAX_TIMER_DELAY_MS);
+    }
+    if (!Number.isFinite(maxDelayMs) || maxDelayMs < 1 || maxDelayMs > MAX_TIMER_DELAY_MS) {
+      throw new Error("mtm-coding: reconnect.maxDelayMs must be a positive finite number no greater than " + MAX_TIMER_DELAY_MS);
+    }
+    if (initialDelayMs > maxDelayMs) {
+      throw new Error("mtm-coding: reconnect.initialDelayMs must be less than or equal to maxDelayMs");
+    }
+    if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > Number.MAX_SAFE_INTEGER) {
+      throw new Error("mtm-coding: reconnect.maxAttempts must be a positive integer");
+    }
+    return { ...config.reconnect, initialDelayMs, maxDelayMs, maxAttempts };
+  })();
   const timeout = (
     label: string,
     value: number | undefined,
@@ -120,7 +139,7 @@ export function resolveConfig(config: Config = {}): ResolvedConfig {
     ),
     augmentHooks: config.augmentHooks ?? true,
     failOnStartupError: config.failOnStartupError ?? false,
-    reconnect: config.reconnect,
+    reconnect,
   };
 }
 
@@ -276,17 +295,27 @@ export async function apply(ctx: Context, rawConfig: Config = {}): Promise<void>
   const lifecycleAbort = new AbortController();
   const lifecycleStates = new WeakMap<Agent, LifecycleState>();
   const pendingToolHooks = new Map<ToolExecutionToken, Promise<string | undefined>>();
-  ctx.effect(() => () => {
+  const pendingHookRuns = new Set<Promise<unknown>>();
+  const trackHook = <T>(promise: Promise<T>): Promise<T> => {
+    pendingHookRuns.add(promise);
+    void promise.finally(() => { pendingHookRuns.delete(promise); }).catch(() => {});
+    return promise;
+  };
+  const hookSignal = (signal?: AbortSignal): AbortSignal => signal === undefined
+    ? lifecycleAbort.signal
+    : AbortSignal.any([lifecycleAbort.signal, signal]);
+  ctx.effect(() => async () => {
     lifecycleAbort.abort(new Error("mtm-coding disposed"));
     pendingToolHooks.clear();
+    await Promise.allSettled([...pendingHookRuns]);
   }, "mtm-coding.lifecycle");
 
   const startHook = (event: HookEvent, signal?: AbortSignal): Promise<string | undefined> =>
-    runHookAugment(ctx, command, event.cwd, hookEnv, event.payload, config.hookTimeoutMs, signal)
+    trackHook(runHookAugment(ctx, command, event.cwd, hookEnv, event.payload, config.hookTimeoutMs, hookSignal(signal))
       .catch((error: unknown) => {
         ctx.logger.debug("mtm-coding hook augmentation skipped: " + String(error));
         return undefined;
-      });
+      }));
 
   ctx.on("agent/session-start", ({ agent }) => {
     if (!config.augmentHooks) return;
