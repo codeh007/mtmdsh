@@ -11,7 +11,6 @@ const FIELD_NAMES = [
   "codebaseMemoryEnabled",
   "dynamicCanvasEnabled",
   "codebaseMemoryAugmentHooks",
-  "modernGoEnabled",
   "ponytailEnabled",
   "ponytailMode",
   "ponytailSubagents",

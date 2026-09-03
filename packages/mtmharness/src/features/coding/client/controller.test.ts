@@ -5,7 +5,7 @@ import { MtmCodingCardController } from "./controller.ts";
 function settingsScope() {
   let snapshot = {
     status: "ready",
-    value: { codebaseMemoryEnabled: true, dynamicCanvasEnabled: false, codebaseMemoryAugmentHooks: true, modernGoEnabled: true, ponytailEnabled: true, ponytailMode: "full", ponytailSubagents: true, rtkMode: "auto" },
+    value: { codebaseMemoryEnabled: true, dynamicCanvasEnabled: false, codebaseMemoryAugmentHooks: true, ponytailEnabled: true, ponytailMode: "full", ponytailSubagents: true, rtkMode: "auto" },
     base: {},
     user: {},
     revision: 1,

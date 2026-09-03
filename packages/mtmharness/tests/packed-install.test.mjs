@@ -149,18 +149,19 @@ test("packed mtmharness discovers skills from its editable DSH home", async () =
 
     const installedPackage = resolve(installRoot, "node_modules", "mtmharness");
     const installed = await import(pathToFileURL(join(installedPackage, "lib/index.js")).href);
-    assert.deepEqual(installed.MTM_CODING_PACKAGES.modernGo.skills.files.map((file) => file.path), [
+    const modernGo = installed.MTM_CODING_PACKAGES.packages.find((item) => item.id === "modern-go");
+    assert.ok(modernGo);
+    assert.deepEqual(modernGo.skills.files.map((file) => file.path), [
       "plugin/skills/use-modern-go/SKILL.md",
       "plugin/skills/use-modern-go/scripts/VERSION",
       "plugin/skills/use-modern-go/scripts/run-tool.ps1",
       "plugin/skills/use-modern-go/scripts/run-tool.sh",
     ]);
-    assert.match(installed.MTM_CODING_PACKAGES.modernGo.prompt.text, /HOME=.*XDG_CACHE_HOME=.*GOPATH=.*GOMODCACHE=.*GOCACHE/s);
+    assert.match(modernGo.prompt.text, /HOME=.*XDG_CACHE_HOME=.*GOPATH=.*GOMODCACHE=.*GOCACHE/s);
 
     const fake = createContext();
     await installed.applyCoding(fake.context, {
       codebaseMemoryEnabled: false,
-      modernGoEnabled: true,
       ponytailEnabled: false,
       rtkMode: "off",
     });

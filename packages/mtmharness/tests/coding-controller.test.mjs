@@ -6,7 +6,6 @@ import { runInNewContext } from "node:vm";
 const base = {
   codebaseMemoryEnabled: true,
   codebaseMemoryAugmentHooks: true,
-  modernGoEnabled: true,
   ponytailEnabled: true,
   ponytailMode: "full",
   ponytailSubagents: true,

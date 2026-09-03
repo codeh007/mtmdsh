@@ -1,6 +1,6 @@
 import type { Context } from "@deepseek-ai/cordis";
 import { applyFileSkills, ensureSkillPackage } from "../../skill-files.js";
-import packageCatalog from "./packages.json" with { type: "json" };
+import packageCatalog from "./config.json" with { type: "json" };
 
 export type MtmCodingPackageKind = "data-only" | "runtime-backed";
 
@@ -32,10 +32,7 @@ export interface MtmCodingPackageManifest {
 }
 
 export interface MtmCodingPackageCatalog {
-  readonly codebaseMemory: MtmCodingPackageManifest;
-  readonly modernGo: MtmCodingPackageManifest & { readonly skills: MtmCodingSkillSource };
-  readonly ponytail: MtmCodingPackageManifest & { readonly skills: MtmCodingSkillSource };
-  readonly rtk: MtmCodingPackageManifest;
+  readonly packages: readonly MtmCodingPackageManifest[];
 }
 
 const ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
@@ -105,16 +102,37 @@ function assertManifest(value: unknown, label: string): asserts value is MtmCodi
 }
 
 function assertCatalog(value: unknown): asserts value is MtmCodingPackageCatalog {
-  if (!isRecord(value)) throw new Error("mtm-coding: package catalog is invalid");
-  for (const key of ["codebaseMemory", "modernGo", "ponytail", "rtk"]) assertManifest(value[key], key);
-  const catalog = value as unknown as MtmCodingPackageCatalog;
-  if (catalog.modernGo.skills === undefined || catalog.ponytail.skills === undefined) throw new Error("mtm-coding: package catalog skill metadata is incomplete");
+  if (!isRecord(value) || !Array.isArray(value.packages) || value.packages.length === 0) throw new Error("mtm-coding: package catalog is invalid");
+  const ids = new Set<string>();
+  for (const packageManifest of value.packages) {
+    assertManifest(packageManifest, "package");
+    if (ids.has(packageManifest.id)) throw new Error("mtm-coding: duplicate package id " + packageManifest.id);
+    ids.add(packageManifest.id);
+  }
 }
 
 assertCatalog(packageCatalog);
 
 /** Trusted release metadata; mutable enabled state remains in mtm-coding settings. */
 export const MTM_CODING_PACKAGES: MtmCodingPackageCatalog = packageCatalog;
+
+export function codingPackage(id: string): MtmCodingPackageManifest {
+  const packageManifest = MTM_CODING_PACKAGES.packages.find((item) => item.id === id);
+  if (packageManifest === undefined) throw new Error("mtm-coding: package is not configured: " + id);
+  return packageManifest;
+}
+
+/** Install every configured data-only package with one shared lifecycle. */
+export async function applyDataOnlyPackages(ctx: Context): Promise<void> {
+  for (const packageManifest of MTM_CODING_PACKAGES.packages) {
+    if (packageManifest.kind !== "data-only") continue;
+    try {
+      await applyManifestPackage(ctx, packageManifest);
+    } catch {
+      // The package-specific warning is emitted by applyManifestPackage; other packages remain usable.
+    }
+  }
+}
 
 /** Install and mount one package's external skills, then its static prompt. */
 export async function applyManifestPackage(ctx: Context, packageManifest: MtmCodingPackageManifest): Promise<void> {

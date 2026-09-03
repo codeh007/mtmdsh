@@ -8,7 +8,6 @@ export interface MtmCodingSettings {
   codebaseMemoryEnabled: boolean;
   dynamicCanvasEnabled: boolean;
   codebaseMemoryAugmentHooks: boolean;
-  modernGoEnabled: boolean;
   ponytailEnabled: boolean;
   ponytailMode: PonytailMode;
   ponytailSubagents: boolean;
@@ -41,7 +40,6 @@ export const MtmCodingSettingsSchema: z<MtmCodingSettings> = z.object({
   codebaseMemoryEnabled: z.boolean().default(true),
   dynamicCanvasEnabled: z.boolean().default(false),
   codebaseMemoryAugmentHooks: z.boolean().default(true),
-  modernGoEnabled: z.boolean().default(true),
   ponytailEnabled: z.boolean().default(true),
   ponytailMode: z.union(["off", "lite", "full", "ultra"] as const).default("full"),
   ponytailSubagents: z.boolean().default(true),

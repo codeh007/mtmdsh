@@ -3,7 +3,7 @@ import type { Agent } from "@deepseek-ai/dsh-agent";
 import type { AssembleContext } from "@deepseek-ai/dsh-system-prompt";
 import { isModelInvocable, type SkillDefinition } from "@deepseek-ai/dsh-skill";
 import type { CommandResult } from "@deepseek-ai/dsh-commands";
-import { applyManifestPackage, MTM_CODING_PACKAGES } from "./manifest.js";
+import { applyManifestPackage, codingPackage } from "./manifest.js";
 import type { PonytailMode } from "./types.js";
 
 export const name = "mtm-coding-ponytail";
@@ -58,7 +58,7 @@ export async function apply(ctx: Context, config: {
   mode?: PonytailMode;
   applyToSubagents?: boolean;
 } = {}): Promise<void> {
-  await applyManifestPackage(ctx, MTM_CODING_PACKAGES.ponytail);
+  await applyManifestPackage(ctx, codingPackage("ponytail"));
   const defaultMode = normalizeMode(config.mode);
   const applyToSubagents = config.applyToSubagents ?? true;
   const states = new WeakMap<Agent, PonytailMode>();
