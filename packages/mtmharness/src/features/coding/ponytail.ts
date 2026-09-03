@@ -100,7 +100,10 @@ export async function apply(ctx: Context, config: {
     input: { hint: "[lite|full|ultra|off]" },
     handler: (invocation): CommandResult => {
       const raw = invocation.rawInput.trim();
-      if (raw === "") return result("Ponytail mode: " + modeForAgent(states, invocation.agent, defaultMode));
+      if (raw === "") {
+        states.set(invocation.agent, "full");
+        return result("Ponytail mode: full");
+      }
       if (!MODE_NAMES.has(raw as PonytailMode)) {
         return { kind: "error", text: "Use /ponytail lite, /ponytail full, /ponytail ultra, or /ponytail off." };
       }

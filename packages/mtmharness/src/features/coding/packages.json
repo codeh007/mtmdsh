@@ -12,6 +12,10 @@
     "description": "Version-specific guidance for modern Go code.",
     "icon": "code",
     "kind": "data-only",
+    "prompt": {
+      "order": 89,
+      "text": "Modern Go cache policy for DSH workspace-write shells: /home/code may be read-only. Before invoking the pinned wrapper, keep every write inside the current workspace. Linux/macOS: `cache=\"$PWD/.mtmharness-cache\"; mkdir -p \"$cache\"; env HOME=\"$cache/home\" XDG_CACHE_HOME=\"$cache/cache\" GOPATH=\"$cache/gopath\" GOMODCACHE=\"$cache/gopath/pkg/mod\" GOCACHE=\"$cache/go-build\" GOTOOLCHAIN=local sh \"<skill-dir>/scripts/run-tool.sh\" ...`. PowerShell: `$cache = Join-Path (Get-Location) \".mtmharness-cache\"; New-Item -ItemType Directory -Force $cache | Out-Null; $env:HOME = Join-Path $cache \"home\"; $env:XDG_CACHE_HOME = Join-Path $cache \"cache\"; $env:GOPATH = Join-Path $cache \"gopath\"; $env:GOMODCACHE = Join-Path $env:GOPATH \"pkg/mod\"; $env:GOCACHE = Join-Path $cache \"go-build\"; $env:LOCALAPPDATA = Join-Path $cache \"localappdata\"; $env:GOTOOLCHAIN = \"local\"; & \"<skill-dir>\\scripts\\run-tool.ps1\" ...`. Do not use the default HOME or request elevated sandbox access just for Go caches."
+    },
     "skills": {
       "repository": "https://github.com/JetBrains/go-modern-guidelines",
       "revision": "937827b86eeff98f45150ce00236bc34a30ed20f",

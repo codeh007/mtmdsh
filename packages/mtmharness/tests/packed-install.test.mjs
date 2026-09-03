@@ -155,6 +155,7 @@ test("packed mtmharness discovers skills from its editable DSH home", async () =
       "plugin/skills/use-modern-go/scripts/run-tool.ps1",
       "plugin/skills/use-modern-go/scripts/run-tool.sh",
     ]);
+    assert.match(installed.MTM_CODING_PACKAGES.modernGo.prompt.text, /HOME=.*XDG_CACHE_HOME=.*GOPATH=.*GOMODCACHE=.*GOCACHE/s);
 
     const fake = createContext();
     await installed.applyCoding(fake.context, {
