@@ -15,7 +15,7 @@
       "kind": "data-only",
       "prompt": {
         "order": 89,
-        "text": "Modern Go cache policy for DSH workspace-write shells: /home/code may be read-only. Before invoking the pinned wrapper, keep every write inside the current workspace. Linux/macOS: `cache=\"$PWD/.mtmharness-cache\"; mkdir -p \"$cache\"; env HOME=\"$cache/home\" XDG_CACHE_HOME=\"$cache/cache\" GOPATH=\"$cache/gopath\" GOMODCACHE=\"$cache/gopath/pkg/mod\" GOCACHE=\"$cache/go-build\" GOTOOLCHAIN=local sh \"<skill-dir>/scripts/run-tool.sh\" ...`. PowerShell: `$cache = Join-Path (Get-Location) \".mtmharness-cache\"; New-Item -ItemType Directory -Force $cache | Out-Null; $env:HOME = Join-Path $cache \"home\"; $env:XDG_CACHE_HOME = Join-Path $cache \"cache\"; $env:GOPATH = Join-Path $cache \"gopath\"; $env:GOMODCACHE = Join-Path $env:GOPATH \"pkg/mod\"; $env:GOCACHE = Join-Path $cache \"go-build\"; $env:LOCALAPPDATA = Join-Path $cache \"localappdata\"; $env:GOTOOLCHAIN = \"local\"; & \"<skill-dir>\\scripts\\run-tool.ps1\" ...`. Do not use the default HOME or request elevated sandbox access just for Go caches."
+        "text": "Use the upstream Modern Go Guidelines wrapper with its standard Go installation and user cache behavior. It installs the pinned CLI on first use with go install and does not modify the project. Do not create a project-local .mtmharness-cache or override HOME, XDG_CACHE_HOME, GOPATH, GOMODCACHE, GOCACHE, LOCALAPPDATA, or GOTOOLCHAIN to work around the active DSH file policy; if the selected sandbox denies the standard cache write, report the error."
       },
       "skills": {
         "repository": "https://github.com/JetBrains/go-modern-guidelines",
