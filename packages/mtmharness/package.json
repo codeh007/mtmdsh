@@ -1,6 +1,6 @@
 {
   "name": "mtmharness",
-  "version": "0.9.4",
+  "version": "0.9.5",
   "description": "Unified DeepSeek Harness Web plugin with Connect, Codebase Memory, Modern Go, Ponytail, and independent static/embed clients.",
   "type": "module",
   "engines": { "node": ">=22.19.0", "pnpm": ">=11.7.0" },
