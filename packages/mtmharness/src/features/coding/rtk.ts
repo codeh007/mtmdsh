@@ -2,7 +2,7 @@ import type { Context } from "@deepseek-ai/cordis";
 import { createUserMessage } from "@deepseek-ai/dsh-llm";
 import type { AssembleContext } from "@deepseek-ai/dsh-system-prompt";
 import type { CommandResult } from "@deepseek-ai/dsh-commands";
-import { applyManifestPackage, MTM_CODING_PACKAGES } from "./manifest.js";
+import { applyManifestPackage, codingPackage } from "./manifest.js";
 import type { RtkMode } from "./types.js";
 
 export const name = "mtm-coding-rtk";
@@ -42,7 +42,7 @@ function prompt(status: RtkStatus): string {
 export async function apply(ctx: Context, config: { mode?: RtkMode } = {}): Promise<void> {
   const requested = config.mode ?? "auto";
   if (requested === "off") return;
-  await applyManifestPackage(ctx, MTM_CODING_PACKAGES.rtk);
+  await applyManifestPackage(ctx, codingPackage("rtk"));
   const status: RtkStatus = requested === "rewrite" ? "unavailable" : "guidance";
   ctx.systemPrompt.section({
     name: "mtm-coding:rtk:status",

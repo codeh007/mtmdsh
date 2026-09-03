@@ -2,7 +2,7 @@ import type { Context, Fiber } from "@deepseek-ai/cordis";
 import type {} from "@deepseek-ai/dsh-settings";
 import { apply as applyCodebaseMemory, type Config as CodebaseMemoryConfig } from "./codebase-memory.js";
 import { apply as applyPonytail } from "./ponytail.js";
-import { applyManifestPackage, MTM_CODING_PACKAGES } from "./manifest.js";
+import { applyDataOnlyPackages } from "./manifest.js";
 import { apply as applyRtk } from "./rtk.js";
 import {
   MtmCodingSettingsSchema,
@@ -13,7 +13,7 @@ import {
 
 export { buildMcpConfig, resolveConfig } from "./codebase-memory.js";
 export { MtmCodingSettingsSchema, codebaseMemoryConfig } from "./types.js";
-export { MTM_CODING_PACKAGES } from "./manifest.js";
+export { MTM_CODING_PACKAGES, codingPackage } from "./manifest.js";
 export type { MtmCodingPackageCatalog, MtmCodingPackageKind, MtmCodingPackageManifest, MtmCodingSkillSource } from "./manifest.js";
 export {
   extractHookContext,
@@ -36,12 +36,10 @@ const CodebaseMemoryFeature = {
   apply: applyCodebaseMemory,
 };
 
-const ModernGoFeature = {
-  name: "mtm-coding-modern-go",
-  inject: ["skills"],
-  apply: async (ctx: Context): Promise<void> => {
-    await applyManifestPackage(ctx, MTM_CODING_PACKAGES.modernGo);
-  },
+const DataOnlyFeature = {
+  name: "mtm-coding-data-only",
+  inject: ["skills", "systemPrompt"],
+  apply: applyDataOnlyPackages,
 };
 
 const PonytailFeature = {
@@ -81,12 +79,6 @@ function ponytailKey(settings: MtmCodingSettings): string {
   });
 }
 
-function modernGoKey(settings: MtmCodingSettings): string {
-  return jsonKey({
-    enabled: settings.modernGoEnabled,
-  });
-}
-
 function rtkKey(settings: MtmCodingSettings): string {
   return jsonKey({
     mode: settings.rtkMode,
@@ -101,11 +93,9 @@ export async function apply(ctx: Context, rawConfig: MtmCodingConfig = {}): Prom
     { base: rawConfig },
   );
   let codebaseMemoryFiber: MountedFiber | undefined;
-  let modernGoFiber: MountedFiber | undefined;
   let ponytailFiber: MountedFiber | undefined;
   let rtkFiber: MountedFiber | undefined;
   let activeCodebaseKey = "";
-  let activeModernGoKey = "";
   let activePonytailKey = "";
   let activeRtkKey = "";
   let reconciling = Promise.resolve();
@@ -113,7 +103,6 @@ export async function apply(ctx: Context, rawConfig: MtmCodingConfig = {}): Prom
 
   const reconcile = async (next: MtmCodingSettings): Promise<void> => {
     const nextCodebaseKey = codebaseKey(next);
-    const nextModernGoKey = modernGoKey(next);
     const nextPonytailKey = ponytailKey(next);
     const nextRtkKey = rtkKey(next);
 
@@ -133,22 +122,6 @@ export async function apply(ctx: Context, rawConfig: MtmCodingConfig = {}): Prom
         }
       } else {
         activeCodebaseKey = nextCodebaseKey;
-      }
-    }
-
-    if (nextModernGoKey !== activeModernGoKey || (next.modernGoEnabled && modernGoFiber === undefined)) {
-      await dispose(modernGoFiber);
-      modernGoFiber = undefined;
-      activeModernGoKey = "";
-      if (next.modernGoEnabled) {
-        try {
-          modernGoFiber = await ctx.plugin(ModernGoFeature);
-          activeModernGoKey = nextModernGoKey;
-        } catch (error) {
-          ctx.logger.warn("mtm-coding: Modern Go is unavailable: " + String(error));
-        }
-      } else {
-        activeModernGoKey = nextModernGoKey;
       }
     }
 
@@ -207,5 +180,6 @@ export async function apply(ctx: Context, rawConfig: MtmCodingConfig = {}): Prom
     await reconciling;
   }, "mtm-coding.lifecycle");
 
+  if (typeof ctx.plugin === "function") await ctx.plugin(DataOnlyFeature);
   await queueReconcile();
 }

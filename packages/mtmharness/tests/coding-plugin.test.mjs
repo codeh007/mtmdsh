@@ -16,7 +16,6 @@ import {
 const DEFAULT_SETTINGS = {
   codebaseMemoryEnabled: true,
   codebaseMemoryAugmentHooks: true,
-  modernGoEnabled: true,
   ponytailEnabled: true,
   ponytailMode: "full",
   ponytailSubagents: true,
@@ -46,7 +45,7 @@ function writeSkill(root, name, description, body) {
 }
 
 function manifestSkillNames() {
-  return Object.values(MTM_CODING_PACKAGES).flatMap((packageManifest) =>
+  return MTM_CODING_PACKAGES.packages.flatMap((packageManifest) =>
     packageManifest.skills?.files.map((file) => file.name) ?? []);
 }
 
@@ -291,7 +290,6 @@ test("Codebase Memory does not preflight its lazy npx command", async () => {
   const fake = createContext({
     codebaseMemoryEnabled: true,
     command: "",
-    modernGoEnabled: false,
     ponytailEnabled: false,
     rtkMode: "off",
   });
@@ -381,6 +379,7 @@ test("unified settings reconcile coding features and unregister the watcher", as
   assert.equal(name, "mtmharness");
   const listedSkills = await fake.context.skills.list({});
   assert.equal(listedSkills.length, 7);
+  assert.equal(MTM_CODING_PACKAGES.packages.filter((item) => item.kind === "data-only").length, 1);
   assert.equal(fake.skillProviders.length, 2);
   const modernGo = await fake.context.skills.get("use-modern-go");
   assert.ok(modernGo);
@@ -402,11 +401,6 @@ test("unified settings reconcile coding features and unregister the watcher", as
   assert.equal(fake.pluginCalls.filter((call) => call.config?.transport === "stdio").length, 0);
   await fake.trigger({ ...fake.getSettings(), codebaseMemoryEnabled: true });
   assert.equal(fake.pluginCalls.filter((call) => call.config?.transport === "stdio").length, 1);
-  await fake.trigger({ ...fake.getSettings(), modernGoEnabled: false });
-  assert.equal(fake.skillProviders.length, 1);
-  assert.equal((await fake.context.skills.list({})).some((skill) => skill.name === "use-modern-go"), false);
-  await fake.trigger({ ...fake.getSettings(), modernGoEnabled: true });
-  assert.equal(fake.skillProviders.length, 2);
   await fake.trigger({ ...fake.getSettings(), rtkMode: "off" });
   assert.equal(fake.skillProviders.length, 2);
   assert.equal(fake.sections.some((section) => section.name === "mtm-coding:rtk:prompt"), false);
@@ -431,13 +425,7 @@ test("coding features do not duplicate manifest skills as commands", async () =>
   assert.equal(fake.skillProviders.length, 0);
 });
 
-test("Modern Go can be disabled and uses the pinned Go module command", async () => {
-  const disabled = createContext({ modernGoEnabled: false });
-  await applyCoding(disabled.context, {});
-  assert.equal((await disabled.context.skills.list({})).some((skill) => skill.name === "use-modern-go"), false);
-  await disabled.dispose();
-  assert.equal(disabled.skillProviders.length, 0);
-
+test("data-only manifest packages mount without package-specific feature code", async () => {
   const enabled = createContext();
   await applyCoding(enabled.context, {});
   const skill = await enabled.context.skills.get("use-modern-go");
