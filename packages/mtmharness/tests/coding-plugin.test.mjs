@@ -496,6 +496,9 @@ test("Ponytail exposes skills without duplicating companion commands", async () 
   assert.match(section.text({ agent }), /PONYTAIL MODE ACTIVE - level: full/);
   const modeCommand = fake.commands.find((command) => command.name === "ponytail");
   assert.ok(modeCommand);
+  assert.equal(modeCommand.handler({ rawInput: "off", agent }).text, "Ponytail mode: off");
+  assert.equal(modeCommand.handler({ rawInput: "", agent }).text, "Ponytail mode: full");
+  assert.match(section.text({ agent }), /PONYTAIL MODE ACTIVE - level: full/);
   assert.equal(modeCommand.handler({ rawInput: "ultra", agent }).text, "Ponytail mode: ultra");
   assert.match(section.text({ agent }), /PONYTAIL MODE ACTIVE - level: ultra/);
   await fake.dispose();
