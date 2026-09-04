@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import test from "node:test";
 import {
   applyCoding,
@@ -55,6 +55,19 @@ mkdirSync(modernGoScripts, { recursive: true });
 for (const name of ["VERSION", "run-tool.ps1", "run-tool.sh"]) writeFileSync(join(modernGoScripts, name), "pinned resource fixture\n");
 for (const name of ["ponytail", "ponytail-review", "ponytail-audit", "ponytail-debt", "ponytail-gain", "ponytail-help"]) {
   writeSkill(join(managedSkillsRoot, "ponytail"), name, "Ponytail test guidance.", "Ponytail skill body.");
+}
+
+const cloudflarePackage = MTM_CODING_PACKAGES.packages.find((item) => item.id === "cloudflare");
+if (cloudflarePackage?.skills === undefined) throw new Error("Cloudflare test fixture metadata is unavailable");
+for (const file of cloudflarePackage.skills.files) {
+  const parts = file.path.split("/");
+  const target = join(managedSkillsRoot, "cloudflare", ...parts.slice(1));
+  mkdirSync(dirname(target), { recursive: true });
+  if (parts.at(-1) === "SKILL.md") {
+    writeFileSync(target, "---\nname: " + file.name + "\ndescription: Cloudflare test guidance.\n---\n\nCloudflare skill fixture.\n");
+  } else {
+    writeFileSync(target, "Cloudflare test resource.\n");
+  }
 }
 
 test.after(() => {
@@ -378,9 +391,14 @@ test("unified settings reconcile coding features and unregister the watcher", as
   await applyCoding(fake.context, {});
   assert.equal(name, "mtmharness");
   const listedSkills = await fake.context.skills.list({});
-  assert.equal(listedSkills.length, 7);
-  assert.equal(MTM_CODING_PACKAGES.packages.filter((item) => item.kind === "data-only").length, 1);
-  assert.equal(fake.skillProviders.length, 2);
+  assert.equal(listedSkills.length, 20);
+  assert.deepEqual(listedSkills.filter((skill) => skill.provider === "mtm-coding-cloudflare").map((skill) => skill.name).sort(), [
+    "agents-sdk", "cloudflare", "cloudflare-email-service", "cloudflare-one", "cloudflare-one-migrations",
+    "durable-objects", "sandbox-migrate-to-next", "sandbox-next", "sandbox-stable", "turnstile-spin",
+    "web-perf", "workers-best-practices", "wrangler",
+  ]);
+  assert.equal(MTM_CODING_PACKAGES.packages.filter((item) => item.kind === "data-only").length, 2);
+  assert.equal(fake.skillProviders.length, 3);
   const modernGo = await fake.context.skills.get("use-modern-go");
   assert.ok(modernGo);
   assert.equal(modernGo.invocation.modelInvocable, true);
@@ -402,11 +420,11 @@ test("unified settings reconcile coding features and unregister the watcher", as
   await fake.trigger({ ...fake.getSettings(), codebaseMemoryEnabled: true });
   assert.equal(fake.pluginCalls.filter((call) => call.config?.transport === "stdio").length, 1);
   await fake.trigger({ ...fake.getSettings(), rtkMode: "off" });
-  assert.equal(fake.skillProviders.length, 2);
+  assert.equal(fake.skillProviders.length, 3);
   assert.equal(fake.sections.some((section) => section.name === "mtm-coding:rtk:prompt"), false);
   assert.equal((await fake.context.skills.list({})).some((skill) => skill.name === "rtk"), false);
   await fake.trigger({ ...fake.getSettings(), rtkMode: "guidance" });
-  assert.equal(fake.skillProviders.length, 2);
+  assert.equal(fake.skillProviders.length, 3);
   assert.equal(fake.sections.some((section) => section.name === "mtm-coding:rtk:prompt"), true);
   const callsBeforeDispose = fake.pluginCalls.length;
   await fake.dispose();
