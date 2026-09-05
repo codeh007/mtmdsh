@@ -1,4 +1,4 @@
-const ADMIN_APP_URL = "https://unpkg.com/mtm-admin@0.1.0/dist/standalone/index.html";
+const ADMIN_APP_URL = "https://unpkg.com/mtm-admin@0.1.1/dist/standalone/index.html";
 
 export interface MtmharnessFrontendExtensionContext {
   readonly apiVersion: 1;

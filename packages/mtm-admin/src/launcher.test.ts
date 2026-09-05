@@ -15,7 +15,7 @@ function context(): MtmharnessFrontendExtensionContext {
   return {
     apiVersion: 1,
     id: "mtm-admin",
-    version: "0.1.0",
+    version: "0.1.1",
     root,
     document,
     signal: new AbortController().signal,
@@ -29,7 +29,7 @@ describe("mtm-admin launcher", () => {
     mount(current);
     const link = current.root.querySelector("a");
 
-    expect(link?.href).toBe("https://unpkg.com/mtm-admin@0.1.0/dist/standalone/index.html");
+    expect(link?.href).toBe("https://unpkg.com/mtm-admin@0.1.1/dist/standalone/index.html");
     expect(link?.target).toBe("_blank");
     expect(link?.rel).toBe("noopener noreferrer");
     expect(link?.textContent).toBe("Open MTM Admin");

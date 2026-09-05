@@ -1,6 +1,6 @@
 {
   "name": "mtm-admin",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Independent OAuth control-plane client and mtmharness launcher for gomtm.",
   "type": "module",
   "engines": { "node": ">=22.19.0", "pnpm": ">=11.7.0" },
