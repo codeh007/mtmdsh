@@ -61,3 +61,12 @@ export const MTM_CONNECT_EXTENSION = {
   clientUrl: "https://unpkg.com/mtm-connect@0.2.0/lib/client.js",
   clientIntegrity: "sha256-DS/tRWnWzx1IqccuJApF8IVgh5lv9fhP1CyNQUI+nCw=",
 } as const satisfies MtmSecondaryExtensionManifest;
+
+/** The published token-free Admin launcher for the independent control plane. */
+export const MTM_ADMIN_EXTENSION = {
+  apiVersion: 1,
+  id: "mtm-admin",
+  version: "0.1.0",
+  clientUrl: "https://unpkg.com/mtm-admin@0.1.0/lib/client.js",
+  clientIntegrity: "sha256-MRsPUnazjbyWqvKS1A607z7Oz+YsRiZaw8aShroohTM=",
+} as const satisfies MtmSecondaryExtensionManifest;

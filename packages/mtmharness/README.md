@@ -89,13 +89,17 @@ Embed uses memory history and never changes the host page URL. It mounts inside 
 
 ## Authentication
 
-The independent client performs discovery-first OAuth/OIDC Authorization Code + PKCE (S256). The full issuer, client ID, exact redirect URI, independent resource, caller-provided scopes, HTTPS endpoints, and provider capabilities are validated before authorization. `openid` is required for ID-token verification; API and refresh scopes come from the registered authority profile. Dynamic client registration is not implemented; production clients and redirect URIs must be registered by the provider.
+The package exposes the reusable browser OAuth client through `mtmharness/auth`; it is the same discovery-first implementation used by the independent client. The independent client performs discovery-first OAuth/OIDC Authorization Code + PKCE (S256). The full issuer, client ID, exact redirect URI, independent resource, caller-provided scopes, HTTPS endpoints, and provider capabilities are validated before authorization. `openid` is required for ID-token verification; API and refresh scopes come from the registered authority profile. Dynamic client registration is not implemented; production clients and redirect URIs must be registered by the provider.
 
 Access and refresh tokens live only in the JavaScript memory of the auth client. A short-lived PKCE transaction containing state/verifier/nonce is the only auth state written to partitioned `sessionStorage`, and it is removed on every callback path. Callback URLs are sanitized after consumption. Tokens, tickets, roles, and capabilities are never put in markup, localStorage, iframe messages, logs, or WebSocket URLs.
 
 HTTP resource calls, revocation, and `POST /api/dsh/ws-ticket` use an explicit `Authorization: Bearer` header with `credentials: "omit"`. Each socket requests a fresh v1 ticket and sends only `Sec-WebSocket-Protocol: dsh.v1, dsh-ticket.<opaque>`; the socket URL has no sandbox/session credential query. Refresh, logout, expiry, and account switching clear the runtime socket, selection, memory token, and account-partitioned session hint.
 
 The official DSH plugin keeps the host FullShell and local session untouched.
+
+## Admin launcher
+
+The optional mtm-admin setting loads a pinned, token-free secondary launcher. It opens the independently deployed mtm-admin static application; the Admin OAuth client and bearer token stay in that top-level app. The secondary artifact is released before the mtmharness manifest is updated with its exact version and SHA-256 integrity.
 
 ## Development
 

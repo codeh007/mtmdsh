@@ -3,6 +3,7 @@ import type { Context } from "@deepseek-ai/cordis";
 import type {} from "@deepseek-ai/dsh-client-connection";
 import { apply as applyCodingHost } from "./features/coding/index.ts";
 import { apply as applyMtmConnectSettings } from "./features/mtm-connect/index.ts";
+import { apply as applyMtmAdminSettings } from "./features/mtm-admin/index.ts";
 import { apply as applyUpdateHost } from "./features/update/index.ts";
 
 export { buildMcpConfig, codingPackage, resolveConfig, MTM_CODING_PACKAGES } from "./features/coding/index.ts";
@@ -17,6 +18,8 @@ export {
 export { apply as applyCoding } from "./features/coding/index.ts";
 export { MtmConnectSettingsSchema, SETTINGS_NAMESPACE as MTM_CONNECT_SETTINGS_NAMESPACE } from "./features/mtm-connect/index.ts";
 export type { MtmConnectConfig, MtmConnectSettings } from "./features/mtm-connect/index.ts";
+export { MtmAdminSettingsSchema, SETTINGS_NAMESPACE as MTM_ADMIN_SETTINGS_NAMESPACE } from "./features/mtm-admin/index.ts";
+export type { MtmAdminConfig, MtmAdminSettings } from "./features/mtm-admin/index.ts";
 export { apply as applyCodebaseMemory } from "./features/coding/codebase-memory.ts";
 export { apply as applyPonytail } from "./features/coding/ponytail.ts";
 export { apply as applyRtk } from "./features/coding/rtk.ts";
@@ -49,6 +52,7 @@ export const inject = ["connection", "settings", "subprocess"];
 export async function apply(ctx: Context, config: Record<string, unknown> = {}): Promise<void> {
   if (ctx.connection === undefined) throw new Error("mtmharness: DSH connection service is unavailable");
   applyMtmConnectSettings(ctx, typeof config["mtm-connect"] === "object" && config["mtm-connect"] !== null ? config["mtm-connect"] as { enabled?: boolean } : {});
+  applyMtmAdminSettings(ctx, typeof config["mtm-admin"] === "object" && config["mtm-admin"] !== null ? config["mtm-admin"] as { enabled?: boolean } : {});
   applyUpdateHost(ctx);
   await applyCodingHost(ctx, config);
 }

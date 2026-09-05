@@ -57,3 +57,17 @@ jobs:
 
       - name: Lint mtmharness package metadata
         run: pnpm dlx publint run "${{ steps.pack.outputs.tarball }}" --strict
+
+      - name: Pack mtm-admin bundle
+        id: pack-admin
+        run: |
+          set -euo pipefail
+          pack_dir="$RUNNER_TEMP/mtm-admin"
+          mkdir -p "$pack_dir"
+          pnpm --filter mtm-admin pack --pack-destination "$pack_dir"
+          tarball="$(find "$pack_dir" -maxdepth 1 -type f -name 'mtm-admin-*.tgz' -print -quit)"
+          test -n "$tarball"
+          printf 'tarball=%s\n' "$tarball" >> "$GITHUB_OUTPUT"
+
+      - name: Lint mtm-admin package metadata
+        run: pnpm dlx publint run "${{ steps.pack-admin.outputs.tarball }}" --strict
