@@ -6,6 +6,7 @@ import type {} from "@deepseek-ai/dsh-client-ui-settings-plugins/client";
 import type {} from "@deepseek-ai/dsh-client-ui-sidebar/client";
 import { apply as applyCoding } from "../features/coding/client/index.tsx";
 import { apply as applyMtmConnect } from "../features/mtm-connect/client/index.tsx";
+import { apply as applyMtmAdmin } from "../features/mtm-admin/client/index.tsx";
 import { apply as applySecondary } from "../features/secondary/client.ts";
 
 export { applyCoding };
@@ -15,5 +16,6 @@ export const inject = ["slots", "locale", "settingsScope", "connection"];
 export function apply(ctx: ClientContext): void {
   applyCoding(ctx);
   applyMtmConnect(ctx);
+  applyMtmAdmin(ctx);
   applySecondary(ctx);
 }

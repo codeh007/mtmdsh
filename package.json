@@ -5,9 +5,9 @@
   "packageManager": "pnpm@11.7.0",
   "engines": { "node": ">=22.19.0" },
   "scripts": {
-    "build": "pnpm --filter mtmharness run build",
+    "build": "pnpm --filter mtmharness run build && pnpm --filter mtm-admin run build",
     "demo": "pnpm --filter mtmharness run dev",
-    "check": "pnpm --filter mtmharness run check && pnpm --filter mtmcanvas run check && pnpm --filter mtm-connect run check"
+    "check": "pnpm --filter mtmharness run check && pnpm --filter mtmcanvas run check && pnpm --filter mtm-connect run check && pnpm --filter mtm-admin run check"
   },
   "devDependencies": { "typescript": "6.0.3" }
 }

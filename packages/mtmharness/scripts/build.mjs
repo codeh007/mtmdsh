@@ -33,6 +33,17 @@ await build({
   logLevel: "info",
 });
 
+await build({
+  entryPoints: [resolve(packageRoot, "standalone/src/app/auth.ts")],
+  outfile: resolve(distRoot, "auth.js"),
+  bundle: true,
+  format: "esm",
+  platform: "browser",
+  target: "es2020",
+  legalComments: "none",
+  logLevel: "info",
+});
+
 const clientBuild = await build({
   entryPoints: [resolve(packageRoot, "src/client/index.ts")],
   outfile: clientTemp,

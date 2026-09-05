@@ -136,6 +136,7 @@ describe("mtmharness Host half", () => {
   it("registers the Connect settings namespace without a local backend", async () => {
     const { registeredNamespaces, cleanups } = await hostBench();
     expect(registeredNamespaces).toContain("mtm-connect");
+    expect(registeredNamespaces).toContain("mtm-admin");
     for (const cleanup of cleanups.reverse()) await cleanup();
   });
 
@@ -181,6 +182,7 @@ describe("mtmharness browser half", () => {
     expect(registered).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: "settings.plugin.item", options: expect.objectContaining({ key: "mtm-coding" }) }),
       expect.objectContaining({ name: "settings.plugin.item", options: expect.objectContaining({ key: "mtm-connect" }) }),
+      expect.objectContaining({ name: "settings.plugin.item", options: expect.objectContaining({ key: "mtm-admin" }) }),
     ]));
     expect(registered.filter((entry) => entry.name === "sidebar.footer.action")).toHaveLength(0);
     expect(registered.filter((entry) => entry.name === "shell.overlay")).toHaveLength(0);

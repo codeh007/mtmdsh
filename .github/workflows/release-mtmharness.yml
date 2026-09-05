@@ -69,6 +69,7 @@ jobs:
           pnpm --filter mtmharness run check
           pnpm --filter mtmcanvas run check
           pnpm --filter mtm-connect run check
+          pnpm --filter mtm-admin run check
           # The pinned secondary artifacts must already be published before mtmharness.
           canvas_version="$(node -p "require('./packages/mtmcanvas/package.json').version")"
           canvas_integrity="$(sed -n '/id: "mtmcanvas"/{n;n;n;s/.*clientIntegrity: "\([^\"]*\)".*/\1/p;}' packages/mtmharness/src/features/secondary/manifest.ts)"
@@ -92,6 +93,16 @@ jobs:
           remote_integrity="sha256-$(openssl dgst -sha256 -binary "$remote" | base64 -w0)"
           test "$remote_integrity" = "$connect_integrity"
           cmp "packages/mtm-connect/lib/client.js" "$remote"
+          admin_version="$(node -p "require('./packages/mtm-admin/package.json').version")"
+          admin_integrity="$(sed -n '/id: "mtm-admin"/{n;n;n;s/.*clientIntegrity: "\([^\"]*\)".*/\1/p;}' packages/mtmharness/src/features/secondary/manifest.ts)"
+          local_integrity="sha256-$(openssl dgst -sha256 -binary packages/mtm-admin/lib/client.js | base64 -w0)"
+          test "$admin_integrity" = "$local_integrity"
+          test "$(npm view "mtm-admin@${admin_version}" version --json | jq -r .)" = "$admin_version"
+          remote="$RUNNER_TEMP/mtm-admin-client.js"
+          curl --fail --silent --show-error --output "$remote" "https://unpkg.com/mtm-admin@${admin_version}/lib/client.js"
+          remote_integrity="sha256-$(openssl dgst -sha256 -binary "$remote" | base64 -w0)"
+          test "$remote_integrity" = "$admin_integrity"
+          cmp "packages/mtm-admin/lib/client.js" "$remote"
 
       - name: Pack release tarball
         id: pack
