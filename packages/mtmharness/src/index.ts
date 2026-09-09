@@ -46,7 +46,7 @@ export type {
 } from "./features/secondary/client.ts";
 
 export const name = "mtmharness";
-export const inject = ["connection", "settings", "subprocess"];
+export const inject = ["connection", "settings", "subprocess", "webServer"];
 
 /** Mount the Host-owned MTM and coding control planes. */
 export async function apply(ctx: Context, config: Record<string, unknown> = {}): Promise<void> {

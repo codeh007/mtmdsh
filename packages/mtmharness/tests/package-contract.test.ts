@@ -18,6 +18,8 @@ describe("mtmharness package contract", () => {
       jsdelivr?: string;
       dsh?: { bundle?: { patch?: string }; client?: { platform?: string; inject?: string[] } };
     };
+    const hostSource = readFileSync(resolve(packageRoot, "src/index.ts"), "utf8");
+    expect(hostSource).toMatch(/export const inject = \[[^\]]*"webServer"/);
     expect(manifest.dsh?.bundle?.patch).toBe("./cordis.patch.yml");
     expect(manifest.dsh?.client?.platform).toBe("web");
     expect(manifest.dsh?.client?.inject).toContain("@deepseek-ai/dsh-client-ui-layout");
