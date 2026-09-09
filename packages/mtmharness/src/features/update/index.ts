@@ -252,11 +252,13 @@ export function createMtmUpdateRpcHandler(ctx: Context): MtmUpdateRpcHandler {
 
 export function apply(ctx: Context): void {
   const handler = createMtmUpdateRpcHandler(ctx);
-  ctx.effect(() => {
-    const remove = ctx.connection.rpc.handle(MTM_UPDATE_CHANNEL, handler);
-    return async () => {
-      await handler.dispose();
-      await remove();
-    };
-  }, "mtm-update: Host RPC");
+  ctx.inject(["connection", "webServer"], (webCtx) => {
+    webCtx.effect(() => {
+      const remove = webCtx.connection.rpc.handle(MTM_UPDATE_CHANNEL, handler);
+      return async () => {
+        await handler.dispose();
+        await remove();
+      };
+    }, "mtm-update: Host RPC");
+  });
 }

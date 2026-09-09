@@ -116,6 +116,7 @@ async function hostBench(): Promise<{ registeredNamespaces: string[]; cleanups: 
   };
   const ctx = {
     connection: { rpc: { handle() { return async () => {}; } } },
+    webServer: {},
     settings: {
       register(namespace: unknown) {
         registeredNamespaces.push(String(namespace));
@@ -126,6 +127,9 @@ async function hostBench(): Promise<{ registeredNamespaces: string[]; cleanups: 
       const cleanup = effect();
       if (typeof cleanup === "function") cleanups.push(cleanup);
       return cleanup;
+    },
+    inject(_dependencies: readonly string[], callback: (context: unknown) => void) {
+      callback(ctx);
     },
   };
   await applyHost(ctx as never);
