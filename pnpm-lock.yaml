@@ -171,6 +171,9 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: 3.18.2
         version: 3.18.2
+      mtm-p2p:
+        specifier: workspace:*
+        version: link:../mtm-p2p
       npm:
         specifier: 11.7.0
         version: 11.7.0

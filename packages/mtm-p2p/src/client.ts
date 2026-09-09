@@ -104,18 +104,18 @@ export class MtmP2pClient {
     if (message.type === "snapshot") this.publish(message.snapshot);
     else if (message.type === "response") {
       validateMessageId(message.id);
-      const p = this.pending.get(message.id);
-      if (p) {
-        clearTimeout(p.timer);
+      const pending = this.pending.get(message.id);
+      if (pending) {
+        clearTimeout(pending.timer);
         this.pending.delete(message.id);
-        p.resolve(message.payload);
+        pending.resolve(message.payload);
       }
     } else if (message.type === "error") {
-      const p = message.id ? this.pending.get(message.id) : undefined;
-      if (p) {
-        clearTimeout(p.timer);
+      const pending = message.id ? this.pending.get(message.id) : undefined;
+      if (pending) {
+        clearTimeout(pending.timer);
         this.pending.delete(message.id!);
-        p.reject(new Error(message.error));
+        pending.reject(new Error(message.error));
       } else
         this.publish({
           ...this.snapshot,
@@ -129,17 +129,62 @@ export class MtmP2pClient {
     for (const listener of [...this.listeners]) listener();
   }
 }
+
 function freeze(value: P2pSnapshot): P2pSnapshot {
   return Object.freeze({ ...value, peers: Object.freeze([...value.peers]) });
 }
+
 export interface MtmharnessFrontendExtensionContext {
   readonly root: HTMLElement;
   readonly signal: AbortSignal;
   readonly registerCleanup: (cleanup: () => void) => void;
 }
+
 export function mount(context: MtmharnessFrontendExtensionContext): () => void {
   const client = new MtmP2pClient();
-  const dispose = () => void client.close();
+  const panel = context.root.ownerDocument.createElement("aside");
+  panel.setAttribute("aria-label", "P2P status");
+  Object.assign(panel.style, {
+    position: "fixed",
+    right: "16px",
+    bottom: "16px",
+    zIndex: "1000",
+    padding: "12px",
+    minWidth: "180px",
+    background: "white",
+    color: "#172033",
+    border: "1px solid #cbd5e1",
+    borderRadius: "6px",
+    boxShadow: "0 8px 24px #17203333",
+    font: "13px system-ui",
+  });
+  const status = context.root.ownerDocument.createElement("div");
+  const peers = context.root.ownerDocument.createElement("div");
+  const transport = context.root.ownerDocument.createElement("div");
+  const close = context.root.ownerDocument.createElement("button");
+  close.type = "button";
+  close.textContent = "Close";
+  close.style.marginTop = "8px";
+  panel.append(status, peers, transport, close);
+  context.root.ownerDocument.body.append(panel);
+  const render = (): void => {
+    const snapshot = client.getSnapshot();
+    status.textContent = "Status: " + snapshot.status;
+    peers.textContent = "Peers: " + snapshot.peers.length;
+    transport.textContent =
+      "Transport: " +
+      (typeof SharedWorker === "undefined" ? "fallback" : "SharedWorker ready");
+  };
+  const unsubscribe = client.subscribe(render);
+  render();
+  const dispose = (): void => {
+    unsubscribe();
+    close.removeEventListener("click", dispose);
+    panel.remove();
+    void client.close();
+    context.signal.removeEventListener("abort", dispose);
+  };
+  close.addEventListener("click", dispose);
   context.registerCleanup(dispose);
   context.signal.addEventListener("abort", dispose, { once: true });
   return dispose;
