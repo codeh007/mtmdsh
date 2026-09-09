@@ -136,6 +136,9 @@ describe("mtm-update Host", () => {
         if (typeof cleanup === "function") cleanups.push(cleanup);
         return cleanup;
       },
+      inject(_dependencies: readonly string[], callback: (context: unknown) => void) {
+        callback(ctx);
+      },
     };
     apply(ctx as never);
     expect(registration).toEqual({ channel: MTM_UPDATE_CHANNEL });
