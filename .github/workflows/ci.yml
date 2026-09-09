@@ -42,7 +42,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Check workspace
-        run: pnpm check
+        run: pnpm --filter mtm-p2p run build && pnpm check
 
       - name: Pack mtmharness bundle
         id: pack
