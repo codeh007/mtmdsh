@@ -66,6 +66,7 @@ jobs:
       - name: Check workspace and secondary client contract
         run: |
           set -euo pipefail
+          pnpm --filter mtm-p2p run build
           pnpm --filter mtmharness run check
           pnpm --filter mtmcanvas run check
           pnpm --filter mtm-connect run check
