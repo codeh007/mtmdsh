@@ -1,6 +1,6 @@
 {
   "name": "mtmharness",
-  "version": "0.9.12",
+  "version": "0.9.13",
   "description": "Unified DeepSeek Harness Web plugin with Connect, Codebase Memory, Modern Go, Ponytail, and independent static/embed clients.",
   "type": "module",
   "engines": {
@@ -88,8 +88,7 @@
   "dependencies": {
     "@deepseek-ai/schemastery": "3.18.2",
     "npm": "11.7.0",
-    "yaml": "^2.4.2",
-    "mtm-p2p": "workspace:*"
+    "yaml": "^2.4.2"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.2",
@@ -176,6 +175,7 @@
     "esbuild": "0.28.2",
     "jsdom": "30.0.1",
     "lucide-react": "1.21.0",
+    "mtm-p2p": "workspace:*",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "tailwind-merge": "3.6.0",
