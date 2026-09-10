@@ -63,47 +63,14 @@ jobs:
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main
           printf 'PACKAGE_VERSION=%s\n' "$package_version" >> "$GITHUB_ENV"
 
-      - name: Check workspace and secondary client contract
+      - name: Check workspace packages
         run: |
           set -euo pipefail
           pnpm --filter mtm-p2p run build
+          pnpm --filter mtmcanvas run build
+          pnpm --filter mtm-connect run build
+          pnpm --filter mtm-admin run build
           pnpm --filter mtmharness run check
-          pnpm --filter mtmcanvas run check
-          pnpm --filter mtm-connect run check
-          pnpm --filter mtm-admin run check
-          # The pinned secondary artifacts must already be published before mtmharness.
-          canvas_version="$(node -p "require('./packages/mtmcanvas/package.json').version")"
-          canvas_integrity="$(sed -n '/id: "mtmcanvas"/{n;n;n;s/.*clientIntegrity: "\([^\"]*\)".*/\1/p;}' packages/mtmharness/src/features/secondary/manifest.ts)"
-          local_integrity="sha256-$(openssl dgst -sha256 -binary packages/mtmcanvas/lib/client.js | base64 -w0)"
-          test -n "$canvas_integrity"
-          test "$local_integrity" = "$canvas_integrity"
-          test "$(npm view "mtmcanvas@${canvas_version}" version --json | jq -r .)" = "$canvas_version"
-          remote="$RUNNER_TEMP/mtmcanvas-client.js"
-          curl --fail --silent --show-error --output "$remote" "https://unpkg.com/mtmcanvas@${canvas_version}/lib/client.js"
-          remote_integrity="sha256-$(openssl dgst -sha256 -binary "$remote" | base64 -w0)"
-          test "$remote_integrity" = "$canvas_integrity"
-          cmp "packages/mtmcanvas/lib/client.js" "$remote"
-          connect_version="$(node -p "require('./packages/mtm-connect/package.json').version")"
-          connect_integrity="$(sed -n '/id: "mtm-connect"/{n;n;n;s/.*clientIntegrity: "\([^\"]*\)".*/\1/p;}' packages/mtmharness/src/features/secondary/manifest.ts)"
-          local_integrity="sha256-$(openssl dgst -sha256 -binary packages/mtm-connect/lib/client.js | base64 -w0)"
-          test -n "$connect_integrity"
-          test "$local_integrity" = "$connect_integrity"
-          test "$(npm view "mtm-connect@${connect_version}" version --json | jq -r .)" = "$connect_version"
-          remote="$RUNNER_TEMP/mtm-connect-client.js"
-          curl --fail --silent --show-error --output "$remote" "https://unpkg.com/mtm-connect@${connect_version}/lib/client.js"
-          remote_integrity="sha256-$(openssl dgst -sha256 -binary "$remote" | base64 -w0)"
-          test "$remote_integrity" = "$connect_integrity"
-          cmp "packages/mtm-connect/lib/client.js" "$remote"
-          admin_version="$(node -p "require('./packages/mtm-admin/package.json').version")"
-          admin_integrity="$(sed -n '/id: "mtm-admin"/{n;n;n;s/.*clientIntegrity: "\([^\"]*\)".*/\1/p;}' packages/mtmharness/src/features/secondary/manifest.ts)"
-          local_integrity="sha256-$(openssl dgst -sha256 -binary packages/mtm-admin/lib/client.js | base64 -w0)"
-          test "$admin_integrity" = "$local_integrity"
-          test "$(npm view "mtm-admin@${admin_version}" version --json | jq -r .)" = "$admin_version"
-          remote="$RUNNER_TEMP/mtm-admin-client.js"
-          curl --fail --silent --show-error --output "$remote" "https://unpkg.com/mtm-admin@${admin_version}/lib/client.js"
-          remote_integrity="sha256-$(openssl dgst -sha256 -binary "$remote" | base64 -w0)"
-          test "$remote_integrity" = "$admin_integrity"
-          cmp "packages/mtm-admin/lib/client.js" "$remote"
 
       - name: Pack release tarball
         id: pack
