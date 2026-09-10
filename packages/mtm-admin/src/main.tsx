@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { OAuthClient } from "mtmharness/auth";
 import { AdminApp } from "./index";
 import "./styles.css";
 
@@ -10,5 +11,5 @@ const config = window.__MTM_ADMIN_CONFIG__;
 if (!config) {
   root.textContent = "mtm-admin configuration is missing";
 } else {
-  createRoot(root).render(<StrictMode><AdminApp {...config} /></StrictMode>);
+  createRoot(root).render(<StrictMode><AdminApp {...config} auth={new OAuthClient(config.oauth)} /></StrictMode>);
 }
