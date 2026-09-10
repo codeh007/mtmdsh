@@ -191,7 +191,7 @@ describe("mtmharness browser half", () => {
       expect.objectContaining({ name: "settings.plugin.item", options: expect.objectContaining({ key: "mtm-admin" }) }),
     ]));
     expect(registered.filter((entry) => entry.name === "sidebar.footer.action")).toHaveLength(0);
-    expect(registered.filter((entry) => entry.name === "shell.overlay")).toHaveLength(4);
+    expect(registered.filter((entry) => entry.name === "shell.overlay")).toHaveLength(5);
     for (const cleanup of cleanups.reverse()) void cleanup();
     expect(registered).toHaveLength(0);
   });

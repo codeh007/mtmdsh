@@ -1,6 +1,6 @@
 {
   "name": "mtmharness",
-  "version": "0.9.16",
+  "version": "0.9.17",
   "description": "Unified DeepSeek Harness Web plugin with Connect, Codebase Memory, Modern Go, Ponytail, and independent static/embed clients.",
   "type": "module",
   "engines": {
@@ -21,12 +21,12 @@
       "default": "./lib/client.cjs"
     },
     "./embed": {
-      "types": "./dist/types/standalone/index.d.ts",
+      "types": "./dist/types/embed/index.d.ts",
       "import": "./dist/embed/mtmharness.js",
       "default": "./dist/embed/mtmharness.js"
     },
     "./auth": {
-      "types": "./dist/types/standalone/app/auth.d.ts",
+      "types": "./dist/types/embed/app/auth.d.ts",
       "import": "./dist/auth.js",
       "default": "./dist/auth.js"
     },
@@ -62,7 +62,7 @@
     "dist/standalone",
     "dist/embed",
     "dist/auth.js",
-    "dist/types/standalone",
+    "dist/types",
     "cordis.patch.yml",
     "README.md",
     "package.json",

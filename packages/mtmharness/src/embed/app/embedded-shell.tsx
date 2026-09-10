@@ -21,7 +21,7 @@ export function EmbeddedShell({ config, runtime, auth, presentationController }:
 
   if (state === "closed") {
     return (
-      <div className="fixed right-4 bottom-4 z-[2147483647] sm:right-6 sm:bottom-6">
+      <div className="fixed right-4 bottom-4 z-50 sm:right-6 sm:bottom-6">
         <Button type="button" size="icon-lg" className="rounded-full shadow-xl" onClick={presentationController.open} aria-label="Open MTM Harness conversation" title="Open MTM Harness conversation">
           <MessageSquare />
         </Button>
@@ -30,8 +30,8 @@ export function EmbeddedShell({ config, runtime, auth, presentationController }:
   }
 
   const panelClass = config.mode === "dialog"
-    ? "fixed inset-0 z-[2147483647] flex h-dvh w-dvw min-h-0 flex-col overflow-hidden border-0 bg-background shadow-2xl sm:inset-4 sm:m-auto sm:h-[min(42rem,calc(100vh-2rem))] sm:w-[min(42rem,calc(100vw-2rem))] sm:rounded-xl sm:border"
-    : "fixed inset-0 z-[2147483647] flex h-dvh w-dvw min-h-0 flex-col overflow-hidden border-0 bg-background shadow-2xl sm:inset-auto sm:right-6 sm:bottom-6 sm:h-[min(40rem,calc(100vh-2rem))] sm:w-[min(28rem,calc(100vw-2rem))] sm:rounded-xl sm:border";
+    ? "fixed inset-0 z-50 flex h-dvh w-dvw min-h-0 flex-col overflow-hidden border-0 bg-background shadow-2xl sm:inset-4 sm:m-auto sm:h-[min(42rem,calc(100vh-2rem))] sm:w-[min(42rem,calc(100vw-2rem))] sm:rounded-xl sm:border"
+    : "fixed inset-0 z-50 flex h-dvh w-dvw min-h-0 flex-col overflow-hidden border-0 bg-background shadow-2xl sm:inset-auto sm:right-6 sm:bottom-6 sm:h-[min(40rem,calc(100vh-2rem))] sm:w-[min(28rem,calc(100vw-2rem))] sm:rounded-xl sm:border";
 
   return (
     <section className={panelClass} aria-label="MTM Harness conversation">

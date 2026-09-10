@@ -4,6 +4,7 @@ import type {} from "@deepseek-ai/dsh-client-locale/client";
 import type {} from "@deepseek-ai/dsh-client-ui-settings/client";
 import type {} from "@deepseek-ai/dsh-client-ui-settings-plugins/client";
 import type {} from "@deepseek-ai/dsh-client-ui-sidebar/client";
+import type {} from "@deepseek-ai/dsh-client-ui-layout/client";
 import { apply as applyCoding } from "../features/coding/client/index.tsx";
 import { apply as applyMtmConnectSettings } from "../features/mtm-connect/client/index.tsx";
 import { apply as applyMtmAdminSettings } from "../features/mtm-admin/client/index.tsx";
@@ -11,6 +12,8 @@ import { apply as applyMtmConnect } from "mtm-connect";
 import { apply as applyMtmCanvas } from "mtmcanvas";
 import { apply as applyMtmAdmin } from "mtm-admin";
 import { apply as applyMtmP2p } from "mtm-p2p";
+import { MtmHarnessLauncherOverlay } from "./launcher.tsx";
+import { disposeMtmHarnessLauncher } from "./launcher-state.ts";
 
 export { applyCoding };
 export const inject = ["slots", "locale", "settingsScope", "connection"];
@@ -37,4 +40,12 @@ export async function apply(ctx: ClientContext, config: Record<string, unknown> 
     const reconcile = (): void => { void canvas.setEnabled(settings.getSnapshot().value?.dynamicCanvasEnabled === true); };
     ctx.effect(() => { const stop = settings.subscribe(reconcile); reconcile(); return stop; }, "mtmcanvas: settings lifecycle");
   }
+
+  ctx.slots.inject("shell.overlay", () => ctx.slots.register({
+    name: "shell.overlay",
+    id: "mtmharness-launcher",
+    order: 100,
+    label: "MTM Cloud",
+  }, MtmHarnessLauncherOverlay));
+  ctx.effect(() => () => { disposeMtmHarnessLauncher(); }, "mtmharness: launcher state");
 }

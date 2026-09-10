@@ -7,7 +7,7 @@ import type { MtmHarnessPresentationController } from "@/app/config";
 
 export function EmbeddedFullShell({ runtime, auth, presentationController }: { runtime: MtmHarnessRuntime; auth?: MtmHarnessAuthClient; presentationController: MtmHarnessPresentationController }): ReactElement {
   return (
-    <div className="fixed inset-0 z-[2147483647] h-dvh w-dvw overflow-hidden bg-background">
+    <div className="fixed inset-0 z-50 h-dvh w-dvw overflow-hidden bg-background">
       <FullShellFrame runtime={runtime} auth={auth} onClose={presentationController.close}><Outlet /></FullShellFrame>
     </div>
   );

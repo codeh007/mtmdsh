@@ -1,4 +1,6 @@
-export const LAUNCHER_CONTRACT_VERSION = 1 as const;
+import { LAUNCHER_CONTRACT_VERSION } from "../../features/launcher/contract.ts";
+
+export { LAUNCHER_CONTRACT_VERSION } from "../../features/launcher/contract.ts";
 export const DEFAULT_ALLOWED_PARENT_ORIGINS = [
   "https://gomtm-dev.yuepa8.com",
   "http://127.0.0.1:3080",
