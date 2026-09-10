@@ -26,10 +26,13 @@ describe("mtmharness package contract", () => {
     expect(manifest.exports["."]?.default).toBe("./lib/index.js");
     expect(manifest.exports["./client"]?.default).toBe("./lib/client.cjs");
     expect(manifest.exports["./embed"]?.import).toBe("./dist/embed/mtmharness.js");
+    expect(manifest.exports["./embed"]?.types).toBe("./dist/types/embed/index.d.ts");
     expect(manifest.exports["./auth"]?.import).toBe("./dist/auth.js");
     expect(manifest.exports["./app"]).toBe("./dist/standalone/index.html");
     expect(manifest.unpkg).toBe("./dist/embed/mtmharness.iife.js");
     expect(manifest.jsdelivr).toBe("./dist/embed/mtmharness.iife.js");
+    expect(existsSync(resolve(packageRoot, "src/embed/index.tsx"))).toBe(true);
+    expect(existsSync(resolve(packageRoot, "standalone", "src"))).toBe(false);
     expect(existsSync(resolve(packageRoot, "src/skills"))).toBe(false);
   });
 });

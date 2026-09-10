@@ -34,7 +34,7 @@ await build({
 });
 
 await build({
-  entryPoints: [resolve(packageRoot, "standalone/src/app/auth.ts")],
+  entryPoints: [resolve(packageRoot, "src/embed/app/auth.ts")],
   outfile: resolve(distRoot, "auth.js"),
   bundle: true,
   format: "esm",
@@ -57,9 +57,9 @@ const clientBuild = await build({
   logLevel: "info",
 });
 const clientInputs = Object.keys(clientBuild.metafile?.inputs ?? {});
-const standaloneInputs = clientInputs.filter((input) => input.includes("standalone/") || input.includes("standalone\\"));
-if (standaloneInputs.length > 0) {
-  throw new Error("mtmharness build: DSH client entry imports standalone sources: " + standaloneInputs.join(", "));
+const embedInputs = clientInputs.filter((input) => input.includes("src/embed/") || input.includes("src\\embed\\"));
+if (embedInputs.length > 0) {
+  throw new Error("mtmharness build: DSH client entry imports embed sources: " + embedInputs.join(", "));
 }
 
 const clientSource = readFileSync(clientTemp, "utf8");

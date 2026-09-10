@@ -40,7 +40,7 @@ Profiles created from an older `mtmharness` release should remove retired `mtmca
 
 ## Static App
 
-The package tarball contains `dist/standalone/index.html` and its hashed assets. Serve that directory as the static app root; the HTML uses relative asset URLs so it also works below a CDN or npm subpath. Configure the API origin and the pre-registered public OAuth client before the app script runs:
+The package tarball contains the standalone app at `dist/standalone/index.html` and its hashed assets. Serve that directory as the static app root; the HTML uses relative asset URLs so it also works below a CDN or npm subpath. Configure the API origin and the pre-registered public OAuth client before the app script runs:
 
     <script>
       window.__MTM_HARNESS_CONFIG__ = {
@@ -87,6 +87,10 @@ The CDN IIFE is `dist/embed/mtmharness.iife.js` and is also exposed through the 
 
 Embed uses memory history and never changes the host page URL. It mounts inside an open ShadowRoot, which is a DOM composition boundary rather than a security boundary, and removes its DOM, styles, observers, router, host bridge, and runtime on `unmount()`.
 
+## Host Boundary Spike
+
+The minimal Shadow DOM check keeps the embed composition local: the official DSH `ui-layout` frame depends on the host slot renderer, while `ui-theme` presents through document-level `html`/`body` state and document styles. Those assumptions are not Shadow DOM-local, so the official layout/theme pair is not used as the embed shell. DSH Web registers the shared launcher in `shell.overlay`; an official cloud shell remains the iframe boundary if the embed later needs the full DSH layout.
+
 ## Authentication
 
 The package exposes the reusable browser OAuth client through `mtmharness/auth`; it is the same discovery-first implementation used by the independent client. The independent client performs discovery-first OAuth/OIDC Authorization Code + PKCE (S256). The full issuer, client ID, exact redirect URI, independent resource, caller-provided scopes, HTTPS endpoints, and provider capabilities are validated before authorization. `openid` is required for ID-token verification; API and refresh scopes come from the registered authority profile. Dynamic client registration is not implemented; production clients and redirect URIs must be registered by the provider.
@@ -108,4 +112,4 @@ The optional mtm-admin setting loads a pinned, token-free secondary launcher. It
     pnpm --filter mtmharness run test
     pnpm --filter mtmharness run build
 
-The source under `standalone/` was copied from the former gomtm `mtmagent-client` as the migration baseline. It is now an active, token-only app surface; the DSH plugin remains a separate Host/Client implementation.
+The standalone app keeps its static HTML and public assets under `standalone/`; its TypeScript, React, and CSS source is owned by `src/embed/`. The standalone app and `./embed` share the same feature composition while keeping separate host adapters.

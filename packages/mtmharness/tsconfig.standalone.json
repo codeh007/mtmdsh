@@ -8,16 +8,16 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "outDir": "dist/types/standalone",
-    "rootDir": "standalone/src",
+    "outDir": "dist/types",
+    "rootDir": "src",
     "baseUrl": ".",
     "ignoreDeprecations": "6.0",
-    "paths": { "@/*": ["standalone/src/*"] },
+    "paths": { "@/*": ["src/embed/*"] },
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2022",
     "types": ["vite/client"]
   },
-  "include": ["standalone/src/**/*.ts", "standalone/src/**/*.tsx"],
-  "exclude": ["standalone/src/**/*.test.ts", "standalone/src/**/*.test.tsx"]
+  "include": ["src/embed/**/*.ts", "src/embed/**/*.tsx"],
+  "exclude": ["src/embed/**/*.test.ts", "src/embed/**/*.test.tsx"]
 }

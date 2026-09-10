@@ -8,7 +8,7 @@ export default defineConfig({
   define: { "process.env.NODE_ENV": JSON.stringify("production") },
   plugins: [react(), tailwindcss()],
   resolve: {
-    alias: { "@": fileURLToPath(new URL("./standalone/src", import.meta.url)) },
+    alias: { "@": fileURLToPath(new URL("./src/embed", import.meta.url)) },
   },
   build: {
     outDir: fileURLToPath(new URL("./dist/embed", import.meta.url)),
@@ -16,7 +16,7 @@ export default defineConfig({
     sourcemap: true,
     cssCodeSplit: false,
     lib: {
-      entry: fileURLToPath(new URL("./standalone/src/embed.tsx", import.meta.url)),
+      entry: fileURLToPath(new URL("./src/embed/embed.tsx", import.meta.url)),
       name: "MtmHarnessClient",
       formats: ["es", "iife"],
       fileName: (format) => format === "iife" ? "mtmharness.iife.js" : "mtmharness.js",
