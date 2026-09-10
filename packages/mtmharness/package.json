@@ -1,6 +1,6 @@
 {
   "name": "mtmharness",
-  "version": "0.9.19",
+  "version": "0.9.20",
   "description": "Unified DeepSeek Harness Web plugin with Connect, Codebase Memory, Modern Go, Ponytail, and independent static/embed clients.",
   "type": "module",
   "engines": {
@@ -87,10 +87,6 @@
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "3.18.2",
-    "mtm-admin": "workspace:*",
-    "mtm-connect": "workspace:*",
-    "mtm-p2p": "workspace:*",
-    "mtmcanvas": "workspace:*",
     "npm": "11.7.0",
     "yaml": "^2.4.2"
   },
