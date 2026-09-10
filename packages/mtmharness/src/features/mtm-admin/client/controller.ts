@@ -1,6 +1,6 @@
 import { createSnapshotStore, type SnapshotStore } from "@deepseek-ai/dsh-client-store";
 import type { SettingsScope } from "@deepseek-ai/dsh-client-ui-settings/client";
-import type { MtmSecondaryClientRuntime, MtmSecondarySnapshot } from "../../secondary/client.js";
+import type { MtmAdminClient, MtmAdminClientSnapshot } from "mtm-admin";
 import type { MtmAdminSettings } from "../index.js";
 
 export interface MtmAdminCardState {
@@ -11,7 +11,7 @@ export interface MtmAdminCardState {
   readonly dirty: boolean;
   readonly saving: boolean;
   readonly failed: boolean;
-  readonly status: MtmSecondarySnapshot["status"];
+  readonly status: MtmAdminClientSnapshot["status"];
   readonly error?: string;
 }
 
@@ -53,7 +53,7 @@ export class MtmAdminCardController {
 
   constructor(
     private readonly scope: SettingsScope<MtmAdminSettings>,
-    private readonly runtime: MtmSecondaryClientRuntime,
+    private readonly runtime: MtmAdminClient,
   ) {
     this.store = createSnapshotStore(this.projection());
     this.stopSettings = scope.subscribe(() => {

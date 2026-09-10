@@ -22,13 +22,6 @@
     },
     "./package.json": "./package.json"
   },
-  "mtmharness": {
-    "secondary": {
-      "id": "mtmcanvas",
-      "apiVersion": 1,
-      "client": "./lib/client.js"
-    }
-  },
   "files": [
     "lib/client.js",
     "lib/types/**/*.d.ts",
@@ -53,6 +46,7 @@
     "directory": "packages/mtmcanvas"
   },
   "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.2",
     "@types/node": "22.20.1",
     "@types/react": "~18.3.1",
     "@types/react-dom": "~18.3.0",

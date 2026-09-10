@@ -1,3 +1,5 @@
+import { createElement, useSyncExternalStore } from "react";
+import type { Context as ClientContext } from "@deepseek-ai/cordis";
 import { loadStorage } from "./storage.ts";
 import {
   DEFAULT_TIMEOUT_MS,
@@ -134,58 +136,26 @@ function freeze(value: P2pSnapshot): P2pSnapshot {
   return Object.freeze({ ...value, peers: Object.freeze([...value.peers]) });
 }
 
-export interface MtmharnessFrontendExtensionContext {
-  readonly root: HTMLElement;
-  readonly signal: AbortSignal;
-  readonly registerCleanup: (cleanup: () => void) => void;
+export interface MtmP2pClientConfig extends P2pClientOptions {}
+
+function P2pOverlay({ client }: { client: MtmP2pClient }) {
+  const snapshot = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
+  return createElement("aside", { "aria-label": "P2P status", style: { position: "fixed", right: "16px", bottom: "16px", zIndex: 1000, padding: "12px", minWidth: "180px", background: "white", color: "#172033", border: "1px solid #cbd5e1", borderRadius: "6px", boxShadow: "0 8px 24px #17203333", font: "13px system-ui" } },
+    createElement("div", null, "Status: " + snapshot.status),
+    createElement("div", null, "Peers: " + snapshot.peers.length),
+    createElement("div", null, "Transport: " + (typeof SharedWorker === "undefined" ? "fallback" : "SharedWorker ready")),
+    createElement("button", { type: "button", style: { marginTop: "8px" }, onClick: () => { void client.close(); } }, "Close"),
+  );
 }
 
-export function mount(context: MtmharnessFrontendExtensionContext): () => void {
-  const client = new MtmP2pClient();
-  const panel = context.root.ownerDocument.createElement("aside");
-  panel.setAttribute("aria-label", "P2P status");
-  Object.assign(panel.style, {
-    position: "fixed",
-    right: "16px",
-    bottom: "16px",
-    zIndex: "1000",
-    padding: "12px",
-    minWidth: "180px",
-    background: "white",
-    color: "#172033",
-    border: "1px solid #cbd5e1",
-    borderRadius: "6px",
-    boxShadow: "0 8px 24px #17203333",
-    font: "13px system-ui",
-  });
-  const status = context.root.ownerDocument.createElement("div");
-  const peers = context.root.ownerDocument.createElement("div");
-  const transport = context.root.ownerDocument.createElement("div");
-  const close = context.root.ownerDocument.createElement("button");
-  close.type = "button";
-  close.textContent = "Close";
-  close.style.marginTop = "8px";
-  panel.append(status, peers, transport, close);
-  context.root.ownerDocument.body.append(panel);
-  const render = (): void => {
-    const snapshot = client.getSnapshot();
-    status.textContent = "Status: " + snapshot.status;
-    peers.textContent = "Peers: " + snapshot.peers.length;
-    transport.textContent =
-      "Transport: " +
-      (typeof SharedWorker === "undefined" ? "fallback" : "SharedWorker ready");
-  };
-  const unsubscribe = client.subscribe(render);
-  render();
-  const dispose = (): void => {
-    unsubscribe();
-    close.removeEventListener("click", dispose);
-    panel.remove();
-    void client.close();
-    context.signal.removeEventListener("abort", dispose);
-  };
-  close.addEventListener("click", dispose);
-  context.registerCleanup(dispose);
-  context.signal.addEventListener("abort", dispose, { once: true });
-  return dispose;
+type SlotContext = ClientContext & { slots: { inject(name: string, register: () => unknown): unknown; register(options: Record<string, unknown>, component: unknown): unknown } };
+
+export const inject = ["slots"];
+
+export function apply(ctx: ClientContext, config: MtmP2pClientConfig = {}): void {
+  const client = new MtmP2pClient(config);
+  const slots = (ctx as SlotContext).slots;
+  ctx.provide("mtm-p2p-client", client);
+  ctx.effect(() => async () => { await client.close(); }, "mtm-p2p: client lifecycle");
+  slots.inject("shell.overlay", () => slots.register({ name: "shell.overlay", id: "mtm-p2p", order: 60 }, () => createElement(P2pOverlay, { client })));
 }

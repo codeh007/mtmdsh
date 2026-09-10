@@ -5,29 +5,36 @@ import type {} from "@deepseek-ai/dsh-client-ui-settings/client";
 import type {} from "@deepseek-ai/dsh-client-ui-settings-plugins/client";
 import type {} from "@deepseek-ai/dsh-client-ui-sidebar/client";
 import { apply as applyCoding } from "../features/coding/client/index.tsx";
-import { apply as applyMtmConnect } from "../features/mtm-connect/client/index.tsx";
-import { apply as applyMtmAdmin } from "../features/mtm-admin/client/index.tsx";
-import { apply as applySecondary } from "../features/secondary/client.ts";
-import { mount as mountMtmP2p } from "mtm-p2p";
+import { apply as applyMtmConnectSettings } from "../features/mtm-connect/client/index.tsx";
+import { apply as applyMtmAdminSettings } from "../features/mtm-admin/client/index.tsx";
+import { apply as applyMtmConnect } from "mtm-connect";
+import { apply as applyMtmCanvas } from "mtmcanvas";
+import { apply as applyMtmAdmin } from "mtm-admin";
+import { apply as applyMtmP2p } from "mtm-p2p";
 
 export { applyCoding };
 export const inject = ["slots", "locale", "settingsScope", "connection"];
 
-/** Register coding and secondary features under one plugin-owned lifecycle. */
-export function apply(ctx: ClientContext): void {
+type ToggleConfig = { enabled?: boolean };
+function toggleConfig(config: Record<string, unknown>, name: string): ToggleConfig {
+  const value = config[name];
+  return value !== null && typeof value === "object" ? value as ToggleConfig : {};
+}
+
+/** Compose all MTM client packages under the mtmharness Cordis fiber. */
+export async function apply(ctx: ClientContext, config: Record<string, unknown> = {}): Promise<void> {
+  applyMtmConnect(ctx, toggleConfig(config, "mtm-connect"));
+  applyMtmCanvas(ctx, { enabled: false });
+  applyMtmAdmin(ctx, toggleConfig(config, "mtm-admin"));
+  applyMtmP2p(ctx);
+  applyMtmConnectSettings(ctx);
+  applyMtmAdminSettings(ctx);
   applyCoding(ctx);
-  applyMtmConnect(ctx);
-  applyMtmAdmin(ctx);
-  applySecondary(ctx);
-  if (typeof document !== "undefined") {
-    const root = document.createElement("div");
-    document.body.append(root);
-    const cleanup = mountMtmP2p({
-      root,
-      signal: new AbortController().signal,
-      registerCleanup: (fn: () => void) =>
-        ctx.effect(() => fn, "mtm-p2p: client lifecycle"),
-    });
-    ctx.effect(() => cleanup, "mtm-p2p: dispose");
+
+  const canvas = ctx.get("mtmcanvas-client") as { setEnabled(enabled: boolean): Promise<void> } | undefined;
+  if (canvas !== undefined) {
+    const settings = ctx.settingsScope.bind<{ dynamicCanvasEnabled?: boolean }>({ namespace: "mtm-coding" });
+    const reconcile = (): void => { void canvas.setEnabled(settings.getSnapshot().value?.dynamicCanvasEnabled === true); };
+    ctx.effect(() => { const stop = settings.subscribe(reconcile); reconcile(); return stop; }, "mtmcanvas: settings lifecycle");
   }
 }

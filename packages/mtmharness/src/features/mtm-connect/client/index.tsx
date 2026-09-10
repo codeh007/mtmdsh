@@ -5,8 +5,7 @@ import type {} from "@deepseek-ai/dsh-client-ui-settings-plugins/client";
 import { MtmConnectCard } from "./MtmConnectCard.js";
 import { MtmConnectCardController } from "./controller.js";
 import { en, zh, type MtmConnectLocaleKey } from "./locales.js";
-import { MtmSecondaryClientRuntime } from "../../secondary/client.js";
-import { MTM_CONNECT_EXTENSION } from "../../secondary/manifest.js";
+import type { MtmConnectClient } from "mtm-connect";
 import { SETTINGS_NAMESPACE } from "../contract.js";
 import type { MtmConnectSettings } from "../index.js";
 
@@ -19,10 +18,11 @@ declare module "@deepseek-ai/dsh-client-ui-slots" {
 export const name = "mtm-connect-client";
 export const inject = ["slots", "locale", "settingsScope"];
 
-/** Register the settings card and runtime-loaded Connect frontend. */
+/** Register the settings card for the composed Connect client. */
 export function apply(ctx: ClientContext): void {
   const settings = ctx.settingsScope.bind<MtmConnectSettings>({ namespace: SETTINGS_NAMESPACE });
-  const runtime = new MtmSecondaryClientRuntime({ document: typeof document === "undefined" ? undefined : document }, MTM_CONNECT_EXTENSION);
+  const runtime = ctx.get("mtm-connect-client") as MtmConnectClient | undefined;
+  if (runtime === undefined) throw new Error("mtm-connect: composed client is unavailable");
   const controller = new MtmConnectCardController(settings, runtime);
   ctx.effect(() => async () => { await controller.dispose(); }, "mtm-connect: client lifecycle");
   const t = ctx.locale.bind("mtm.connect");
