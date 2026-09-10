@@ -8,7 +8,12 @@ export default defineConfig({
   base: "./",
   define: { "process.env.NODE_ENV": JSON.stringify("production") },
   plugins: [react(), tailwindcss()],
-  resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      "mtmharness/auth": fileURLToPath(new URL("../mtmharness/src/embed/app/auth.ts", import.meta.url)),
+    },
+  },
   build: {
     outDir: fileURLToPath(new URL("./dist/embed", import.meta.url)),
     emptyOutDir: true,
