@@ -189,18 +189,6 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: 3.18.2
         version: 3.18.2
-      mtm-admin:
-        specifier: workspace:*
-        version: link:../mtm-admin
-      mtm-connect:
-        specifier: workspace:*
-        version: link:../mtm-connect
-      mtm-p2p:
-        specifier: workspace:*
-        version: link:../mtm-p2p
-      mtmcanvas:
-        specifier: workspace:*
-        version: link:../mtmcanvas
       npm:
         specifier: 11.7.0
         version: 11.7.0
@@ -349,6 +337,18 @@ importers:
       lucide-react:
         specifier: 1.21.0
         version: 1.21.0(react@18.3.1)
+      mtm-admin:
+        specifier: workspace:*
+        version: link:../mtm-admin
+      mtm-connect:
+        specifier: workspace:*
+        version: link:../mtm-connect
+      mtm-p2p:
+        specifier: workspace:*
+        version: link:../mtm-p2p
+      mtmcanvas:
+        specifier: workspace:*
+        version: link:../mtmcanvas
       react:
         specifier: 18.3.1
         version: 18.3.1
