@@ -1,5 +1,2 @@
-export { mount } from "./client/index.ts";
-export type {
-  MtmharnessFrontendExtensionCleanup,
-  MtmharnessFrontendExtensionContext,
-} from "./client/index.ts";
+export { apply, MtmConnectClient } from "./client/index.ts";
+export type { MtmConnectClientConfig, MtmConnectClientSnapshot } from "./client/index.ts";

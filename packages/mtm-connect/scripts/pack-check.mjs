@@ -21,7 +21,7 @@ try {
   for (const forbidden of [/^\s*import\s/m, /require\(["']node:/, /require\(["'](?:fs|child_process)/, "@deepseek-ai/", "__ModuleLoader__"]) {
     if (forbidden instanceof RegExp ? forbidden.test(source) : source.includes(forbidden)) throw new Error("mtm-connect pack: client artifact is not self-contained: " + forbidden);
   }
-  if (!source.includes("export {")) throw new Error("mtm-connect pack: client artifact does not export mount");
+  if (!source.includes("export {")) throw new Error("mtm-connect pack: client artifact does not export apply");
 } finally {
   rmSync(destination, { recursive: true, force: true });
 }

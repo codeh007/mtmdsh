@@ -1,5 +1,6 @@
 "use client";
 
+// @ts-ignore -- the standalone auth export is supplied by the mtmharness package.
 import { OAuthClient } from "mtmharness/auth";
 import { useEffect, useRef } from "react";
 import { AdminAuthGate } from "./admin-auth";

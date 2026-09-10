@@ -1,53 +1,43 @@
-const ADMIN_APP_URL = "https://unpkg.com/mtm-admin@0.1.1/dist/standalone/index.html";
+import { createElement, useSyncExternalStore } from "react";
+import type { Context as ClientContext } from "@deepseek-ai/cordis";
 
-export interface MtmharnessFrontendExtensionContext {
-  readonly apiVersion: 1;
-  readonly id: string;
-  readonly version: string;
-  readonly root: HTMLElement;
-  readonly document: Document;
-  readonly signal: AbortSignal;
-  readonly registerCleanup: (cleanup: () => void | Promise<void>) => void;
+export interface MtmAdminClientConfig { enabled?: boolean; appUrl?: string; }
+export interface MtmAdminClientSnapshot { desired: boolean; status: "disabled" | "enabled" | "loading" | "failed"; error?: string; }
+
+export class MtmAdminClient {
+  private readonly appUrl: string;
+  private desired: boolean;
+  private disposed = false;
+  private readonly listeners = new Set<() => void>();
+  constructor(config: MtmAdminClientConfig = {}) {
+    this.desired = config.enabled ?? false;
+    this.appUrl = config.appUrl ?? "/admin/";
+    if (!/^https?:\/\//u.test(this.appUrl) && !this.appUrl.startsWith("/")) throw new TypeError("mtm-admin appUrl must be an absolute URL or root path");
+  }
+  getSnapshot = (): MtmAdminClientSnapshot => ({ desired: this.desired, status: this.desired ? "enabled" : "disabled" });
+  subscribe = (listener: () => void): (() => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
+  setEnabled = async (enabled: boolean): Promise<void> => { if (!this.disposed && this.desired !== enabled) { this.desired = enabled; this.publish(); } };
+  show = (_focusSelector?: string): void => { void this.setEnabled(true); };
+  hide = (): void => { void this.setEnabled(false); };
+  dispose = (): void => { if (this.disposed) return; this.disposed = true; this.listeners.clear(); };
+  getAppUrl = (): string => this.appUrl;
+  private publish(): void { for (const listener of [...this.listeners]) listener(); }
 }
 
-/** Mount a token-free entry point for the independent Admin application. */
-export function mount(context: MtmharnessFrontendExtensionContext): () => void {
-  const root = context.root;
-  const previousStyle = root.getAttribute("style");
-  const previousHidden = root.hidden;
-  const link = context.document.createElement("a");
-  let disposed = false;
-  const dispose = (): void => {
-    if (disposed) return;
-    disposed = true;
-    context.signal.removeEventListener("abort", dispose);
-    link.remove();
-    root.hidden = previousHidden;
-    if (previousStyle === null) root.removeAttribute("style");
-    else root.setAttribute("style", previousStyle);
-  };
+function AdminOverlay({ client }: { client: MtmAdminClient }) {
+  const visible = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot).desired;
+  if (!visible) return null;
+  return createElement("a", { href: client.getAppUrl(), target: "_blank", rel: "noopener noreferrer", "aria-label": "Open MTM Admin", "data-mtm-admin-launcher": "true" }, "Open MTM Admin");
+}
 
-  link.href = ADMIN_APP_URL;
-  link.target = "_blank";
-  link.rel = "noopener noreferrer";
-  link.textContent = "Open MTM Admin";
-  link.setAttribute("aria-label", "Open MTM Admin");
-  link.dataset.mtmAdminLauncher = "true";
-  link.style.display = "inline-flex";
-  link.style.alignItems = "center";
-  link.style.border = "1px solid #cbd5e1";
-  link.style.borderRadius = "6px";
-  link.style.background = "#ffffff";
-  link.style.color = "#0f172a";
-  link.style.padding = "8px 12px";
-  link.style.font = "600 14px system-ui, sans-serif";
-  link.style.textDecoration = "none";
-  root.style.position = "fixed";
-  root.style.right = "16px";
-  root.style.bottom = "16px";
-  root.style.zIndex = "2147483000";
-  root.append(link);
-  context.signal.addEventListener("abort", dispose, { once: true });
-  context.registerCleanup(dispose);
-  return dispose;
+type SlotContext = ClientContext & { slots: { inject(name: string, register: () => unknown): unknown; register(options: Record<string, unknown>, component: unknown): unknown } };
+
+export const inject = ["slots"];
+
+export function apply(ctx: ClientContext, config: MtmAdminClientConfig = {}): void {
+  const client = new MtmAdminClient(config);
+  const slots = (ctx as SlotContext).slots;
+  ctx.provide("mtm-admin-client", client);
+  ctx.effect(() => () => { client.dispose(); }, "mtm-admin: client lifecycle");
+  slots.inject("shell.overlay", () => slots.register({ name: "shell.overlay", id: "mtm-admin", order: 50 }, () => createElement(AdminOverlay, { client })));
 }

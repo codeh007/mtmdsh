@@ -13,11 +13,19 @@ const tsc = resolve(packageRoot, "node_modules/.bin/tsc");
 const vite = resolve(packageRoot, "node_modules/.bin/vite");
 const clientTemp = resolve(libRoot, "client.bundle.cjs");
 const packageName = "mtmharness";
+const workspaceRoot = resolve(packageRoot, "..");
+const adminRoot = resolve(workspaceRoot, "mtm-admin");
 
 rmSync(libRoot, { recursive: true, force: true });
 rmSync(distRoot, { recursive: true, force: true });
 mkdirSync(libRoot, { recursive: true });
 if (!existsSync(tsc) || !existsSync(vite)) throw new Error("mtmharness build: local TypeScript and Vite executables are required");
+
+for (const packageName of ["mtm-connect", "mtmcanvas", "mtm-p2p"]) {
+  execFileSync("pnpm", ["--filter", packageName, "run", "build"], { cwd: workspaceRoot, stdio: "inherit" });
+}
+execFileSync(tsc, ["--ignoreConfig", "--declaration", "--emitDeclarationOnly", "--skipLibCheck", "--module", "NodeNext", "--moduleResolution", "NodeNext", "--target", "ES2022", "--jsx", "react-jsx", "--outDir", resolve(adminRoot, "lib/types"), resolve(adminRoot, "src/launcher.ts")], { cwd: adminRoot, stdio: "inherit" });
+await build({ entryPoints: [resolve(adminRoot, "src/launcher.ts")], outfile: resolve(adminRoot, "lib/client.js"), bundle: true, format: "esm", platform: "browser", target: "es2020", legalComments: "none", logLevel: "info" });
 
 execFileSync(tsc, ["--project", resolve(packageRoot, "tsconfig.json")], { cwd: packageRoot, stdio: "inherit" });
 execFileSync(tsc, ["--project", resolve(packageRoot, "tsconfig.standalone.json")], { cwd: packageRoot, stdio: "inherit" });

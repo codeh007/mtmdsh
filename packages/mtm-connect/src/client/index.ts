@@ -1,79 +1,55 @@
 import { createElement, useSyncExternalStore } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
+import type { Context as ClientContext } from "@deepseek-ai/cordis";
 import { ConnectView } from "./ConnectView.tsx";
 import { ConnectRuntime } from "./runtime.ts";
 import { MTM_CONNECT_CSS } from "./styles.ts";
 
-export interface MtmharnessFrontendExtensionContext {
-  readonly apiVersion: 1;
-  readonly id: string;
-  readonly version: string;
-  readonly root: HTMLElement;
-  readonly document: Document;
-  readonly signal: AbortSignal;
-  readonly registerCleanup: (cleanup: () => void | Promise<void>) => void;
-}
+export interface MtmConnectClientConfig { enabled?: boolean; }
+export interface MtmConnectClientSnapshot { desired: boolean; status: "disabled" | "enabled" | "loading" | "failed"; error?: string; }
 
-export type MtmharnessFrontendExtensionCleanup = void | (() => void | Promise<void>);
-
-function ConnectExtension({ runtime, onClose }: { runtime: ConnectRuntime; onClose: () => void }) {
-  const state = useSyncExternalStore(runtime.subscribe, runtime.getSnapshot, runtime.getSnapshot);
-  return createElement(ConnectView, { state, actions: runtime, onClose });
-}
-
-/** Mount the browser-only mock Connect view through the mtmharness ABI. */
-export function mount(context: MtmharnessFrontendExtensionContext): () => void {
-  const runtime = new ConnectRuntime();
-  let reactRoot: ReturnType<typeof createRoot> | undefined;
-  let style: HTMLStyleElement | undefined;
-  const previousStyle = context.root.getAttribute("style");
-  const previousTabIndex = context.root.getAttribute("tabindex");
-  const previousHidden = context.root.hidden;
-  let disposed = false;
-  const restoreRoot = (): void => {
-    if (previousStyle === null) context.root.removeAttribute("style");
-    else context.root.setAttribute("style", previousStyle);
-    if (previousTabIndex === null) context.root.removeAttribute("tabindex");
-    else context.root.setAttribute("tabindex", previousTabIndex);
-    context.root.hidden = previousHidden;
-  };
-  const dispose = (): void => {
-    if (disposed) return;
-    disposed = true;
-    context.signal.removeEventListener("abort", dispose);
-    runtime.dispose();
-    reactRoot?.unmount();
-    style?.remove();
-    restoreRoot();
-  };
-  context.registerCleanup(dispose);
-  try {
-    context.root.tabIndex = -1;
-    context.root.style.position = "fixed";
-    context.root.style.top = "16px";
-    context.root.style.right = "16px";
-    context.root.style.bottom = "16px";
-    context.root.style.zIndex = "1000";
-    context.root.style.width = "min(520px, calc(100vw - 32px))";
-    context.root.style.overflow = "hidden";
-    context.root.style.border = "1px solid #cbd5e1";
-    context.root.style.borderRadius = "8px";
-    context.root.style.background = "#f7f8fa";
-    context.root.style.boxShadow = "0 16px 40px #17203333";
-    style = context.document.createElement("style");
-    style.dataset.mtmSecondaryExtension = context.id;
-    style.textContent = MTM_CONNECT_CSS;
-    context.document.head.append(style);
-    const root = createRoot(context.root);
-    reactRoot = root;
-    context.signal.addEventListener("abort", dispose, { once: true });
-    flushSync(() => {
-      root.render(createElement(ConnectExtension, { runtime, onClose: () => { context.root.hidden = true; } }));
-    });
-    return dispose;
-  } catch (error) {
-    dispose();
-    throw error;
+export class MtmConnectClient {
+  private readonly runtime = new ConnectRuntime();
+  private readonly stopRuntime: () => void;
+  private desired: boolean;
+  private disposed = false;
+  private readonly listeners = new Set<() => void>();
+  constructor(config: MtmConnectClientConfig = {}) {
+    this.desired = config.enabled ?? true;
+    this.stopRuntime = this.runtime.subscribe(() => this.publish());
   }
+  getSnapshot = (): MtmConnectClientSnapshot => ({ desired: this.desired, status: this.desired ? "enabled" : "disabled" });
+  getViewState = this.runtime.getSnapshot;
+  getActions = (): ConnectRuntime => this.runtime;
+  subscribe = (listener: () => void): (() => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
+  setEnabled = async (enabled: boolean): Promise<void> => { if (!this.disposed && this.desired !== enabled) { this.desired = enabled; this.publish(); } };
+  show = (_focusSelector?: string): void => { void this.setEnabled(true); };
+  hide = (): void => { void this.setEnabled(false); };
+  dispose = (): void => { if (this.disposed) return; this.disposed = true; this.stopRuntime(); this.runtime.dispose(); this.listeners.clear(); };
+  private publish(): void { for (const listener of [...this.listeners]) listener(); }
+}
+
+function ConnectOverlay({ client }: { client: MtmConnectClient }) {
+  const visible = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot).desired;
+  if (!visible) return null;
+  return createElement(ConnectView, { state: client.getViewState(), actions: client.getActions(), onClose: client.hide });
+}
+
+type SlotContext = ClientContext & { slots: { inject(name: string, register: () => unknown): unknown; register(options: Record<string, unknown>, component: unknown): unknown } };
+
+export const inject = ["slots"];
+
+export function apply(ctx: ClientContext, config: MtmConnectClientConfig = {}): void {
+  const client = new MtmConnectClient(config);
+  const slots = (ctx as SlotContext).slots;
+  ctx.provide("mtm-connect-client", client);
+  ctx.effect(() => () => { client.dispose(); }, "mtm-connect: client lifecycle");
+  ctx.effect(() => {
+    if (typeof document === "undefined") return () => {};
+    const style = document.createElement("style");
+    style.dataset.plugin = "mtm-connect";
+    style.textContent = MTM_CONNECT_CSS;
+    document.head.append(style);
+    return () => { style.remove(); };
+  }, "mtm-connect: styles");
+  slots.inject("shell.overlay", () => slots.register({ name: "shell.overlay", id: "mtm-connect", order: 40 }, () => createElement(ConnectOverlay, { client })));
 }

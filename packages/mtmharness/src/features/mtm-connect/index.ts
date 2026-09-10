@@ -17,7 +17,7 @@ export const MtmConnectSettingsSchema: z<MtmConnectSettings> = z.object({
 export const name = "mtm-connect";
 export const inject = ["settings"];
 
-/** Register the user-owned setting for the secondary Connect frontend. */
+/** Register the user-owned setting for the composed Connect client. */
 export function apply(ctx: Context, rawConfig: MtmConnectConfig = {}): void {
   ctx.settings.register(SETTINGS_NAMESPACE, MtmConnectSettingsSchema, { base: { enabled: rawConfig.enabled ?? true } });
 }

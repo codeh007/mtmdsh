@@ -12,6 +12,7 @@ type Registered = {
 function clientBench(loopback = true): { registered: Registered[]; cleanups: Array<() => void | Promise<void>> } {
   const registered: Registered[] = [];
   const cleanups: Array<() => void | Promise<void>> = [];
+  const services = new Map<string, unknown>();
   const codingSettings = {
     status: "ready",
     value: {
@@ -41,9 +42,10 @@ function clientBench(loopback = true): { registered: Registered[]; cleanups: Arr
   const ctx = {
     get(name: string) {
       if (name === "connection") return { isLoopback: loopback, rpc: { call: async () => ({ ok: true, value: {} }) } };
+      if (services.has(name)) return services.get(name);
       throw new Error("unexpected service: " + name);
     },
-    provide() {},
+    provide(name: string, value: unknown) { services.set(name, value); },
     locale: {
       bind: () => (key: string) => key,
       register: () => () => {},
@@ -189,7 +191,7 @@ describe("mtmharness browser half", () => {
       expect.objectContaining({ name: "settings.plugin.item", options: expect.objectContaining({ key: "mtm-admin" }) }),
     ]));
     expect(registered.filter((entry) => entry.name === "sidebar.footer.action")).toHaveLength(0);
-    expect(registered.filter((entry) => entry.name === "shell.overlay")).toHaveLength(1);
+    expect(registered.filter((entry) => entry.name === "shell.overlay")).toHaveLength(5);
     for (const cleanup of cleanups.reverse()) void cleanup();
     expect(registered).toHaveLength(0);
   });

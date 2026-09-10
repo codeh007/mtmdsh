@@ -29,6 +29,6 @@ await build({
   logLevel: "info",
 });
 const artifact = await import(resolve(libRoot, "client.js"));
-if (typeof artifact.mount !== "function") throw new Error("mtmcanvas build: client artifact must export mount(context)");
+if (typeof artifact.apply !== "function") throw new Error("mtmcanvas build: client artifact must export apply(ctx, config)");
 
 console.log("built mtmcanvas browser ESM artifact");

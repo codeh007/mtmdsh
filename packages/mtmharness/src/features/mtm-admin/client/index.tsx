@@ -3,8 +3,7 @@ import type {} from "@deepseek-ai/dsh-client-locale/client";
 import type {} from "@deepseek-ai/dsh-client-ui-renderer/client";
 import type {} from "@deepseek-ai/dsh-client-ui-settings-plugins/client";
 import type {} from "@deepseek-ai/dsh-client-ui-slots";
-import { MtmSecondaryClientRuntime } from "../../secondary/client.js";
-import { MTM_ADMIN_EXTENSION } from "../../secondary/manifest.js";
+import type { MtmAdminClient } from "mtm-admin";
 import { MtmAdminCard } from "./MtmAdminCard.js";
 import { MtmAdminCardController } from "./controller.js";
 import { en, zh, type MtmAdminLocaleKey } from "./locales.js";
@@ -20,10 +19,11 @@ declare module "@deepseek-ai/dsh-client-ui-slots" {
 export const name = "mtm-admin-client";
 export const inject = ["slots", "locale", "settingsScope"];
 
-/** Register the Admin launcher settings card and runtime extension. */
+/** Register the Admin launcher settings card for the composed client. */
 export function apply(ctx: ClientContext): void {
   const settings = ctx.settingsScope.bind<MtmAdminSettings>({ namespace: SETTINGS_NAMESPACE });
-  const runtime = new MtmSecondaryClientRuntime({ document: typeof document === "undefined" ? undefined : document }, MTM_ADMIN_EXTENSION);
+  const runtime = ctx.get("mtm-admin-client") as MtmAdminClient | undefined;
+  if (runtime === undefined) throw new Error("mtm-admin: composed client is unavailable");
   const controller = new MtmAdminCardController(settings, runtime);
   ctx.effect(() => async () => { await controller.dispose(); }, "mtm-admin: client lifecycle");
   const t = ctx.locale.bind("mtm.admin");
