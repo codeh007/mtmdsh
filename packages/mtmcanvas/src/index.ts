@@ -1,8 +1,5 @@
-export { mount } from "./client/index.ts";
-export type {
-  MtmharnessFrontendExtensionCleanup,
-  MtmharnessFrontendExtensionContext,
-} from "./client/index.ts";
+export { apply, MtmCanvasClient } from "./client/index.ts";
+export type { MtmCanvasClientConfig, MtmCanvasClientSnapshot } from "./client/index.ts";
 export type {
   CanvasConnection,
   CanvasDocument,

@@ -14,13 +14,6 @@
     "./worker": "./lib/worker.js",
     "./package.json": "./package.json"
   },
-  "mtmharness": {
-    "secondary": {
-      "id": "mtm-p2p",
-      "apiVersion": 1,
-      "client": "./lib/client.js"
-    }
-  },
   "files": [
     "lib",
     "README.md",
@@ -41,8 +34,11 @@
     "libp2p": "^3.3.11"
   },
   "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.2",
     "@types/node": "22.20.1",
+    "@types/react": "~18.3.31",
     "esbuild": "0.28.2",
+    "react": "18.3.1",
     "typescript": "6.0.3",
     "vitest": "4.1.11"
   }

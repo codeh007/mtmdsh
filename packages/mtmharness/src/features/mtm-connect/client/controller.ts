@@ -1,6 +1,6 @@
 import { createSnapshotStore, type SnapshotStore } from "@deepseek-ai/dsh-client-store";
 import type { SettingsScope } from "@deepseek-ai/dsh-client-ui-settings/client";
-import type { MtmSecondaryClientRuntime, MtmSecondarySnapshot } from "../../secondary/client.js";
+import type { MtmConnectClient, MtmConnectClientSnapshot } from "mtm-connect";
 import type { MtmConnectSettings } from "../index.js";
 
 export interface MtmConnectCardState {
@@ -11,7 +11,7 @@ export interface MtmConnectCardState {
   readonly dirty: boolean;
   readonly saving: boolean;
   readonly failed: boolean;
-  readonly status: MtmSecondarySnapshot["status"];
+  readonly status: MtmConnectClientSnapshot["status"];
   readonly error?: string;
 }
 
@@ -41,7 +41,7 @@ function userHasEnabled(snapshot: ConnectSettingsSnapshot): boolean {
   return user !== undefined && Object.hasOwn(user, "enabled");
 }
 
-/** Staged settings card and live secondary-extension lifecycle. */
+/** Staged settings card for the composed Connect client. */
 export class MtmConnectCardController {
   private staged: Staged | undefined;
   private readonly store: SnapshotStore<MtmConnectCardState>;
@@ -54,7 +54,7 @@ export class MtmConnectCardController {
 
   constructor(
     private readonly scope: SettingsScope<MtmConnectSettings>,
-    private readonly runtime: MtmSecondaryClientRuntime,
+    private readonly runtime: MtmConnectClient,
   ) {
     this.store = createSnapshotStore(this.projection());
     this.stopSettings = scope.subscribe(() => {
