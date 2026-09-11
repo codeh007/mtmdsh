@@ -1,7 +1,7 @@
 import { MemoryTokenSource, OAuthClient, type MtmHarnessTokenSource, type OAuthClientConfig } from "./auth";
 
 export type MtmHarnessClientMode = "floating" | "dialog" | "fullscreen";
-export type ClientPresentation = "standalone" | "embed";
+export type ClientPresentation = "embed";
 export type MtmHarnessWebSocketFactory = (url: URL, protocols: readonly string[]) => WebSocket | Promise<WebSocket>;
 export type MtmHarnessPresentationState = "closed" | "panel" | "fullscreen";
 
@@ -174,11 +174,6 @@ export function createTokenSource(config: NormalizedClientConfig): MtmHarnessTok
   if (config.tokenSource !== undefined) return config.tokenSource;
   if (config.oauth !== undefined) return new OAuthClient(config.oauth);
   return config.accessToken === undefined ? undefined : new MemoryTokenSource(config.accessToken);
-}
-
-export function resolveStandaloneBasepath(base: string, href: string): string | undefined {
-  const pathname = new URL(base === "./" || base === "" ? "." : base, href).pathname;
-  return pathname.replace(/\/+$/u, "") || undefined;
 }
 
 export function resolveTarget(target: MtmHarnessClientConfig["target"]): Element {

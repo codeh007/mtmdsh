@@ -125,15 +125,6 @@ async function hostBench(): Promise<{ registeredNamespaces: string[]; cleanups: 
   return { registeredNamespaces, cleanups };
 }
 
-describe("mtmharness Host half", () => {
-  it("registers the Admin settings namespace without a local backend", async () => {
-    const { registeredNamespaces, cleanups } = await hostBench();
-    expect(registeredNamespaces).toContain("mtm-admin");
-    for (const cleanup of cleanups.reverse()) await cleanup();
-  });
-
-});
-
 describe("mtmharness browser half", () => {
   it("declares the combined service dependencies", () => {
     expect(inject).toEqual(["slots", "locale", "settingsScope", "connection"]);
@@ -173,10 +164,9 @@ describe("mtmharness browser half", () => {
     const { registered, cleanups, p2p } = clientBench();
     expect(registered).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: "settings.plugin.item", options: expect.objectContaining({ key: "mtm-coding" }) }),
-      expect.objectContaining({ name: "settings.plugin.item", options: expect.objectContaining({ key: "mtm-admin" }) }),
     ]));
     expect(registered.filter((entry) => entry.name === "sidebar.footer.action")).toHaveLength(0);
-    expect(registered.filter((entry) => entry.name === "shell.overlay")).toHaveLength(3);
+    expect(registered.filter((entry) => entry.name === "shell.overlay")).toHaveLength(2);
     for (const cleanup of cleanups.reverse()) void cleanup();
     expect(p2p.getSnapshot().status).toBe("closed");
     expect(registered).toHaveLength(0);

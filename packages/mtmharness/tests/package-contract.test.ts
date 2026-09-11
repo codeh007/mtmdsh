@@ -12,7 +12,6 @@ describe("mtmharness package contract", () => {
         "./client": { default?: string };
         "./embed": { import?: string };
         "./auth": { import?: string };
-        "./app": string;
       };
       unpkg?: string;
       jsdelivr?: string;
@@ -28,7 +27,7 @@ describe("mtmharness package contract", () => {
     expect(manifest.exports["./embed"]?.import).toBe("./dist/embed/mtmharness.js");
     expect(manifest.exports["./embed"]?.types).toBe("./dist/types/embed/index.d.ts");
     expect(manifest.exports["./auth"]?.import).toBe("./dist/auth.js");
-    expect(manifest.exports["./app"]).toBe("./dist/standalone/index.html");
+    expect(manifest.exports["./app"]).toBeUndefined();
     expect(manifest.unpkg).toBe("./dist/embed/mtmharness.iife.js");
     expect(manifest.jsdelivr).toBe("./dist/embed/mtmharness.iife.js");
     expect(existsSync(resolve(packageRoot, "src/embed/index.tsx"))).toBe(true);

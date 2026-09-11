@@ -5,5 +5,5 @@ import type { MtmHarnessRuntime } from "@/runtime";
 
 export function ConversationRoute({ config, runtime, presentation, presentationController }: { config: NormalizedClientConfig; runtime: MtmHarnessRuntime; presentation: ClientPresentation; presentationController: MtmHarnessPresentationController }): ReactElement {
   const fullShell = useSyncExternalStore(presentationController.subscribe, presentationController.snapshot, presentationController.snapshot) === "fullscreen";
-  return <ConversationSurface config={config} runtime={runtime} compact connectOnMount showHeader={presentation !== "standalone" && !fullShell} />;
+  return <ConversationSurface config={config} runtime={runtime} compact connectOnMount showHeader={!fullShell} />;
 }

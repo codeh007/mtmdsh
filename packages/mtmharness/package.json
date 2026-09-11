@@ -32,9 +32,8 @@
     },
     "./p2p-worker": {
       "types": "./lib/types/features/p2p/worker.d.ts",
-      "default": "./lib/p2p-worker.js"
+      "default": "./lib/p2p-worker.cjs"
     },
-    "./app": "./dist/standalone/index.html",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
@@ -62,9 +61,8 @@
     "lib/index.js",
     "lib/client.js",
     "lib/client.cjs",
-    "lib/p2p-worker.js",
+    "lib/p2p-worker.cjs",
     "lib/types/**/*.d.ts",
-    "dist/standalone",
     "dist/embed",
     "dist/auth.js",
     "dist/types",
@@ -74,9 +72,8 @@
     "LICENSE"
   ],
   "scripts": {
-    "dev": "vite --config vite.standalone.config.ts",
     "build": "node scripts/build.mjs",
-    "typecheck": "tsc --noEmit && tsc --project tsconfig.standalone.json --noEmit",
+    "typecheck": "tsc --noEmit",
     "test": "pnpm run build && vitest run --config vitest.config.ts && node --test tests/*.test.mjs",
     "check": "pnpm run typecheck && pnpm run test",
     "prepack": "pnpm run build"
@@ -185,7 +182,7 @@
     "esbuild": "0.28.2",
     "jsdom": "30.0.1",
     "lucide-react": "1.21.0",
-    "mtm-admin": "workspace:*",
+
     "mtmcanvas": "workspace:*",
     "react": "18.3.1",
     "react-dom": "18.3.1",
