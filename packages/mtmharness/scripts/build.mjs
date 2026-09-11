@@ -97,4 +97,38 @@ rmSync(clientTemp, { force: true });
 
 execFileSync(vite, ["build", "--config", resolve(packageRoot, "vite.embed.config.ts")], { cwd: packageRoot, stdio: "inherit" });
 
+const embedTypesRoot = resolve(distRoot, "types/embed");
+mkdirSync(resolve(embedTypesRoot, "app"), { recursive: true });
+writeFileSync(resolve(embedTypesRoot, "app/auth.d.ts"), [
+  "export declare const OAUTH_CONTRACT_VERSION: 2;",
+  "export interface OAuthClientConfig { issuer: string; clientId: string; redirectUri: string; resource: string; discoveryUrl?: string; scopes: readonly string[]; }",
+  "export interface OAuthDiscovery { issuer: string; authorizationEndpoint: string; tokenEndpoint: string; userinfoEndpoint?: string; jwksUri: string; idTokenSigningAlgorithms: readonly string[]; revocationEndpoint?: string; endSessionEndpoint?: string; }",
+  "export type MtmHarnessAuthStatus = \"signed-out\" | \"discovering\" | \"ready\" | \"authorizing\" | \"authenticated\" | \"error\";",
+  "export interface MtmHarnessAuthSnapshot { status: MtmHarnessAuthStatus; accountPartition?: string; expiresAt?: number; error?: string; }",
+  "export interface MtmHarnessTokenSource { getAccessToken(): Promise<string>; getAccountPartition(): string | undefined; subscribe(listener: (snapshot: MtmHarnessAuthSnapshot) => void): () => void; clear(): void; }",
+  "export interface MtmHarnessAuthClient extends MtmHarnessTokenSource { getSnapshot(): MtmHarnessAuthSnapshot; discover(): Promise<OAuthDiscovery>; beginLogin(options?: { selectAccount?: boolean }): Promise<string>; consumeCallback(callbackUrl?: string): Promise<boolean>; logout(): Promise<void>; switchAccount(): Promise<string>; dispose(options?: { preserveAuthorization?: boolean }): void; }",
+  "export declare class OAuthError extends Error { readonly code: string; readonly status?: number; }",
+  "export declare class OAuthClient implements MtmHarnessAuthClient { constructor(config: OAuthClientConfig); getAccessToken(): Promise<string>; getAccountPartition(): string | undefined; subscribe(listener: (snapshot: MtmHarnessAuthSnapshot) => void): () => void; clear(): void; getSnapshot(): MtmHarnessAuthSnapshot; discover(): Promise<OAuthDiscovery>; beginLogin(options?: { selectAccount?: boolean }): Promise<string>; consumeCallback(callbackUrl?: string): Promise<boolean>; logout(): Promise<void>; switchAccount(): Promise<string>; dispose(options?: { preserveAuthorization?: boolean }): void; }",
+  "export declare class MemoryTokenSource implements MtmHarnessTokenSource { constructor(accessToken: string, accountPartition?: string); getAccessToken(): Promise<string>; getAccountPartition(): string | undefined; subscribe(listener: (snapshot: MtmHarnessAuthSnapshot) => void): () => void; clear(): void; }",
+  "export declare function createMemoryTokenSource(accessToken: string, accountPartition?: string): MemoryTokenSource;",
+  "export declare function createPkceChallenge(verifier: string): Promise<string>;",
+  "export declare function oauthTransactionStorageKey(config: OAuthClientConfig): string;",
+  "",
+].join("\n"));
+writeFileSync(resolve(embedTypesRoot, "index.d.ts"), [
+  'export * from "./app/auth.js";',
+  "export type MtmHarnessClientMode = \"floating\" | \"dialog\" | \"fullscreen\";",
+  "export type MtmHarnessWebSocketFactory = (url: URL, protocols: readonly string[]) => WebSocket | Promise<WebSocket>;",
+  "export type MtmHarnessPresentationState = \"closed\" | \"panel\" | \"fullscreen\";",
+  "export interface MtmHarnessPresentationController { snapshot(): MtmHarnessPresentationState; subscribe(listener: () => void): () => void; open(): void; close(): void; openFullShell(): void; }",
+  "export interface MtmHarnessRuntimeBootstrap { apiOrigin?: string; oauth?: import(\"./app/auth.js\").OAuthClientConfig; accessToken?: string; tokenSource?: import(\"./app/auth.js\").MtmHarnessTokenSource; webSocketFactory?: MtmHarnessWebSocketFactory; }",
+  "export interface MtmHarnessClientConfig extends MtmHarnessRuntimeBootstrap { target?: Element | string; apiOrigin: string; mode?: MtmHarnessClientMode; }",
+  "export interface NormalizedClientConfig extends MtmHarnessRuntimeBootstrap { apiOrigin: string; mode: MtmHarnessClientMode; }",
+  "export interface MtmHarnessClientHandle { unmount(): void; open(): void; close(): void; openFullShell(): void; }",
+  "export declare function mount(config: MtmHarnessClientConfig): MtmHarnessClientHandle;",
+  "export declare function autoMount(script: HTMLScriptElement): MtmHarnessClientHandle | null;",
+  "export declare const MtmHarnessClient: { mount: typeof mount; autoMount: typeof autoMount };",
+  "",
+].join("\n"));
+
 console.log("built mtmharness plugin and embed artifacts");
