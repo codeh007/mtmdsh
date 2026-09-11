@@ -9,7 +9,7 @@ type Registered = {
   component: unknown;
 };
 
-function clientBench(loopback = true): { registered: Registered[]; cleanups: Array<() => void | Promise<void>> } {
+function clientBench(loopback = true): { registered: Registered[]; cleanups: Array<() => void | Promise<void>>; p2p: { getSnapshot: () => { status: string } } } {
   const registered: Registered[] = [];
   const cleanups: Array<() => void | Promise<void>> = [];
   const services = new Map<string, unknown>();
@@ -77,7 +77,7 @@ function clientBench(loopback = true): { registered: Registered[]; cleanups: Arr
     },
   };
   apply(ctx as never);
-  return { registered, cleanups };
+  return { registered, cleanups, p2p: services.get("mtm-p2p-client") as { getSnapshot: () => { status: string } } };
 }
 
 async function hostBench(): Promise<{ registeredNamespaces: string[]; cleanups: Array<() => void | Promise<void>> }> {
@@ -170,14 +170,15 @@ describe("mtmharness browser half", () => {
   });
 
   it("keeps configuration actions out of the sidebar footer", () => {
-    const { registered, cleanups } = clientBench();
+    const { registered, cleanups, p2p } = clientBench();
     expect(registered).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: "settings.plugin.item", options: expect.objectContaining({ key: "mtm-coding" }) }),
       expect.objectContaining({ name: "settings.plugin.item", options: expect.objectContaining({ key: "mtm-admin" }) }),
     ]));
     expect(registered.filter((entry) => entry.name === "sidebar.footer.action")).toHaveLength(0);
-    expect(registered.filter((entry) => entry.name === "shell.overlay")).toHaveLength(4);
+    expect(registered.filter((entry) => entry.name === "shell.overlay")).toHaveLength(3);
     for (const cleanup of cleanups.reverse()) void cleanup();
+    expect(p2p.getSnapshot().status).toBe("closed");
     expect(registered).toHaveLength(0);
   });
 });

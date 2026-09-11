@@ -66,7 +66,6 @@ jobs:
       - name: Check workspace packages
         run: |
           set -euo pipefail
-          pnpm --filter mtm-p2p run build
           pnpm --filter mtmcanvas run build
           pnpm --filter mtm-connect run build
           pnpm --filter mtm-admin run build

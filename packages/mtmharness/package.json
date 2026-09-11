@@ -30,6 +30,10 @@
       "import": "./dist/auth.js",
       "default": "./dist/auth.js"
     },
+    "./p2p-worker": {
+      "types": "./lib/types/features/p2p/worker.d.ts",
+      "default": "./lib/p2p-worker.js"
+    },
     "./app": "./dist/standalone/index.html",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
@@ -58,6 +62,7 @@
     "lib/index.js",
     "lib/client.js",
     "lib/client.cjs",
+    "lib/p2p-worker.js",
     "lib/types/**/*.d.ts",
     "dist/standalone",
     "dist/embed",
@@ -129,6 +134,11 @@
   },
   "devDependencies": {
     "@base-ui/react": "1.7.0",
+    "@chainsafe/libp2p-noise": "^17.0.0",
+    "@chainsafe/libp2p-yamux": "^8.0.1",
+    "@libp2p/crypto": "^5.1.23",
+    "@libp2p/websockets": "^10.1.21",
+    "libp2p": "^3.3.11",
     "@deepseek-ai/cordis": "4.0.2",
     "@deepseek-ai/dsh-agent": "0.1.5-rc.1",
     "@deepseek-ai/dsh-attachment": "0.1.5-rc.1",
@@ -176,7 +186,6 @@
     "jsdom": "30.0.1",
     "lucide-react": "1.21.0",
     "mtm-admin": "workspace:*",
-    "mtm-p2p": "workspace:*",
     "mtmcanvas": "workspace:*",
     "react": "18.3.1",
     "react-dom": "18.3.1",

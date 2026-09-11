@@ -9,7 +9,7 @@ import { apply as applyCoding } from "../features/coding/client/index.tsx";
 import { apply as applyMtmAdminSettings } from "../features/mtm-admin/client/index.tsx";
 import { apply as applyMtmCanvas } from "mtmcanvas";
 import { apply as applyMtmAdmin } from "mtm-admin";
-import { apply as applyMtmP2p } from "mtm-p2p";
+import { apply as applyMtmP2p } from "../features/p2p/client.ts";
 import { MtmHarnessLauncherOverlay } from "./launcher.tsx";
 import { disposeMtmHarnessLauncher } from "./launcher-state.ts";
 
