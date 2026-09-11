@@ -8,14 +8,12 @@ import type {} from "@deepseek-ai/dsh-client-ui-layout/client";
 import { apply as applyCoding } from "../features/coding/client/index.tsx";
 import { apply as applyMtmCanvas } from "mtmcanvas";
 import { apply as applyMtmP2p } from "../features/p2p/client.ts";
-import { MtmHarnessLauncherOverlay } from "./launcher.tsx";
-import { disposeMtmHarnessLauncher } from "./launcher-state.ts";
 
 export { applyCoding };
 export const inject = ["slots", "locale", "settingsScope", "connection"];
 
 /** Compose all MTM client packages under the mtmharness Cordis fiber. */
-export async function apply(ctx: ClientContext, config: Record<string, unknown> = {}): Promise<void> {
+export async function apply(ctx: ClientContext): Promise<void> {
   applyMtmCanvas(ctx, { enabled: false });
   applyMtmP2p(ctx);
   applyCoding(ctx);
@@ -27,11 +25,4 @@ export async function apply(ctx: ClientContext, config: Record<string, unknown> 
     ctx.effect(() => { const stop = settings.subscribe(reconcile); reconcile(); return stop; }, "mtmcanvas: settings lifecycle");
   }
 
-  ctx.slots.inject("shell.overlay", () => ctx.slots.register({
-    name: "shell.overlay",
-    id: "mtmharness-launcher",
-    order: 100,
-    label: "MTM Cloud",
-  }, MtmHarnessLauncherOverlay));
-  ctx.effect(() => () => { disposeMtmHarnessLauncher(); }, "mtmharness: launcher state");
 }
