@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from "vitest";
 import { generateKeyPair } from "@libp2p/crypto/keys";
 import { privateKeyToProtobuf } from "@libp2p/crypto/keys";
