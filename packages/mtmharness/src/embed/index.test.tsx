@@ -122,7 +122,6 @@ describe("mtmharness embed runtime", () => {
     expect(normalizeConfig({ apiOrigin: "https://api.example.test/path", accessToken: "  token  " })).toEqual({
       apiOrigin: "https://api.example.test",
       accessToken: "token",
-      allowedParentOrigins: [],
       mode: "floating",
     });
     expect(() => normalizeConfig({ apiOrigin: "https://api.example.test", accessToken: "  " })).toThrow("accessToken must not be empty");

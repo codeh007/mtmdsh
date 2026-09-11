@@ -4,7 +4,6 @@ import embedStyles from "@/styles/globals.css?inline";
 import { createClientRouter } from "@/app/router";
 import { createPresentationController, createTokenSource, normalizeConfig, resolveTarget, type MtmHarnessClientConfig, type MtmHarnessClientHandle } from "./app/config";
 import type { MtmHarnessAuthClient } from "./app/auth";
-import { installHostBridge } from "./app/host-bridge";
 import { MtmHarnessRuntime } from "@/runtime";
 
 function mountClient(config: MtmHarnessClientConfig): MtmHarnessClientHandle {
@@ -34,7 +33,6 @@ function mountClient(config: MtmHarnessClientConfig): MtmHarnessClientHandle {
     tokenSource,
     webSocketFactory: normalizedConfig.webSocketFactory,
   });
-  const bridge = installHostBridge({ allowedParentOrigins: normalizedConfig.allowedParentOrigins });
   if (auth !== undefined) {
     void auth.consumeCallback().then((consumed) => consumed ? runtime.refreshRegistry().catch(() => undefined) : undefined).catch(() => undefined);
   }
@@ -58,7 +56,6 @@ function mountClient(config: MtmHarnessClientConfig): MtmHarnessClientHandle {
       mounted = false;
       root.unmount();
       router.history.destroy();
-      bridge.dispose();
       runtime.dispose();
       auth?.dispose();
       observer.disconnect();
@@ -87,7 +84,6 @@ export function autoMount(script: HTMLScriptElement): MtmHarnessClientHandle | n
     accessToken: bootstrap.accessToken,
     tokenSource: bootstrap.tokenSource,
     webSocketFactory: bootstrap.webSocketFactory,
-    allowedParentOrigins: bootstrap.allowedParentOrigins,
     mode: script.dataset.mode as MtmHarnessClientConfig["mode"] | undefined,
     target: script.dataset.target,
   });
