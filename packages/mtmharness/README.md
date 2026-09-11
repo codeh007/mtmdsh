@@ -2,9 +2,9 @@
 
 mtmharness is one public npm package with one unified DSH plugin. The package root supplies the Host plugin, and ./client supplies the single DSH Web client entry.
 
-The client entry composes mtm-connect, mtmcanvas, mtm-admin, and mtm-p2p inside the mtmharness fiber. Each package keeps its own source and capability boundary; none is declared as a second DSH plugin and none uses a secondary runtime protocol.
+The client entry composes mtmcanvas, mtm-admin, and mtm-p2p inside the mtmharness fiber. Each package keeps its own source and capability boundary; none is declared as a second DSH plugin and none uses a secondary runtime protocol.
 
-Coding features remain under the mtm-coding settings namespace. Dynamic Canvas controls the composed Canvas view, while Connect and Admin settings control their composed shell views. All registrations, styles, listeners, and clients are disposed with the owning Cordis fiber.
+Coding features remain under the mtm-coding settings namespace. Dynamic Canvas controls the composed Canvas view, while Admin settings control the composed admin shell view. All registrations, styles, listeners, and clients are disposed with the owning Cordis fiber.
 
 The Modern Go Guidelines wrapper uses the pinned upstream CLI with standard go install and user cache behavior. It never creates a project-local cache or overrides the active DSH file policy.
 

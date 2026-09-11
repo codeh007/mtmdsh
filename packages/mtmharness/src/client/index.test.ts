@@ -30,15 +30,6 @@ function clientBench(loopback = true): { registered: Registered[]; cleanups: Arr
     writable: true,
     mode: "host",
   };
-  const connectSettings = {
-    status: "ready",
-    value: { enabled: false },
-    base: {},
-    user: {},
-    revision: 1,
-    writable: true,
-    mode: "host",
-  };
   const ctx = {
     get(name: string, strict = true) {
       if (strict && name.endsWith("-client")) return undefined;
@@ -52,17 +43,12 @@ function clientBench(loopback = true): { registered: Registered[]; cleanups: Arr
       register: () => () => {},
     },
     settingsScope: {
-      bind: (spec: { namespace: string }) => spec.namespace === "mtm-connect" ? {
-        getSnapshot: () => connectSettings,
-        subscribe: () => () => {},
-        set: async () => {},
-        unset: async () => {},
-      } : {
+      bind: () => ({
         getSnapshot: () => codingSettings,
         subscribe: () => () => {},
         set: async () => {},
         unset: async () => {},
-      },
+      }),
     },
     effect(effect: () => (() => void | Promise<void>) | void) {
       const cleanup = effect();
@@ -140,9 +126,8 @@ async function hostBench(): Promise<{ registeredNamespaces: string[]; cleanups: 
 }
 
 describe("mtmharness Host half", () => {
-  it("registers the Connect settings namespace without a local backend", async () => {
+  it("registers the Admin settings namespace without a local backend", async () => {
     const { registeredNamespaces, cleanups } = await hostBench();
-    expect(registeredNamespaces).toContain("mtm-connect");
     expect(registeredNamespaces).toContain("mtm-admin");
     for (const cleanup of cleanups.reverse()) await cleanup();
   });
@@ -188,11 +173,10 @@ describe("mtmharness browser half", () => {
     const { registered, cleanups } = clientBench();
     expect(registered).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: "settings.plugin.item", options: expect.objectContaining({ key: "mtm-coding" }) }),
-      expect.objectContaining({ name: "settings.plugin.item", options: expect.objectContaining({ key: "mtm-connect" }) }),
       expect.objectContaining({ name: "settings.plugin.item", options: expect.objectContaining({ key: "mtm-admin" }) }),
     ]));
     expect(registered.filter((entry) => entry.name === "sidebar.footer.action")).toHaveLength(0);
-    expect(registered.filter((entry) => entry.name === "shell.overlay")).toHaveLength(5);
+    expect(registered.filter((entry) => entry.name === "shell.overlay")).toHaveLength(4);
     for (const cleanup of cleanups.reverse()) void cleanup();
     expect(registered).toHaveLength(0);
   });
