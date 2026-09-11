@@ -166,7 +166,7 @@ describe("mtmharness browser half", () => {
       expect.objectContaining({ name: "settings.plugin.item", options: expect.objectContaining({ key: "mtm-coding" }) }),
     ]));
     expect(registered.filter((entry) => entry.name === "sidebar.footer.action")).toHaveLength(0);
-    expect(registered.filter((entry) => entry.name === "shell.overlay")).toHaveLength(2);
+    expect(registered.filter((entry) => entry.name === "shell.overlay")).toHaveLength(1);
     for (const cleanup of cleanups.reverse()) void cleanup();
     expect(p2p.getSnapshot().status).toBe("closed");
     expect(registered).toHaveLength(0);
