@@ -21,7 +21,7 @@ export const inject = ["slots", "locale", "settingsScope"];
 /** Register the settings card for the composed Connect client. */
 export function apply(ctx: ClientContext): void {
   const settings = ctx.settingsScope.bind<MtmConnectSettings>({ namespace: SETTINGS_NAMESPACE });
-  const runtime = ctx.get("mtm-connect-client") as MtmConnectClient | undefined;
+  const runtime = ctx.get("mtm-connect-client", false) as MtmConnectClient | undefined;
   if (runtime === undefined) throw new Error("mtm-connect: composed client is unavailable");
   const controller = new MtmConnectCardController(settings, runtime);
   ctx.effect(() => async () => { await controller.dispose(); }, "mtm-connect: client lifecycle");

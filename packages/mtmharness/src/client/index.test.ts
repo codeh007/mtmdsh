@@ -40,7 +40,8 @@ function clientBench(loopback = true): { registered: Registered[]; cleanups: Arr
     mode: "host",
   };
   const ctx = {
-    get(name: string) {
+    get(name: string, strict = true) {
+      if (strict && name.endsWith("-client")) return undefined;
       if (name === "connection") return { isLoopback: loopback, rpc: { call: async () => ({ ok: true, value: {} }) } };
       if (services.has(name)) return services.get(name);
       throw new Error("unexpected service: " + name);
