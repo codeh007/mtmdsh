@@ -46,9 +46,9 @@ Declarative auto-mounting accepts only non-sensitive data-api-origin, data-mode,
 
 The reusable browser OAuth client uses discovery-first OAuth/OIDC Authorization Code + PKCE (S256). Issuer, client ID, exact redirect URI, resource, scopes, HTTPS endpoints, and provider capabilities are validated before authorization. Production clients and redirect URIs must be registered by the provider.
 
-Access and refresh tokens live only in JavaScript memory. The short-lived PKCE transaction is removed on every callback path. Tokens, tickets, roles, and capabilities are never put in markup, localStorage, logs, or WebSocket URLs.
+Access and refresh tokens live only in JavaScript memory. The short-lived PKCE transaction is removed on every callback path. Tokens, roles, and capabilities are never put in markup, localStorage, or logs.
 
-HTTP resource calls, revocation, and POST /api/dsh/ws-ticket use an Authorization: Bearer header with credentials: omit. Each socket requests a fresh v1 ticket and sends only the dsh.v1 and dsh-ticket protocols.
+HTTP resource calls and revocation use an Authorization: Bearer header with credentials: omit. Session and streaming operations remain unavailable until their protected canonical contracts are implemented.
 
 The official DSH plugin keeps the host FullShell and local session untouched.
 

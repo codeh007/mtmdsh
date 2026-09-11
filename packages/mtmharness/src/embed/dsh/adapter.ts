@@ -10,7 +10,6 @@ export class DshApiError extends Error {
 export interface DshApiClientOptions {
   tokenProvider?: () => string | undefined | Promise<string | undefined>;
   fetch?: typeof fetch;
-  now?: () => number;
   onAuthFailure?: () => void;
 }
 
@@ -20,12 +19,6 @@ export interface DshSocketRequest {
   sandboxId: string;
   channel: "mux" | "host";
   sessionId?: string;
-}
-
-export interface DshWsTicket {
-  ticket: string;
-  expiresAt: number;
-  contractVersion: 1;
 }
 
 export interface DshSessionEvent {
@@ -217,14 +210,14 @@ function parseWorkspace(value: unknown): DshWorkspaceView {
 }
 
 function parseWorkspaceList(value: unknown): DshWorkspaceListValue {
-  const item = record(value, "workspace.list response");
-  if (!Array.isArray(item.items)) throw new DshApiError("The server returned an invalid workspace.list items");
-  return { items: item.items.map((workspace) => parseWorkspace(workspace)), archivedSessionIds: stringArray(item.archivedSessionIds, "workspace.list archivedSessionIds") };
+  const item = record(value, "workspace/list response");
+  if (!Array.isArray(item.items)) throw new DshApiError("The server returned an invalid workspace/list items");
+  return { items: item.items.map((workspace) => parseWorkspace(workspace)), archivedSessionIds: stringArray(item.archivedSessionIds, "workspace/list archivedSessionIds") };
 }
 
 function parseSessionList(value: unknown): DshSessionListValue {
-  const item = record(value, "session.list response");
-  if (!Array.isArray(item.items)) throw new DshApiError("The server returned an invalid session.list items");
+  const item = record(value, "session/list response");
+  if (!Array.isArray(item.items)) throw new DshApiError("The server returned an invalid session/list items");
   return { items: item.items.map((session) => parseSessionSummary(session)) };
 }
 
@@ -249,33 +242,33 @@ function parseEvent(value: unknown): DshSessionEvent {
 }
 
 function parseHistory(value: unknown): DshSessionHistoryValue {
-  const item = record(value, "session.history response");
-  if (!Array.isArray(item.events)) throw new DshApiError("The server returned an invalid session.history events");
+  const item = record(value, "session/history response");
+  if (!Array.isArray(item.events)) throw new DshApiError("The server returned an invalid session/history events");
   const events = item.events.map((entry) => {
     const historyEntry = record(entry, "session history entry");
     return { event: parseEvent(historyEntry.event), ...(historyEntry.view === undefined ? {} : { view: historyEntry.view }) };
   });
-  if (typeof item.hasMore !== "boolean") throw new DshApiError("The server returned an invalid session.history hasMore");
-  return { events, hasMore: item.hasMore, ...(item.projections === undefined ? {} : { projections: projectionBlock(item.projections, "session.history projections") }) };
+  if (typeof item.hasMore !== "boolean") throw new DshApiError("The server returned an invalid session/history hasMore");
+  return { events, hasMore: item.hasMore, ...(item.projections === undefined ? {} : { projections: projectionBlock(item.projections, "session/history projections") }) };
 }
 
 function parseCreate(value: unknown): DshSessionCreateValue {
-  const item = record(value, "session.create response");
-  const agentPreset = optionalString(item, "agentPreset", "session.create agentPreset");
-  return { sessionId: requiredString(item, "sessionId", "session.create sessionId"), ...(agentPreset === undefined ? {} : { agentPreset }) };
+  const item = record(value, "session/create response");
+  const agentPreset = optionalString(item, "agentPreset", "session/create agentPreset");
+  return { sessionId: requiredString(item, "sessionId", "session/create sessionId"), ...(agentPreset === undefined ? {} : { agentPreset }) };
 }
 
 function parseRename(value: unknown): DshSessionRenameValue {
-  const item = record(value, "session.rename response");
-  const title = requiredString(item, "title", "session.rename title");
-  const seq = requiredFiniteNumber(item, "seq", "session.rename seq");
-  if (!Number.isInteger(seq) || seq < 0) throw new DshApiError("The server returned an invalid session.rename seq");
+  const item = record(value, "session/rename response");
+  const title = requiredString(item, "title", "session/rename title");
+  const seq = requiredFiniteNumber(item, "seq", "session/rename seq");
+  if (!Number.isInteger(seq) || seq < 0) throw new DshApiError("The server returned an invalid session/rename seq");
   return { title, seq };
 }
 
 function parseFork(value: unknown): DshSessionForkValue {
-  const item = record(value, "session.fork response");
-  return { sessionId: requiredString(item, "sessionId", "session.fork sessionId") };
+  const item = record(value, "session/fork response");
+  return { sessionId: requiredString(item, "sessionId", "session/fork sessionId") };
 }
 
 function parseObjectValue(value: unknown, label: string): Record<string, unknown> {
@@ -296,7 +289,6 @@ export class DshApiClient implements DshClient {
   private readonly apiOrigin: string;
   private readonly tokenProvider: () => string | undefined | Promise<string | undefined>;
   private readonly fetcher: typeof fetch;
-  private readonly now: () => number;
   private readonly onAuthFailure: (() => void) | undefined;
   private sandboxScope: SandboxScope | undefined;
 
@@ -314,11 +306,9 @@ export class DshApiClient implements DshClient {
     } else {
       this.tokenProvider = options.tokenProvider ?? (() => undefined);
       this.fetcher = options.fetch ?? defaultFetch;
-      this.now = options.now ?? (() => Date.now());
       this.onAuthFailure = options.onAuthFailure;
       return;
     }
-    this.now = () => Date.now();
     this.onAuthFailure = undefined;
   }
 
@@ -327,76 +317,42 @@ export class DshApiClient implements DshClient {
   }
 
   listWorkspaces(signal?: AbortSignal): Promise<DshWorkspaceListValue> {
-    return this.call("workspace.list", {}, parseWorkspaceList, signal);
+    return this.call("workspace/list", {}, parseWorkspaceList, signal);
   }
 
   listSessions(signal?: AbortSignal): Promise<DshSessionListValue> {
-    return this.call("session.list", {}, parseSessionList, signal);
+    return this.call("session/list", {}, parseSessionList, signal);
   }
 
   createSession(input: CreateSessionInput = {}, signal?: AbortSignal): Promise<DshSessionCreateValue> {
-    return this.call("session.create", input, parseCreate, signal);
+    return this.call("session/create", input, parseCreate, signal);
   }
 
   loadHistory(input: { sessionId: string; maxMessages?: number; beforeSeq?: number }, signal?: AbortSignal): Promise<DshSessionHistoryValue> {
-    return this.call("session.history", input, parseHistory, signal);
+    return this.call("session/history", input, parseHistory, signal);
   }
 
   renameSession(input: { sessionId: string; title: string }, signal?: AbortSignal): Promise<DshSessionRenameValue> {
-    return this.call("session.rename", input, parseRename, signal);
+    return this.call("session/rename", input, parseRename, signal);
   }
 
   forkSession(input: { sessionId: string; atSeq?: number }, signal?: AbortSignal): Promise<DshSessionForkValue> {
-    return this.call("session.fork", input, parseFork, signal);
+    return this.call("session/fork", input, parseFork, signal);
   }
 
   prompt(input: { sessionId: string; mode: "queue" | "steer"; content: [{ type: "text"; text: string }]; clientTimeZone?: string }, signal?: AbortSignal): Promise<Record<string, unknown>> {
-    return this.call("session.prompt", input, (value) => parseObjectValue(value, "session.prompt response"), signal);
+    return this.call("session/prompt", input, (value) => parseObjectValue(value, "session/prompt response"), signal);
   }
 
-  async requestWebSocketTicket(input: DshSocketRequest, signal?: AbortSignal): Promise<DshWsTicket> {
-    validateSocketRequest(input);
-    const accessToken = await this.readAccessToken();
-    let response: Response;
-    try {
-      response = await this.fetcher(new URL("/api/dsh/ws-ticket", this.apiOrigin), {
-        method: "POST",
-        credentials: "omit",
-        cache: "no-store",
-        headers: { authorization: "Bearer " + accessToken, "content-type": "application/json" },
-        body: JSON.stringify({ sandboxId: input.sandboxId, channel: input.channel, ...(input.sessionId === undefined ? {} : { sessionId: input.sessionId }) }),
-        signal,
-      });
-    } catch (error) {
-      if (error instanceof DshApiError) throw error;
-      throw new DshApiError("Unable to request a DSH WebSocket ticket", "ticket_unavailable", error);
-    }
-    if (!response.ok) {
-      const body = await response.json().catch(() => undefined);
-      throw this.responseError(body, response.status, "The DSH WebSocket ticket request failed");
-    }
-    const body = await response.json().catch(() => undefined);
-    return parseWebSocketTicket(body, this.now());
-  }
-
-  async openSocket(input: DshSocketRequest, factory?: DshWebSocketFactory): Promise<WebSocket> {
-    const ticket = await this.requestWebSocketTicket(input);
-    const url = new URL(input.channel === "mux" ? "/api/dsh/events.mux" : "/api/dsh/events.host", this.apiOrigin);
-    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-    const protocols = ["dsh.v1", "dsh-ticket." + ticket.ticket] as const;
-    try {
-      const createSocket = factory ?? ((target: URL, values: readonly string[]) => new WebSocket(target, [...values]));
-      return await createSocket(url, protocols);
-    } catch (error) {
-      throw new DshApiError("Unable to create the DSH WebSocket", "websocket_unavailable", error);
-    }
+  async openSocket(_input: DshSocketRequest, _factory?: DshWebSocketFactory): Promise<WebSocket> {
+    throw new DshApiError("The DSH WebSocket transport is unavailable", "websocket_unavailable");
   }
 
   private async call<T>(method: string, payload: unknown, parser: Parser<T>, signal?: AbortSignal): Promise<T> {
     const accessToken = await this.readAccessToken();
     let response: Response;
     try {
-      const target = new URL(`/api/dsh/${method}`, this.apiOrigin);
+      const target = new URL(`/api/${method}`, this.apiOrigin);
       if (this.sandboxScope !== undefined) target.searchParams.set("sandboxId", this.sandboxScope.sandboxId);
       response = await this.fetcher(target, {
         method: "POST",
@@ -438,30 +394,8 @@ export class DshApiClient implements DshClient {
 
 }
 
-const TICKET_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
-
-function validateSocketRequest(input: DshSocketRequest): void {
-  if (!validIdentifier(input.sandboxId)) throw new DshApiError("A sandbox is required for the DSH WebSocket", "sandbox_scope_required");
-  if (input.channel !== "mux" && input.channel !== "host") throw new DshApiError("The DSH WebSocket channel is invalid", "ticket_channel_invalid");
-  if (input.sessionId !== undefined && !validIdentifier(input.sessionId)) throw new DshApiError("The DSH session is invalid", "ticket_session_invalid");
-}
-
-function parseWebSocketTicket(value: unknown, now: number): DshWsTicket {
-  const item = record(value, "WebSocket ticket response");
-  if (item.ok !== true || item.contractVersion !== 1) throw new DshApiError("The server returned an unsupported WebSocket ticket contract", "ticket_contract_invalid");
-  const ticket = requiredString(item, "ticket", "WebSocket ticket");
-  const expiresAt = requiredFiniteNumber(item, "expiresAt", "WebSocket ticket expiry");
-  if (!TICKET_PATTERN.test(ticket) || ticket.startsWith("dsh-ticket.")) throw new DshApiError("The server returned an invalid WebSocket ticket", "ticket_invalid");
-  if (!Number.isSafeInteger(expiresAt) || expiresAt <= now || expiresAt > now + 60_000) throw new DshApiError("The server returned an invalid WebSocket ticket expiry", "ticket_expiry_invalid");
-  return { ticket, expiresAt, contractVersion: 1 };
-}
-
 function validCredential(value: string): boolean {
   return value.length > 0 && value.length <= 16_384 && !/[\s\u0000-\u001f\u007f]/u.test(value);
-}
-
-function validIdentifier(value: string): boolean {
-  return value.length > 0 && value.length <= 512 && !/[\u0000-\u001f\u007f]/u.test(value);
 }
 
 function createRpcId(): string {

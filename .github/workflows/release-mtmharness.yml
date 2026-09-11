@@ -67,8 +67,6 @@ jobs:
         run: |
           set -euo pipefail
           pnpm --filter mtmcanvas run build
-          pnpm --filter mtm-connect run build
-          pnpm --filter mtm-admin run build
           pnpm --filter mtmharness run check
 
       - name: Pack release tarball
