@@ -48,7 +48,7 @@ describe("ConversationSurface authentication gate", () => {
     await act(async () => {
       root?.render(
         <ConversationSurface
-          config={{ apiOrigin: "https://api.example.test", allowedParentOrigins: [], mode: "floating" }}
+          config={{ apiOrigin: "https://api.example.test", mode: "floating" }}
           runtime={createRuntime()}
         />,
       );

@@ -40,7 +40,6 @@ export interface MtmHarnessRuntimeBootstrap {
   accessToken?: string;
   tokenSource?: MtmHarnessTokenSource;
   webSocketFactory?: MtmHarnessWebSocketFactory;
-  allowedParentOrigins?: readonly string[];
 }
 
 declare global {
@@ -57,7 +56,6 @@ export interface MtmHarnessClientConfig {
   accessToken?: string;
   tokenSource?: MtmHarnessTokenSource;
   webSocketFactory?: MtmHarnessWebSocketFactory;
-  allowedParentOrigins?: readonly string[];
   mode?: MtmHarnessClientMode;
 }
 
@@ -67,7 +65,6 @@ export interface NormalizedClientConfig {
   accessToken?: string;
   tokenSource?: MtmHarnessTokenSource;
   webSocketFactory?: MtmHarnessWebSocketFactory;
-  allowedParentOrigins: readonly string[];
   mode: MtmHarnessClientMode;
 }
 
@@ -146,11 +143,6 @@ function normalizeRedirectUri(value: string): string {
   return url.toString();
 }
 
-function normalizeParentOrigins(values: readonly string[] | undefined): readonly string[] {
-  if (values === undefined) return [];
-  return [...new Set(values.map((value) => normalizeOrigin(value, "allowedParentOrigins")))];
-}
-
 export function normalizeConfig(config: MtmHarnessClientConfig): NormalizedClientConfig {
   const mode = config.mode ?? "floating";
   if (!MODES.includes(mode)) {
@@ -165,7 +157,6 @@ export function normalizeConfig(config: MtmHarnessClientConfig): NormalizedClien
     ...(accessToken === undefined ? {} : { accessToken }),
     ...(config.tokenSource === undefined ? {} : { tokenSource: config.tokenSource }),
     ...(config.webSocketFactory === undefined ? {} : { webSocketFactory: config.webSocketFactory }),
-    allowedParentOrigins: normalizeParentOrigins(config.allowedParentOrigins),
     mode,
   };
 }
