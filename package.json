@@ -6,8 +6,8 @@
   "engines": { "node": ">=22.19.0" },
   "scripts": {
     "build": "pnpm --filter mtmharness run build",
-    "demo": "pnpm --filter mtmharness run dev",
-"check": "pnpm --filter mtmcanvas run build && pnpm --filter mtmharness run check && pnpm --filter mtmcanvas run check"
+    "check": "pnpm run check:references && pnpm --filter mtmcanvas run build && pnpm --filter mtmharness run check && pnpm --filter mtmcanvas run check",
+    "check:references": "node scripts/check-workspace-references.mjs"
   },
   "devDependencies": { "typescript": "6.0.3" }
 }
