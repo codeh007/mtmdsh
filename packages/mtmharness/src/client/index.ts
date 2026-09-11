@@ -34,7 +34,7 @@ export async function apply(ctx: ClientContext, config: Record<string, unknown> 
   applyMtmAdminSettings(ctx);
   applyCoding(ctx);
 
-  const canvas = ctx.get("mtmcanvas-client") as { setEnabled(enabled: boolean): Promise<void> } | undefined;
+  const canvas = ctx.get("mtmcanvas-client", false) as { setEnabled(enabled: boolean): Promise<void> } | undefined;
   if (canvas !== undefined) {
     const settings = ctx.settingsScope.bind<{ dynamicCanvasEnabled?: boolean }>({ namespace: "mtm-coding" });
     const reconcile = (): void => { void canvas.setEnabled(settings.getSnapshot().value?.dynamicCanvasEnabled === true); };

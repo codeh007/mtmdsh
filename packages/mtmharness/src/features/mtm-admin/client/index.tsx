@@ -22,7 +22,7 @@ export const inject = ["slots", "locale", "settingsScope"];
 /** Register the Admin launcher settings card for the composed client. */
 export function apply(ctx: ClientContext): void {
   const settings = ctx.settingsScope.bind<MtmAdminSettings>({ namespace: SETTINGS_NAMESPACE });
-  const runtime = ctx.get("mtm-admin-client") as MtmAdminClient | undefined;
+  const runtime = ctx.get("mtm-admin-client", false) as MtmAdminClient | undefined;
   if (runtime === undefined) throw new Error("mtm-admin: composed client is unavailable");
   const controller = new MtmAdminCardController(settings, runtime);
   ctx.effect(() => async () => { await controller.dispose(); }, "mtm-admin: client lifecycle");
