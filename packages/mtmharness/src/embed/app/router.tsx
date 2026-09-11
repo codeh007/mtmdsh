@@ -4,24 +4,20 @@ import type { MtmHarnessAuthClient } from "@/app/auth";
 import { ConversationRoute } from "@/app/conversation-route";
 import { WorkspaceOverview } from "@/components/full-shell";
 import { EmbeddedShell } from "@/app/embedded-shell";
-import { StandaloneShell } from "@/app/standalone-shell";
 import type { MtmHarnessRuntime } from "@/runtime";
 
 export interface ClientRouterOptions {
   config: NormalizedClientConfig;
   runtime: MtmHarnessRuntime;
   presentation: ClientPresentation;
-  basepath?: string;
   history?: RouterHistory;
   auth?: MtmHarnessAuthClient;
   presentationController: MtmHarnessPresentationController;
 }
 
-export function createClientRouter({ config, runtime, presentation, basepath, history, auth, presentationController }: ClientRouterOptions): AnyRouter {
+export function createClientRouter({ config, runtime, presentation, history, auth, presentationController }: ClientRouterOptions): AnyRouter {
   const rootRoute = createRootRoute({
-    component: presentation === "standalone"
-      ? () => <StandaloneShell runtime={runtime} auth={auth} />
-      : () => <EmbeddedShell config={config} runtime={runtime} auth={auth} presentationController={presentationController} />,
+    component: () => <EmbeddedShell config={config} runtime={runtime} auth={auth} presentationController={presentationController} />,
   });
   const conversationRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -36,7 +32,6 @@ export function createClientRouter({ config, runtime, presentation, basepath, hi
   const routeTree = rootRoute.addChildren([conversationRoute, workspaceRoute]);
   return createRouter({
     routeTree,
-    ...(basepath === undefined ? {} : { basepath }),
     history: history ?? createMemoryHistory({ initialEntries: ["/"] }),
     defaultPreload: "intent",
   });

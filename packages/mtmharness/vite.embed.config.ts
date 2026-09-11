@@ -4,7 +4,6 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
-  root: fileURLToPath(new URL("./standalone", import.meta.url)),
   define: { "process.env.NODE_ENV": JSON.stringify("production") },
   plugins: [react(), tailwindcss()],
   resolve: {

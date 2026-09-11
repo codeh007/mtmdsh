@@ -14,7 +14,6 @@ const vite = resolve(packageRoot, "node_modules/.bin/vite");
 const clientTemp = resolve(libRoot, "client.bundle.cjs");
 const packageName = "mtmharness";
 const workspaceRoot = resolve(packageRoot, "..");
-const adminRoot = resolve(workspaceRoot, "mtm-admin");
 
 rmSync(libRoot, { recursive: true, force: true });
 rmSync(distRoot, { recursive: true, force: true });
@@ -22,11 +21,7 @@ mkdirSync(libRoot, { recursive: true });
 if (!existsSync(tsc) || !existsSync(vite)) throw new Error("mtmharness build: local TypeScript and Vite executables are required");
 
 execFileSync("pnpm", ["--filter", "mtmcanvas", "run", "build"], { cwd: workspaceRoot, stdio: "inherit" });
-execFileSync("pnpm", ["--filter", "mtm-admin", "run", "build"], { cwd: workspaceRoot, stdio: "inherit" });
-execFileSync(tsc, ["--ignoreConfig", "--declaration", "--emitDeclarationOnly", "--skipLibCheck", "--module", "NodeNext", "--moduleResolution", "NodeNext", "--target", "ES2022", "--jsx", "react-jsx", "--outDir", resolve(adminRoot, "lib/types"), resolve(adminRoot, "src/launcher.ts")], { cwd: adminRoot, stdio: "inherit" });
-await build({ entryPoints: [resolve(adminRoot, "src/launcher.ts")], outfile: resolve(adminRoot, "lib/client.js"), bundle: true, format: "esm", platform: "browser", target: "es2020", legalComments: "none", logLevel: "info" });
 execFileSync(tsc, ["--project", resolve(packageRoot, "tsconfig.json")], { cwd: packageRoot, stdio: "inherit" });
-execFileSync(tsc, ["--project", resolve(packageRoot, "tsconfig.standalone.json")], { cwd: packageRoot, stdio: "inherit" });
 
 await build({
   entryPoints: [resolve(packageRoot, "src/index.ts")],
@@ -52,7 +47,7 @@ await build({
 
 await build({
   entryPoints: [resolve(packageRoot, "src/features/p2p/worker.ts")],
-  outfile: resolve(libRoot, "p2p-worker.js"),
+  outfile: resolve(libRoot, "p2p-worker.cjs"),
   bundle: true,
   format: "esm",
   platform: "browser",
@@ -100,7 +95,6 @@ writeFileSync(resolve(libRoot, "client.js"), artifact);
 writeFileSync(resolve(libRoot, "client.cjs"), artifact);
 rmSync(clientTemp, { force: true });
 
-execFileSync(vite, ["build", "--config", resolve(packageRoot, "vite.standalone.config.ts")], { cwd: packageRoot, stdio: "inherit" });
 execFileSync(vite, ["build", "--config", resolve(packageRoot, "vite.embed.config.ts")], { cwd: packageRoot, stdio: "inherit" });
 
-console.log("built mtmharness plugin, standalone app, and embed artifacts");
+console.log("built mtmharness plugin and embed artifacts");

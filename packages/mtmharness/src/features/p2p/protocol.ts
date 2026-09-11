@@ -26,6 +26,7 @@ export interface Request {
 export type P2pMessage =
   | { type: "snapshot"; snapshot: P2pSnapshot }
   | { type: "request"; request: Request }
+  | { type: "disconnect" }
   | { type: "response"; id: string; payload: Uint8Array }
   | { type: "error"; id?: string; error: string };
 export function validateRequest(
