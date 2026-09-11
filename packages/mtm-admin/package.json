@@ -21,7 +21,6 @@
       "default": "./lib/client.js"
     },
     "./embed": {
-      "types": "./lib/types/embed.d.ts",
       "import": "./dist/embed/mtm-admin.js",
       "default": "./dist/embed/mtm-admin.js"
     },
