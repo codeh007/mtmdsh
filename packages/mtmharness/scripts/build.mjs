@@ -21,7 +21,7 @@ rmSync(distRoot, { recursive: true, force: true });
 mkdirSync(libRoot, { recursive: true });
 if (!existsSync(tsc) || !existsSync(vite)) throw new Error("mtmharness build: local TypeScript and Vite executables are required");
 
-for (const packageName of ["mtm-connect", "mtmcanvas", "mtm-p2p"]) {
+for (const packageName of ["mtmcanvas", "mtm-p2p"]) {
   execFileSync("pnpm", ["--filter", packageName, "run", "build"], { cwd: workspaceRoot, stdio: "inherit" });
 }
 execFileSync(tsc, ["--ignoreConfig", "--declaration", "--emitDeclarationOnly", "--skipLibCheck", "--module", "NodeNext", "--moduleResolution", "NodeNext", "--target", "ES2022", "--jsx", "react-jsx", "--outDir", resolve(adminRoot, "lib/types"), resolve(adminRoot, "src/launcher.ts")], { cwd: adminRoot, stdio: "inherit" });

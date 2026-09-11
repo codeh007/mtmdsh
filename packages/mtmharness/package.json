@@ -1,7 +1,7 @@
 {
   "name": "mtmharness",
   "version": "0.9.21",
-  "description": "Unified DeepSeek Harness Web plugin with Connect, Codebase Memory, Modern Go, Ponytail, and independent static/embed clients.",
+  "description": "Unified DeepSeek Harness Web plugin with Codebase Memory, Modern Go, Ponytail, and independent static/embed clients.",
   "type": "module",
   "engines": {
     "node": ">=22.19.0",
@@ -176,7 +176,6 @@
     "jsdom": "30.0.1",
     "lucide-react": "1.21.0",
     "mtm-admin": "workspace:*",
-    "mtm-connect": "workspace:*",
     "mtm-p2p": "workspace:*",
     "mtmcanvas": "workspace:*",
     "react": "18.3.1",

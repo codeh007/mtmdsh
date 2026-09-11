@@ -6,9 +6,7 @@ import type {} from "@deepseek-ai/dsh-client-ui-settings-plugins/client";
 import type {} from "@deepseek-ai/dsh-client-ui-sidebar/client";
 import type {} from "@deepseek-ai/dsh-client-ui-layout/client";
 import { apply as applyCoding } from "../features/coding/client/index.tsx";
-import { apply as applyMtmConnectSettings } from "../features/mtm-connect/client/index.tsx";
 import { apply as applyMtmAdminSettings } from "../features/mtm-admin/client/index.tsx";
-import { apply as applyMtmConnect } from "mtm-connect";
 import { apply as applyMtmCanvas } from "mtmcanvas";
 import { apply as applyMtmAdmin } from "mtm-admin";
 import { apply as applyMtmP2p } from "mtm-p2p";
@@ -26,11 +24,9 @@ function toggleConfig(config: Record<string, unknown>, name: string): ToggleConf
 
 /** Compose all MTM client packages under the mtmharness Cordis fiber. */
 export async function apply(ctx: ClientContext, config: Record<string, unknown> = {}): Promise<void> {
-  applyMtmConnect(ctx, toggleConfig(config, "mtm-connect"));
   applyMtmCanvas(ctx, { enabled: false });
   applyMtmAdmin(ctx, toggleConfig(config, "mtm-admin"));
   applyMtmP2p(ctx);
-  applyMtmConnectSettings(ctx);
   applyMtmAdminSettings(ctx);
   applyCoding(ctx);
 
