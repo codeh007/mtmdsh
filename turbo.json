@@ -5,11 +5,10 @@
       "dependsOn": ["^build"],
       "outputs": ["lib/**", "dist/**"]
     },
-    "typecheck": {},
-    "test": {
-      "dependsOn": ["build"]
+    "typecheck": {
+      "dependsOn": ["^build"]
     },
-    "check": {
+    "test": {
       "dependsOn": ["build"]
     }
   }

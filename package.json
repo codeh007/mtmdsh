@@ -8,10 +8,10 @@
   },
   "scripts": {
     "build": "turbo run build",
-    "check": "turbo run check"
+    "check": "turbo run typecheck test"
   },
   "devDependencies": {
-    "turbo": "^2.10.12",
+    "turbo": "2.10.12",
     "typescript": "6.0.3"
   }
 }

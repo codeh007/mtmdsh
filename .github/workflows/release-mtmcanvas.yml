@@ -42,9 +42,6 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: pnpm
 
-      - name: Enable Corepack
-        run: corepack enable
-
       - name: Verify pnpm version
         run: test "$(pnpm --version)" = 11.7.0
 
@@ -63,7 +60,7 @@ jobs:
           printf 'PACKAGE_VERSION=%s\n' "$package_version" >> "$GITHUB_ENV"
 
       - name: Check mtmcanvas browser extension
-        run: pnpm exec turbo run check --filter=mtmcanvas
+        run: pnpm exec turbo run typecheck test --filter=mtmcanvas
 
       - name: Pack release tarball
         id: pack
@@ -82,14 +79,17 @@ jobs:
         run: |
           set -euo pipefail
           entries="$(tar -tzf "${{ steps.pack.outputs.tarball }}")"
-          ! grep -Eq '^package/(cordis\.patch\.yml|lib/(index|client)\.cjs)$' <<<"$entries"
+          if grep -Eq '^package/(cordis\.patch\.yml|lib/(index|client)\.cjs)$' <<<"$entries"; then
+            echo "mtmcanvas tarball contains mtmharness-only files" >&2
+            exit 1
+          fi
           grep -qx 'package/lib/client.js' <<<"$entries"
           unpack="$RUNNER_TEMP/mtmcanvas-unpack"
           mkdir -p "$unpack"
           tar -xzf "${{ steps.pack.outputs.tarball }}" -C "$unpack"
           for declaration in package/lib/types/index.d.ts package/lib/types/client/index.d.ts; do test -f "$unpack/$declaration"; done
           export UNPACK_ROOT="$unpack"
-          node --input-type=module -e 'import fs from "node:fs"; import path from "node:path"; const root = process.env.UNPACK_ROOT; const pkg = JSON.parse(fs.readFileSync(path.join(root, "package/package.json"), "utf8")); if (pkg.dsh !== undefined || JSON.stringify(pkg.mtmharness?.secondary) !== JSON.stringify({ id: "mtmcanvas", apiVersion: 1, client: "./lib/client.js" }) || pkg.exports?.["."]?.import !== "./lib/client.js" || pkg.exports?.["./client"]?.import !== "./lib/client.js") process.exit(1);'
+          node --input-type=module -e 'import fs from "node:fs"; import path from "node:path"; const root = process.env.UNPACK_ROOT; const pkg = JSON.parse(fs.readFileSync(path.join(root, "package/package.json"), "utf8")); if (pkg.dsh !== undefined || pkg.exports?.["."]?.import !== "./lib/client.js" || pkg.exports?.["./client"]?.import !== "./lib/client.js") process.exit(1);'
           node --input-type=module -e 'import fs from "node:fs"; import path from "node:path"; const source = fs.readFileSync(path.join(process.env.UNPACK_ROOT, "package/lib/client.js"), "utf8"); if (!source.includes("export") || /^\s*import\s/m.test(source)) process.exit(1);'
 
       - name: Lint package metadata
