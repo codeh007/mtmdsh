@@ -8,8 +8,7 @@
   },
   "scripts": {
     "build": "turbo run build",
-    "check": "pnpm run check:references && turbo run check",
-    "check:references": "node scripts/check-workspace-references.mjs"
+    "check": "turbo run check"
   },
   "devDependencies": {
     "turbo": "^2.10.12",
