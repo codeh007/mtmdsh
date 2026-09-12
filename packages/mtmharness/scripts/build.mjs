@@ -2,7 +2,7 @@
 
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 
@@ -13,19 +13,51 @@ const tsc = resolve(packageRoot, "node_modules/.bin/tsc");
 const vite = resolve(packageRoot, "node_modules/.bin/vite");
 const clientTemp = resolve(libRoot, "client.bundle.cjs");
 const packageName = "mtmharness";
-const workspaceRoot = resolve(packageRoot, "..");
+const packageManifest = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8"));
+
+function packageExport(subpath, condition = "default") {
+  const definition = packageManifest.exports?.[subpath];
+  const target = typeof definition === "string" ? definition : definition?.[condition] ?? definition?.default;
+  if (typeof target !== "string") throw new Error("mtmharness build: package export " + subpath + " has no " + condition + " target");
+  return resolve(packageRoot, target);
+}
+
+function packageField(field) {
+  const target = packageManifest[field];
+  if (typeof target !== "string") throw new Error("mtmharness build: package field " + field + " has no target");
+  return resolve(packageRoot, target);
+}
+
+function requireOutput(label, output) {
+  if (!existsSync(output)) throw new Error("mtmharness build: " + label + " output is missing (" + relative(packageRoot, output) + ")");
+}
+
+const hostOutput = packageExport(".");
+const hostTypes = packageExport(".", "types");
+const clientOutput = packageExport("./client");
+const clientTypes = packageExport("./client", "types");
+const embedOutput = packageExport("./embed", "import");
+const embedTypes = packageExport("./embed", "types");
+const authOutput = packageExport("./auth", "import");
+const authTypes = packageExport("./auth", "types");
+const p2pWorkerOutput = packageExport("./p2p-worker");
+const p2pWorkerTypes = packageExport("./p2p-worker", "types");
+const embedIifeOutput = packageField("unpkg");
+const embedJsdelivrOutput = packageField("jsdelivr");
 
 rmSync(libRoot, { recursive: true, force: true });
 rmSync(distRoot, { recursive: true, force: true });
 mkdirSync(libRoot, { recursive: true });
 if (!existsSync(tsc) || !existsSync(vite)) throw new Error("mtmharness build: local TypeScript and Vite executables are required");
 
-execFileSync("pnpm", ["--filter", "mtmcanvas", "run", "build"], { cwd: workspaceRoot, stdio: "inherit" });
 execFileSync(tsc, ["--project", resolve(packageRoot, "tsconfig.json")], { cwd: packageRoot, stdio: "inherit" });
+requireOutput("Host declarations", hostTypes);
+requireOutput("client declarations", clientTypes);
+requireOutput("p2p worker declarations", p2pWorkerTypes);
 
 await build({
   entryPoints: [resolve(packageRoot, "src/index.ts")],
-  outfile: resolve(libRoot, "index.js"),
+  outfile: hostOutput,
   bundle: true,
   format: "esm",
   platform: "node",
@@ -36,7 +68,7 @@ await build({
 
 await build({
   entryPoints: [resolve(packageRoot, "src/embed/app/auth.ts")],
-  outfile: resolve(distRoot, "auth.js"),
+  outfile: authOutput,
   bundle: true,
   format: "esm",
   platform: "browser",
@@ -47,7 +79,7 @@ await build({
 
 await build({
   entryPoints: [resolve(packageRoot, "src/features/p2p/worker.ts")],
-  outfile: resolve(libRoot, "p2p-worker.cjs"),
+  outfile: p2pWorkerOutput,
   bundle: true,
   format: "esm",
   platform: "browser",
@@ -91,8 +123,7 @@ const artifact = [
 if (!artifact.includes("window.__ModuleLoader__.load") || !artifact.includes("id: \"" + packageName + "\"")) {
   throw new Error("mtmharness build: generated client artifact does not have the DSH loader contract");
 }
-writeFileSync(resolve(libRoot, "client.js"), artifact);
-writeFileSync(resolve(libRoot, "client.cjs"), artifact);
+writeFileSync(clientOutput, artifact);
 rmSync(clientTemp, { force: true });
 
 execFileSync(vite, ["build", "--config", resolve(packageRoot, "vite.embed.config.ts")], { cwd: packageRoot, stdio: "inherit" });
@@ -115,5 +146,19 @@ function normalizeDeclarationImports(directory) {
 }
 
 normalizeDeclarationImports(resolve(distRoot, "types/embed"));
+for (const [label, output] of [
+  ["Host plugin", hostOutput],
+  ["Host declarations", hostTypes],
+  ["DSH client", clientOutput],
+  ["client declarations", clientTypes],
+  ["embed ESM", embedOutput],
+  ["embed IIFE", embedIifeOutput],
+  ["embed jsDelivr", embedJsdelivrOutput],
+  ["embed declarations", embedTypes],
+  ["auth ESM", authOutput],
+  ["auth declarations", authTypes],
+  ["p2p worker", p2pWorkerOutput],
+  ["p2p worker declarations", p2pWorkerTypes],
+]) requireOutput(label, output);
 
 console.log("built mtmharness plugin and embed artifacts");
