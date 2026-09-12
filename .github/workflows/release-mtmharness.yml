@@ -62,7 +62,7 @@ jobs:
       - name: Check workspace packages
         run: |
           set -euo pipefail
-          pnpm exec turbo run typecheck test --filter=mtmharness
+          pnpm exec turbo run typecheck test --filter=mtmharness...
 
       - name: Pack release tarball
         id: pack
