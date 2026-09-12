@@ -1,5 +1,5 @@
-import z from "@deepseek-ai/schemastery";
 import type { ReconnectConfig } from "@deepseek-ai/dsh-mcp-client";
+import z from "@deepseek-ai/schemastery";
 
 export type PonytailMode = "off" | "lite" | "full" | "ultra";
 export type RtkMode = "off" | "guidance" | "auto" | "rewrite";
@@ -33,7 +33,12 @@ const Reconnect = z.object({
   enabled: z.boolean().default(true),
   initialDelayMs: z.number().min(1).max(MAX_TIMER_DELAY_MS).default(500),
   maxDelayMs: z.number().min(1).max(MAX_TIMER_DELAY_MS).default(30_000),
-  maxAttempts: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(10),
+  maxAttempts: z
+    .number()
+    .step(1)
+    .min(1)
+    .max(Number.MAX_SAFE_INTEGER)
+    .default(10),
 });
 
 export const MtmCodingSettingsSchema: z<MtmCodingSettings> = z.object({
@@ -41,9 +46,13 @@ export const MtmCodingSettingsSchema: z<MtmCodingSettings> = z.object({
   dynamicCanvasEnabled: z.boolean().default(false),
   codebaseMemoryAugmentHooks: z.boolean().default(true),
   ponytailEnabled: z.boolean().default(true),
-  ponytailMode: z.union(["off", "lite", "full", "ultra"] as const).default("full"),
+  ponytailMode: z
+    .union(["off", "lite", "full", "ultra"] as const)
+    .default("full"),
   ponytailSubagents: z.boolean().default(true),
-  rtkMode: z.union(["off", "guidance", "auto", "rewrite"] as const).default("auto"),
+  rtkMode: z
+    .union(["off", "guidance", "auto", "rewrite"] as const)
+    .default("auto"),
   serverName: z.string().default("codebase_memory"),
   command: z.string().default(""),
   args: z.array(String).default([]),
@@ -57,7 +66,9 @@ export const MtmCodingSettingsSchema: z<MtmCodingSettings> = z.object({
   reconnect: Reconnect,
 });
 
-export function codebaseMemoryConfig(settings: MtmCodingSettings): Record<string, unknown> {
+export function codebaseMemoryConfig(
+  settings: MtmCodingSettings,
+): Record<string, unknown> {
   return {
     serverName: settings.serverName,
     command: settings.command,

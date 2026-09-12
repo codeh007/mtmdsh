@@ -44,32 +44,32 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Check formatting and lint
+        run: pnpm exec turbo run //#format-and-lint
+
       - name: Check workspace
-        run: pnpm check
+        run: pnpm exec turbo run build typecheck test
 
-      - name: Pack mtmharness bundle
-        id: pack
+      - name: Pack publishable packages
         run: |
           set -euo pipefail
-          pack_dir="$RUNNER_TEMP/mtmharness"
+          pack_dir="$RUNNER_TEMP/packages"
           mkdir -p "$pack_dir"
-          pnpm --filter mtmharness exec npm pack --ignore-scripts --pack-destination "$pack_dir"
-          tarball="$(find "$pack_dir" -maxdepth 1 -type f -name 'mtmharness-*.tgz' -print -quit)"
-          test -n "$tarball"
-          printf 'tarball=%s\n' "$tarball" >> "$GITHUB_OUTPUT"
-
-      - name: Pack mtmcanvas bundle
-        id: pack-canvas
-        run: |
-          set -euo pipefail
-          pack_dir="$RUNNER_TEMP/mtmcanvas"
-          mkdir -p "$pack_dir"
-          pnpm --filter mtmcanvas exec npm pack --ignore-scripts --pack-destination "$pack_dir"
-          tarball="$(find "$pack_dir" -maxdepth 1 -type f -name 'mtmcanvas-*.tgz' -print -quit)"
-          test -n "$tarball"
-          printf 'tarball=%s\n' "$tarball" >> "$GITHUB_OUTPUT"
+          for package_json in packages/*/package.json; do
+            if node -e 'const fs = require("node:fs"); process.exit(JSON.parse(fs.readFileSync(process.argv[1])).private ? 0 : 1)' "$package_json"; then
+              continue
+            fi
+            package_dir="${package_json%/package.json}"
+            (cd "$package_dir" && npm pack --ignore-scripts --pack-destination "$pack_dir")
+          done
 
       - name: Lint package metadata
+        shell: bash
         run: |
-          pnpm dlx publint@0.3.24 run "${{ steps.pack.outputs.tarball }}" --strict
-          pnpm dlx publint@0.3.24 run "${{ steps.pack-canvas.outputs.tarball }}" --strict
+          set -euo pipefail
+          shopt -s nullglob
+          tarballs=("$RUNNER_TEMP/packages"/*.tgz)
+          test "${#tarballs[@]}" -gt 0
+          for tarball in "${tarballs[@]}"; do
+            pnpm dlx publint@0.3.24 run "$tarball" --strict
+          done

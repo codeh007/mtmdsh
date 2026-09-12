@@ -3,6 +3,7 @@ import {
   privateKeyFromProtobuf,
   privateKeyToProtobuf,
 } from "@libp2p/crypto/keys";
+
 type PrivateKey = Awaited<ReturnType<typeof generateKeyPair>>;
 export interface P2pStorage {
   readonly identity: string;

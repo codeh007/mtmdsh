@@ -1,5 +1,8 @@
+export type {
+  MtmCanvasClientConfig,
+  MtmCanvasClientSnapshot,
+} from "./client/index.js";
 export { apply, MtmCanvasClient } from "./client/index.js";
-export type { MtmCanvasClientConfig, MtmCanvasClientSnapshot } from "./client/index.js";
 export type {
   CanvasConnection,
   CanvasDocument,

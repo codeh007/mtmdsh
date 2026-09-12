@@ -1,10 +1,21 @@
-import { createMemoryHistory, createRootRoute, createRoute, createRouter, type AnyRouter, type RouterHistory } from "@tanstack/react-router";
-import type { ClientPresentation, MtmHarnessPresentationController, NormalizedClientConfig } from "./config.js";
-import type { MtmHarnessAuthClient } from "./auth.js";
-import { ConversationRoute } from "./conversation-route.js";
+import {
+  type AnyRouter,
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  type RouterHistory,
+} from "@tanstack/react-router";
 import { WorkspaceOverview } from "../components/full-shell.js";
-import { EmbeddedShell } from "./embedded-shell.js";
 import type { MtmHarnessRuntime } from "../runtime.js";
+import type { MtmHarnessAuthClient } from "./auth.js";
+import type {
+  ClientPresentation,
+  MtmHarnessPresentationController,
+  NormalizedClientConfig,
+} from "./config.js";
+import { ConversationRoute } from "./conversation-route.js";
+import { EmbeddedShell } from "./embedded-shell.js";
 
 export interface ClientRouterOptions {
   config: NormalizedClientConfig;
@@ -15,14 +26,35 @@ export interface ClientRouterOptions {
   presentationController: MtmHarnessPresentationController;
 }
 
-export function createClientRouter({ config, runtime, presentation, history, auth, presentationController }: ClientRouterOptions): AnyRouter {
+export function createClientRouter({
+  config,
+  runtime,
+  presentation,
+  history,
+  auth,
+  presentationController,
+}: ClientRouterOptions): AnyRouter {
   const rootRoute = createRootRoute({
-    component: () => <EmbeddedShell config={config} runtime={runtime} auth={auth} presentationController={presentationController} />,
+    component: () => (
+      <EmbeddedShell
+        config={config}
+        runtime={runtime}
+        auth={auth}
+        presentationController={presentationController}
+      />
+    ),
   });
   const conversationRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/",
-    component: () => <ConversationRoute config={config} runtime={runtime} presentation={presentation} presentationController={presentationController} />,
+    component: () => (
+      <ConversationRoute
+        config={config}
+        runtime={runtime}
+        presentation={presentation}
+        presentationController={presentationController}
+      />
+    ),
   });
   const workspaceRoute = createRoute({
     getParentRoute: () => rootRoute,

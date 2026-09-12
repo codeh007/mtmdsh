@@ -4,7 +4,11 @@ import { CanvasRuntime } from "./runtime.ts";
 describe("CanvasRuntime", () => {
   it("starts with an in-memory demo canvas", () => {
     const runtime = new CanvasRuntime();
-    expect(runtime.getSnapshot()).toMatchObject({ name: "demo.canvas", version: "0", loading: false });
+    expect(runtime.getSnapshot()).toMatchObject({
+      name: "demo.canvas",
+      version: "0",
+      loading: false,
+    });
     expect(runtime.getSnapshot().document?.canvasId).toBe("demo");
   });
 
