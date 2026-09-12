@@ -55,5 +55,18 @@ jobs:
           test -n "$tarball"
           printf 'tarball=%s\n' "$tarball" >> "$GITHUB_OUTPUT"
 
-      - name: Lint mtmharness package metadata
-        run: pnpm dlx publint run "${{ steps.pack.outputs.tarball }}" --strict
+      - name: Pack mtmcanvas bundle
+        id: pack-canvas
+        run: |
+          set -euo pipefail
+          pack_dir="$RUNNER_TEMP/mtmcanvas"
+          mkdir -p "$pack_dir"
+          pnpm --filter mtmcanvas exec npm pack --ignore-scripts --pack-destination "$pack_dir"
+          tarball="$(find "$pack_dir" -maxdepth 1 -type f -name 'mtmcanvas-*.tgz' -print -quit)"
+          test -n "$tarball"
+          printf 'tarball=%s\n' "$tarball" >> "$GITHUB_OUTPUT"
+
+      - name: Lint package metadata
+        run: |
+          pnpm dlx publint run "${{ steps.pack.outputs.tarball }}" --strict
+          pnpm dlx publint run "${{ steps.pack-canvas.outputs.tarball }}" --strict
