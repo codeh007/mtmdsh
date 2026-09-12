@@ -80,7 +80,7 @@ function createFixtureClient(): DshClient {
     prompt: async () => ({ accepted: true }),
     openSocket: async (_input, factory) => {
       if (factory === undefined) throw new Error("fixture socket factory is required");
-      return factory(new URL("wss://api.example.test/api/dsh/events.mux"), ["dsh.v1", "dsh-ticket.fixture"]);
+      return factory(new URL("wss://api.example.test/"), []);
     },
   };
 }
@@ -99,7 +99,7 @@ function createLiveClient(): DshClient {
     prompt: async () => ({ accepted: true }),
     openSocket: async (_input, factory) => {
       if (factory === undefined) throw new Error("fixture socket factory is required");
-      return factory(new URL("wss://api.example.test/api/dsh/events.mux"), ["dsh.v1", "dsh-ticket.fixture"]);
+      return factory(new URL("wss://api.example.test/"), []);
     },
   };
 }

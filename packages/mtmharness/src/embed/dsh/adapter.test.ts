@@ -1,8 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DshApiClient, DshApiError } from "./adapter";
 
-const TICKET = "t".repeat(43);
-
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -11,8 +9,8 @@ describe("DshApiClient", () => {
   it("sends the official request envelope and derives session titles from projections", async () => {
     const fetchMock = vi.fn(async (input: string | URL, init?: RequestInit) => {
       const request = JSON.parse(String(init?.body)) as { type: string; method: string; payload: unknown };
-      expect(String(input)).toBe("https://api.example.test/api/dsh/session.list");
-      expect(request).toMatchObject({ type: "client-request", method: "session.list", payload: {} });
+      expect(String(input)).toBe("https://api.example.test/api/session/list");
+      expect(request).toMatchObject({ type: "client-request", method: "session/list", payload: {} });
       return Response.json({ type: "server-response", result: { ok: true, value: { items: [{ sessionId: "session-1", updatedAt: 100, running: false, blank: false, cwd: "/workspace/project", projections: { asOfSeq: 4, values: { title: "Plan" } } }] } } });
     });
     vi.stubGlobal("fetch", vi.fn(() => { throw new Error("ambient fetch must not be used"); }));
@@ -65,58 +63,8 @@ describe("DshApiClient", () => {
     await expect(new DshApiClient("https://api.example.test", "test-token").listSessions()).rejects.toBeInstanceOf(DshApiError);
   });
 
-  it("requests a v1 ticket and passes only the opaque subprotocols to the socket factory", async () => {
-    const fetchMock = vi.fn(async (input: string | URL, init?: RequestInit) => {
-      expect(String(input)).toBe("https://api.example.test/api/dsh/ws-ticket");
-      expect(new URL(String(input)).search).toBe("");
-      expect(init?.credentials).toBe("omit");
-      expect(new Headers(init?.headers).get("authorization")).toBe("Bearer access-token");
-      expect(JSON.parse(String(init?.body))).toEqual({ sandboxId: "sbx_1", channel: "mux", sessionId: "session-1" });
-      return Response.json({ ok: true, ticket: TICKET, expiresAt: Date.now() + 30_000, contractVersion: 1 });
-    });
-    vi.stubGlobal("fetch", vi.fn(() => { throw new Error("ambient fetch must not be used"); }));
-    const factory = vi.fn(async (url: URL, protocols: readonly string[]) => {
-      expect(url.toString()).toBe("wss://api.example.test/api/dsh/events.mux");
-      expect(url.search).toBe("");
-      expect(protocols).toEqual(["dsh.v1", `dsh-ticket.${TICKET}`]);
-      return {} as WebSocket;
-    });
-
-    const socket = await new DshApiClient("https://api.example.test", { tokenProvider: () => "access-token", fetch: fetchMock }).openSocket({ sandboxId: "sbx_1", channel: "mux", sessionId: "session-1" }, factory);
-    expect(socket).toBeDefined();
-    expect(fetchMock).toHaveBeenCalledOnce();
-    expect(factory).toHaveBeenCalledOnce();
-  });
-
-  it("uses the DSH host alias for host-channel tickets", async () => {
-    const now = Date.now();
-    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ok: true, ticket: TICKET, expiresAt: now + 30_000, contractVersion: 1 })));
-    const factory = vi.fn(async (url: URL, protocols: readonly string[]) => {
-      expect(url.toString()).toBe("wss://api.example.test/api/dsh/events.host");
-      expect(protocols).toEqual(["dsh.v1", `dsh-ticket.${TICKET}`]);
-      return {} as WebSocket;
-    });
-
-    await new DshApiClient("https://api.example.test", { tokenProvider: () => "access-token", now: () => now }).openSocket(
-      { sandboxId: "sbx_1", channel: "host" },
-      factory,
-    );
-    expect(factory).toHaveBeenCalledOnce();
-  });
-
-  it.each([
-    { expiresAt: "2030-01-01T00:00:00.000Z", code: "expiresAt" },
-    { contractVersion: 2, code: "contract" },
-    { ticket: "bad ticket", code: "ticket" },
-  ])("rejects invalid ticket response ($code)", async ({ expiresAt, contractVersion, ticket }) => {
-    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ok: true, ticket: ticket ?? TICKET, expiresAt: expiresAt ?? Date.now() + 30_000, contractVersion: contractVersion ?? 1 })));
-    await expect(new DshApiClient("https://api.example.test", "access-token").requestWebSocketTicket({ sandboxId: "sbx_1", channel: "host" })).rejects.toBeInstanceOf(DshApiError);
-  });
-
-  it("rejects tickets beyond the 60-second contract TTL", async () => {
-    const now = Date.now();
-    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ok: true, ticket: TICKET, expiresAt: now + 60_001, contractVersion: 1 })));
-    const client = new DshApiClient("https://api.example.test", { tokenProvider: () => "access-token", now: () => now });
-    await expect(client.requestWebSocketTicket({ sandboxId: "sbx_1", channel: "host" })).rejects.toMatchObject({ code: "ticket_expiry_invalid" });
+  it("reports unavailable WebSocket transport without using a legacy endpoint", async () => {
+    const client = new DshApiClient("https://api.example.test", "access-token");
+    await expect(client.openSocket({ sandboxId: "sbx_1", channel: "mux" })).rejects.toMatchObject({ code: "websocket_unavailable" });
   });
 });
