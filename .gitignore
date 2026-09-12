@@ -4,3 +4,4 @@ lib/
 .codebase-memory/
 .worktrees/
 .tmp/
+.turbo/

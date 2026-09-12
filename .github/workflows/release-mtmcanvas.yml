@@ -63,7 +63,7 @@ jobs:
           printf 'PACKAGE_VERSION=%s\n' "$package_version" >> "$GITHUB_ENV"
 
       - name: Check mtmcanvas browser extension
-        run: pnpm --filter mtmcanvas run build && pnpm --filter mtmcanvas run check
+        run: pnpm exec turbo run check --filter=mtmcanvas
 
       - name: Pack release tarball
         id: pack

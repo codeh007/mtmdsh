@@ -73,7 +73,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit && tsc --project tsconfig.embed.json --noEmit",
-    "test": "pnpm run build && vitest run --config vitest.config.ts && node --test tests/*.test.mjs",
+    "test": "vitest run --config vitest.config.ts && node --test tests/*.test.mjs",
     "check": "pnpm run typecheck && pnpm run test",
     "prepack": "pnpm run build"
   },
