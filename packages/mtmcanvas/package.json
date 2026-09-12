@@ -1,6 +1,6 @@
 {
   "name": "mtmcanvas",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Experimental browser-only frontend extension for mtmharness.",
   "type": "module",
   "engines": {
