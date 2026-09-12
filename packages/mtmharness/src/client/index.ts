@@ -24,5 +24,4 @@ export async function apply(ctx: ClientContext): Promise<void> {
     const reconcile = (): void => { void canvas.setEnabled(settings.getSnapshot().value?.dynamicCanvasEnabled === true); };
     ctx.effect(() => { const stop = settings.subscribe(reconcile); reconcile(); return stop; }, "mtmcanvas: settings lifecycle");
   }
-
 }
