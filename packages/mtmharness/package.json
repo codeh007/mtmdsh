@@ -85,6 +85,7 @@
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "3.18.2",
+    "@libp2p/http": "2.0.6",
     "npm": "11.7.0",
     "yaml": "^2.4.2"
   },
@@ -130,7 +131,11 @@
     "@chainsafe/libp2p-noise": "^17.0.0",
     "@chainsafe/libp2p-yamux": "^8.0.1",
     "@libp2p/crypto": "^5.1.23",
+    "@libp2p/identify": "^4.1.14",
+    "@libp2p/interface": "^3.3.0",
+    "@libp2p/peer-id": "^6.0.15",
     "@libp2p/websockets": "^10.1.21",
+    "@multiformats/multiaddr": "^13.0.3",
     "libp2p": "^3.3.11",
     "@deepseek-ai/cordis": "4.0.2",
     "@deepseek-ai/dsh-agent": "0.1.5-rc.1",
