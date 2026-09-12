@@ -1,12 +1,12 @@
 import { ArrowUp, LoaderCircle, MessageCircle, RotateCcw } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactElement } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
-import type { NormalizedClientConfig } from "@/app/config";
-import { MtmHarnessRuntime, type ChatMessage, type RuntimeSnapshot } from "@/runtime";
+import { Badge } from "./ui/badge.js";
+import { Button } from "./ui/button.js";
+import { Separator } from "./ui/separator.js";
+import { Textarea } from "./ui/textarea.js";
+import { cn } from "../lib/utils.js";
+import type { NormalizedClientConfig } from "../app/config.js";
+import { MtmHarnessRuntime, type ChatMessage, type RuntimeSnapshot } from "../runtime.js";
 
 function statusLabel(snapshot: RuntimeSnapshot): string {
   if (snapshot.status === "loading") return "Connecting";

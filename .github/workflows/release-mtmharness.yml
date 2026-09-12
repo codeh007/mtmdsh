@@ -77,8 +77,43 @@ jobs:
           printf 'tarball=%s\n' "$tarball" >> "$GITHUB_OUTPUT"
           printf 'LOCAL_INTEGRITY=%s\n' "$local_integrity" >> "$GITHUB_ENV"
 
+      - name: Verify package tarball
+        run: |
+          set -euo pipefail
+          entries="$(tar -tzf "${{ steps.pack.outputs.tarball }}")"
+          for entry in \
+            package/lib/index.js \
+            package/lib/client.cjs \
+            package/lib/p2p-worker.cjs \
+            package/lib/types/index.d.ts \
+            package/lib/types/client/index.d.ts \
+            package/dist/embed/mtmharness.js \
+            package/dist/embed/mtmharness.iife.js \
+            package/dist/auth.js \
+            package/dist/types/embed/index.d.ts \
+            package/cordis.patch.yml; do
+            grep -qx "$entry" <<<"$entries"
+          done
+          unpack="$RUNNER_TEMP/mtmharness-unpack"
+          mkdir -p "$unpack"
+          tar -xzf "${{ steps.pack.outputs.tarball }}" -C "$unpack"
+          export UNPACK_ROOT="$unpack"
+          grep -q 'window.__ModuleLoader__.load' "$unpack/package/lib/client.cjs"
+          if grep -R -q '@/' "$unpack/package/dist/types"; then
+            echo "mtmharness declarations contain a source-only path alias" >&2
+            exit 1
+          fi
+          if grep -R -Eq '\.(ts|tsx)"' "$unpack/package/dist/types"; then
+            echo "mtmharness declarations contain source TypeScript extensions" >&2
+            exit 1
+          fi
+          if grep -Eq 'export .*OAuthClient|export .*createMemoryTokenSource|export .*createPkceChallenge' "$unpack/package/dist/types/embed/index.d.ts"; then
+            echo "mtmharness embed entry must remain mount-only" >&2
+            exit 1
+          fi
+
       - name: Lint package metadata
-        run: pnpm dlx publint run "${{ steps.pack.outputs.tarball }}" --strict
+        run: pnpm dlx publint@0.3.24 run "${{ steps.pack.outputs.tarball }}" --strict
 
       - name: Preflight registry and token
         env:

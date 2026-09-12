@@ -1,10 +1,10 @@
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, type AnyRouter, type RouterHistory } from "@tanstack/react-router";
-import type { ClientPresentation, MtmHarnessPresentationController, NormalizedClientConfig } from "@/app/config";
-import type { MtmHarnessAuthClient } from "@/app/auth";
-import { ConversationRoute } from "@/app/conversation-route";
-import { WorkspaceOverview } from "@/components/full-shell";
-import { EmbeddedShell } from "@/app/embedded-shell";
-import type { MtmHarnessRuntime } from "@/runtime";
+import type { ClientPresentation, MtmHarnessPresentationController, NormalizedClientConfig } from "./config.js";
+import type { MtmHarnessAuthClient } from "./auth.js";
+import { ConversationRoute } from "./conversation-route.js";
+import { WorkspaceOverview } from "../components/full-shell.js";
+import { EmbeddedShell } from "./embedded-shell.js";
+import type { MtmHarnessRuntime } from "../runtime.js";
 
 export interface ClientRouterOptions {
   config: NormalizedClientConfig;

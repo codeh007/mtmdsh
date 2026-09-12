@@ -1,4 +1,4 @@
-import { createCanvasDocument, createNodeId, type CanvasDocument, type CanvasPosition } from "../contract/canvas.ts";
+import { createCanvasDocument, createNodeId, type CanvasDocument, type CanvasPosition } from "../contract/canvas.js";
 
 export interface CanvasFile {
   name: string;

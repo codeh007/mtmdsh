@@ -1,13 +1,4 @@
-export { autoMount, MtmHarnessClient, mount } from "./embed";
-export { createMemoryTokenSource, createPkceChallenge, MemoryTokenSource, OAuthClient, OAUTH_CONTRACT_VERSION } from "./app/auth";
-export type {
-  MtmHarnessAuthClient,
-  MtmHarnessAuthSnapshot,
-  MtmHarnessAuthStatus,
-  MtmHarnessTokenSource,
-  OAuthClientConfig,
-  OAuthDiscovery,
-} from "./app/auth";
+export { autoMount, MtmHarnessClient, mount } from "./embed.js";
 export type {
   MtmHarnessClientConfig,
   MtmHarnessClientHandle,
@@ -17,4 +8,4 @@ export type {
   MtmHarnessRuntimeBootstrap,
   MtmHarnessWebSocketFactory,
   NormalizedClientConfig,
-} from "./app/config";
+} from "./app/config.js";

@@ -6,7 +6,6 @@ const packageRoot = fileURLToPath(new URL(".", import.meta.url));
 export default defineConfig({
   resolve: {
     alias: {
-      "@": fileURLToPath(new URL("./src/embed", import.meta.url)),
       "@deepseek-ai/dsh-client-ui-primitives": fileURLToPath(new URL("./tests/primitive-stub.tsx", import.meta.url)),
       "@deepseek-ai/dsh-client-store": fileURLToPath(new URL("./tests/client-runtime-stub.ts", import.meta.url)),
     },

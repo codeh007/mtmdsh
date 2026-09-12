@@ -22,13 +22,11 @@
     },
     "./embed": {
       "types": "./dist/types/embed/index.d.ts",
-      "import": "./dist/embed/mtmharness.js",
-      "default": "./dist/embed/mtmharness.js"
+      "import": "./dist/embed/mtmharness.js"
     },
     "./auth": {
       "types": "./dist/types/embed/app/auth.d.ts",
-      "import": "./dist/auth.js",
-      "default": "./dist/auth.js"
+      "import": "./dist/auth.js"
     },
     "./p2p-worker": {
       "types": "./lib/types/features/p2p/worker.d.ts",
@@ -74,7 +72,7 @@
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit && tsc --project tsconfig.embed.json --noEmit",
     "test": "vitest run --config vitest.config.ts && node --test tests/*.test.mjs",
-    "prepack": "pnpm run build"
+    "prepack": "pnpm exec turbo run build --filter=mtmharness..."
   },
   "license": "MIT",
   "publishConfig": {

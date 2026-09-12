@@ -1,8 +1,8 @@
 import { createElement, useSyncExternalStore } from "react";
 import type { Context as ClientContext } from "@deepseek-ai/cordis";
-import { CanvasView } from "./CanvasView.tsx";
-import { CanvasRuntime } from "./runtime.ts";
-import { MTM_CANVAS_CSS } from "./styles.ts";
+import { CanvasView } from "./CanvasView.js";
+import { CanvasRuntime } from "./runtime.js";
+import { MTM_CANVAS_CSS } from "./styles.js";
 
 export interface MtmCanvasClientConfig { enabled?: boolean; }
 export interface MtmCanvasClientSnapshot { desired: boolean; status: "disabled" | "enabled" | "loading" | "failed"; error?: string; }

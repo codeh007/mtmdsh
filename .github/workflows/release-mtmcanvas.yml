@@ -60,7 +60,7 @@ jobs:
           printf 'PACKAGE_VERSION=%s\n' "$package_version" >> "$GITHUB_ENV"
 
       - name: Check mtmcanvas browser extension
-        run: pnpm exec turbo run typecheck test --filter=mtmcanvas
+        run: pnpm exec turbo run build typecheck test --filter=mtmcanvas
 
       - name: Pack release tarball
         id: pack
@@ -90,10 +90,10 @@ jobs:
           for declaration in package/lib/types/index.d.ts package/lib/types/client/index.d.ts; do test -f "$unpack/$declaration"; done
           export UNPACK_ROOT="$unpack"
           node --input-type=module -e 'import fs from "node:fs"; import path from "node:path"; const root = process.env.UNPACK_ROOT; const pkg = JSON.parse(fs.readFileSync(path.join(root, "package/package.json"), "utf8")); if (pkg.dsh !== undefined || pkg.exports?.["."]?.import !== "./lib/client.js" || pkg.exports?.["./client"]?.import !== "./lib/client.js") process.exit(1);'
-          node --input-type=module -e 'import fs from "node:fs"; import path from "node:path"; const source = fs.readFileSync(path.join(process.env.UNPACK_ROOT, "package/lib/client.js"), "utf8"); if (!source.includes("export") || /^\s*import\s/m.test(source)) process.exit(1);'
+          node --input-type=module -e 'import fs from "node:fs"; import path from "node:path"; const source = fs.readFileSync(path.join(process.env.UNPACK_ROOT, "package/lib/client.js"), "utf8"); const imports = [...source.matchAll(/(?:^|\n)\s*import(?:[^"\n]*from\s+)?["\x27]([^"\x27]+)["\x27]/g)].map((match) => match[1]); if (!source.includes("export") || imports.some((specifier) => specifier !== "react" && !specifier.startsWith("react/"))) process.exit(1);'
 
       - name: Lint package metadata
-        run: pnpm dlx publint run "${{ steps.pack.outputs.tarball }}" --strict
+        run: pnpm dlx publint@0.3.24 run "${{ steps.pack.outputs.tarball }}" --strict
 
       - name: Preflight registry and token
         env:

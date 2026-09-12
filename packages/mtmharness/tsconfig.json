@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "declaration": true,
-    "allowImportingTsExtensions": true,
     "declarationMap": false,
     "emitDeclarationOnly": true,
     "jsx": "react-jsx",

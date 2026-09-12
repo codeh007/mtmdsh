@@ -1,5 +1,5 @@
 import type { Context as ClientContext } from "@deepseek-ai/cordis";
-import { loadStorage } from "./storage.ts";
+import { loadStorage } from "./storage.js";
 import {
   DEFAULT_TIMEOUT_MS,
   MAX_PAYLOAD_BYTES,
@@ -8,8 +8,8 @@ import {
   type Request,
   validateMessageId,
   validateRequest,
-} from "./protocol.ts";
-export * from "./protocol.ts";
+} from "./protocol.js";
+export * from "./protocol.js";
 export interface P2pClientOptions {
   readonly worker?: SharedWorker;
   readonly workerUrl?: string;

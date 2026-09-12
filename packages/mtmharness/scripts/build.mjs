@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
@@ -12,8 +12,8 @@ const distRoot = resolve(packageRoot, "dist");
 const tsc = resolve(packageRoot, "node_modules/.bin/tsc");
 const vite = resolve(packageRoot, "node_modules/.bin/vite");
 const clientTemp = resolve(libRoot, "client.bundle.cjs");
-const packageName = "mtmharness";
 const packageManifest = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8"));
+const packageName = packageManifest.name;
 
 function packageExport(subpath, condition = "default") {
   const definition = packageManifest.exports?.[subpath];
@@ -126,26 +126,10 @@ if (!artifact.includes("window.__ModuleLoader__.load") || !artifact.includes("id
 writeFileSync(clientOutput, artifact);
 rmSync(clientTemp, { force: true });
 
-execFileSync(vite, ["build", "--config", resolve(packageRoot, "vite.embed.config.ts")], { cwd: packageRoot, stdio: "inherit" });
+execFileSync(vite, ["build"], { cwd: packageRoot, stdio: "inherit" });
 
 execFileSync(tsc, ["--project", resolve(packageRoot, "tsconfig.embed.json")], { cwd: packageRoot, stdio: "inherit" });
 
-function normalizeDeclarationImports(directory) {
-  for (const entry of readdirSync(directory, { withFileTypes: true })) {
-    const filePath = resolve(directory, entry.name);
-    if (entry.isDirectory()) {
-      normalizeDeclarationImports(filePath);
-      continue;
-    }
-    if (!entry.isFile() || !entry.name.endsWith(".d.ts")) continue;
-    const source = readFileSync(filePath, "utf8");
-    const normalized = source.replace(/(["'])(\.\.?\/[^"']+)\1/gu, (match, quote, specifier) =>
-      /\.[^/]+$/u.test(specifier) ? match : quote + specifier + ".js" + quote);
-    if (normalized !== source) writeFileSync(filePath, normalized);
-  }
-}
-
-normalizeDeclarationImports(resolve(distRoot, "types/embed"));
 for (const [label, output] of [
   ["Host plugin", hostOutput],
   ["Host declarations", hostTypes],

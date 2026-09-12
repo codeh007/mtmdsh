@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { MtmHarnessRuntime, RuntimeSnapshot } from "@/runtime";
+import type { MtmHarnessRuntime, RuntimeSnapshot } from "../runtime";
 import { ConversationSurface } from "./conversation-surface";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;

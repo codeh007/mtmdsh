@@ -15,8 +15,11 @@ concurrency:
 
 jobs:
   verify:
-    name: Verify (Node 24)
+    name: Verify (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['22.19.0', '24']
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,7 +35,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: ${{ matrix.node-version }}
           cache: pnpm
 
       - name: Verify pnpm version
@@ -68,5 +71,5 @@ jobs:
 
       - name: Lint package metadata
         run: |
-          pnpm dlx publint run "${{ steps.pack.outputs.tarball }}" --strict
-          pnpm dlx publint run "${{ steps.pack-canvas.outputs.tarball }}" --strict
+          pnpm dlx publint@0.3.24 run "${{ steps.pack.outputs.tarball }}" --strict
+          pnpm dlx publint@0.3.24 run "${{ steps.pack-canvas.outputs.tarball }}" --strict

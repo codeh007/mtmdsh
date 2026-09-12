@@ -1,9 +1,9 @@
 import { Outlet } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { FullShellFrame } from "@/components/full-shell";
-import type { MtmHarnessAuthClient } from "@/app/auth";
-import type { MtmHarnessRuntime } from "@/runtime";
-import type { MtmHarnessPresentationController } from "@/app/config";
+import { FullShellFrame } from "../components/full-shell.js";
+import type { MtmHarnessAuthClient } from "./auth.js";
+import type { MtmHarnessRuntime } from "../runtime.js";
+import type { MtmHarnessPresentationController } from "./config.js";
 
 export function EmbeddedFullShell({ runtime, auth, presentationController }: { runtime: MtmHarnessRuntime; auth?: MtmHarnessAuthClient; presentationController: MtmHarnessPresentationController }): ReactElement {
   return (

@@ -16,9 +16,6 @@ if (typeof embedOutput !== "string" || typeof embedIifeOutput !== "string" || di
 export default defineConfig({
   define: { "process.env.NODE_ENV": JSON.stringify("production") },
   plugins: [react(), tailwindcss()],
-  resolve: {
-    alias: { "@": fileURLToPath(new URL("./src/embed", import.meta.url)) },
-  },
   build: {
     outDir: resolve(packageRoot, dirname(embedOutput)),
     emptyOutDir: true,

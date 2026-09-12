@@ -1,12 +1,12 @@
 import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { LayoutDashboard, Maximize2, MessageSquare, X } from "lucide-react";
 import { useSyncExternalStore, type ReactElement } from "react";
-import { Button } from "@/components/ui/button";
-import type { MtmHarnessPresentationController, NormalizedClientConfig } from "@/app/config";
-import type { MtmHarnessAuthClient } from "@/app/auth";
-import { AuthControls } from "@/app/auth-controls";
-import { EmbeddedFullShell } from "@/app/embedded-full-shell";
-import type { MtmHarnessRuntime } from "@/runtime";
+import { Button } from "../components/ui/button.js";
+import type { MtmHarnessPresentationController, NormalizedClientConfig } from "./config.js";
+import type { MtmHarnessAuthClient } from "./auth.js";
+import { AuthControls } from "./auth-controls.js";
+import { EmbeddedFullShell } from "./embedded-full-shell.js";
+import type { MtmHarnessRuntime } from "../runtime.js";
 
 export function EmbeddedShell({ config, runtime, auth, presentationController }: { config: NormalizedClientConfig; runtime: MtmHarnessRuntime; auth?: MtmHarnessAuthClient; presentationController: MtmHarnessPresentationController }): ReactElement {
   const state = useSyncExternalStore(presentationController.subscribe, presentationController.snapshot, presentationController.snapshot);

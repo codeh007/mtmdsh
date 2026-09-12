@@ -1,4 +1,4 @@
-import type { SandboxScope } from "@/sandbox/adapter";
+import type { SandboxScope } from "../sandbox/adapter.js";
 
 export class DshApiError extends Error {
   constructor(message: string, readonly code?: string, readonly details?: unknown, readonly status?: number) {
