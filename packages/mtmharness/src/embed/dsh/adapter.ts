@@ -275,12 +275,17 @@ function parseObjectValue(value: unknown, label: string): Record<string, unknown
   return record(value, label);
 }
 
-function parseEnvelope(value: unknown): unknown {
+function parseEnvelope(value: unknown, expectedRpcId: string): unknown {
   const body = record(value, "response");
+  if (body.type !== "server-response") throw new DshApiError("The server returned an invalid response.type");
+  if (body.rpcId !== expectedRpcId) throw new DshApiError("The server returned a mismatched response.rpcId");
   const result = record(body.result, "result");
   if (result.ok !== true) {
     const error = record(result.error, "operation error");
-    throw new DshApiError(typeof error.message === "string" ? error.message : "The DSH operation failed", typeof error.code === "string" ? error.code : undefined, error.details);
+    const code = requiredString(error, "code", "operation error.code");
+    const message = requiredString(error, "message", "operation error.message");
+    const details = record(error.details, "operation error.details");
+    throw new DshApiError(message, code, details);
   }
   return result.value;
 }
@@ -350,6 +355,7 @@ export class DshApiClient implements DshClient {
 
   private async call<T>(method: string, payload: unknown, parser: Parser<T>, signal?: AbortSignal): Promise<T> {
     const accessToken = await this.readAccessToken();
+    const rpcId = createRpcId();
     let response: Response;
     try {
       const target = new URL(`/api/${method}`, this.apiOrigin);
@@ -359,7 +365,7 @@ export class DshApiClient implements DshClient {
         credentials: "omit",
         cache: "no-store",
         headers: { authorization: "Bearer " + accessToken, "content-type": "application/json" },
-        body: JSON.stringify({ type: "client-request", rpcId: createRpcId(), method, payload }),
+        body: JSON.stringify({ type: "client-request", rpcId, method, payload }),
         signal,
       });
     } catch (error) {
@@ -371,7 +377,7 @@ export class DshApiClient implements DshClient {
       throw this.responseError(body, response.status, "The DSH request failed");
     }
     const body = await response.json().catch(() => undefined);
-    return parser(parseEnvelope(body));
+    return parser(parseEnvelope(body, rpcId));
   }
 
   private async readAccessToken(): Promise<string> {
