@@ -1,4 +1,4 @@
-import { MemoryTokenSource, OAuthClient, type MtmHarnessTokenSource, type OAuthClientConfig } from "./auth";
+import { MemoryTokenSource, OAuthClient, type MtmHarnessTokenSource, type OAuthClientConfig } from "./auth.js";
 
 export type MtmHarnessClientMode = "floating" | "dialog" | "fullscreen";
 export type ClientPresentation = "embed";

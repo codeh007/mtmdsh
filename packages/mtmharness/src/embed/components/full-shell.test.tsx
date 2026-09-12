@@ -1,9 +1,9 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { DshClient, DshWorkspaceView, MtmSessionSummary } from "@/dsh/adapter";
-import type { SandboxClient, SandboxRecord } from "@/sandbox/adapter";
-import { MtmHarnessRuntime } from "@/runtime";
+import type { DshClient, DshWorkspaceView, MtmSessionSummary } from "../dsh/adapter";
+import type { SandboxClient, SandboxRecord } from "../sandbox/adapter";
+import { MtmHarnessRuntime } from "../runtime";
 import { FullShellFrame } from "./full-shell";
 import { FULL_SHELL_SLOTS } from "./full-shell-contract";
 

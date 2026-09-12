@@ -1,10 +1,10 @@
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { createRoot } from "react-dom/client";
-import embedStyles from "@/styles/globals.css?inline";
-import { createClientRouter } from "@/app/router";
-import { createPresentationController, createTokenSource, normalizeConfig, resolveTarget, type MtmHarnessClientConfig, type MtmHarnessClientHandle } from "./app/config";
-import type { MtmHarnessAuthClient } from "./app/auth";
-import { MtmHarnessRuntime } from "@/runtime";
+import embedStyles from "./styles/globals.css?inline";
+import { createClientRouter } from "./app/router.js";
+import { createPresentationController, createTokenSource, normalizeConfig, resolveTarget, type MtmHarnessClientConfig, type MtmHarnessClientHandle } from "./app/config.js";
+import type { MtmHarnessAuthClient } from "./app/auth.js";
+import { MtmHarnessRuntime } from "./runtime.js";
 
 function mountClient(config: MtmHarnessClientConfig): MtmHarnessClientHandle {
   const normalizedConfig = normalizeConfig(config);

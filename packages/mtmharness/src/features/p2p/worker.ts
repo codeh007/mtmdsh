@@ -2,7 +2,7 @@ import { createLibp2p, type Libp2p } from "libp2p";
 import { webSockets } from "@libp2p/websockets";
 import { noise } from "@chainsafe/libp2p-noise";
 import { yamux } from "@chainsafe/libp2p-yamux";
-import type { P2pMessage, P2pSnapshot } from "./protocol.ts";
+import type { P2pMessage, P2pSnapshot } from "./protocol.js";
 
 const PROTOCOL = "/mtm-p2p/1";
 const ports = new Set<MessagePort>();

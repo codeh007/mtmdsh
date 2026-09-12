@@ -1,22 +1,22 @@
 /** Host assembly entry for the unified mtmharness DSH plugin. */
 import type { Context } from "@deepseek-ai/cordis";
 import type {} from "@deepseek-ai/dsh-client-connection";
-import { apply as applyCodingHost } from "./features/coding/index.ts";
-import { apply as applyUpdateHost } from "./features/update/index.ts";
+import { apply as applyCodingHost } from "./features/coding/index.js";
+import { apply as applyUpdateHost } from "./features/update/index.js";
 
-export { buildMcpConfig, codingPackage, resolveConfig, MTM_CODING_PACKAGES } from "./features/coding/index.ts";
-export type { MtmCodingPackageCatalog, MtmCodingPackageKind, MtmCodingPackageManifest, MtmCodingSkillSource } from "./features/coding/manifest.ts";
+export { buildMcpConfig, codingPackage, resolveConfig, MTM_CODING_PACKAGES } from "./features/coding/index.js";
+export type { MtmCodingPackageCatalog, MtmCodingPackageKind, MtmCodingPackageManifest, MtmCodingSkillSource } from "./features/coding/manifest.js";
 export {
   extractHookContext,
   resolveBundledCommand,
   resolveCommand,
   resolveEnvironment,
   resolveWorkingDirectory,
-} from "./features/coding/runtime.ts";
-export { apply as applyCoding } from "./features/coding/index.ts";
-export { apply as applyCodebaseMemory } from "./features/coding/codebase-memory.ts";
-export { apply as applyPonytail } from "./features/coding/ponytail.ts";
-export { apply as applyRtk } from "./features/coding/rtk.ts";
+} from "./features/coding/runtime.js";
+export { apply as applyCoding } from "./features/coding/index.js";
+export { apply as applyCodebaseMemory } from "./features/coding/codebase-memory.js";
+export { apply as applyPonytail } from "./features/coding/ponytail.js";
+export { apply as applyRtk } from "./features/coding/rtk.js";
 export {
   RTK_REWRITE_TIMEOUT_MS,
   RTK_VERSION,
@@ -31,8 +31,8 @@ export {
   rtkDisabled,
   rtkEnvironment,
   shouldRewriteRtk,
-} from "./features/coding/rtk-runtime.ts";
-export type { MtmCodingConfig, MtmCodingSettings, PonytailMode, RtkMode } from "./features/coding/types.ts";
+} from "./features/coding/rtk-runtime.js";
+export type { MtmCodingConfig, MtmCodingSettings, PonytailMode, RtkMode } from "./features/coding/types.js";
 export const name = "mtmharness";
 export const inject = ["connection", "settings", "subprocess", "webServer"];
 

@@ -11,7 +11,6 @@
     "check": "turbo run typecheck test"
   },
   "devDependencies": {
-    "turbo": "2.10.12",
-    "typescript": "6.0.3"
+    "turbo": "2.10.12"
   }
 }

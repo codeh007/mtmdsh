@@ -1,8 +1,8 @@
 import { LogIn, LogOut, RefreshCcw, UserRound } from "lucide-react";
 import { useEffect, useState, type ReactElement } from "react";
-import type { MtmHarnessAuthClient, MtmHarnessAuthSnapshot } from "./auth";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import type { MtmHarnessAuthClient, MtmHarnessAuthSnapshot } from "./auth.js";
+import { Button } from "../components/ui/button.js";
+import { cn } from "../lib/utils.js";
 
 function useAuthSnapshot(auth: MtmHarnessAuthClient): MtmHarnessAuthSnapshot {
   const [snapshot, setSnapshot] = useState(() => auth.getSnapshot());

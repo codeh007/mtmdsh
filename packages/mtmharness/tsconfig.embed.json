@@ -1,7 +1,5 @@
 {
   "compilerOptions": {
-    "allowImportingTsExtensions": true,
-    "baseUrl": ".",
     "declaration": true,
     "declarationMap": false,
     "emitDeclarationOnly": true,
@@ -11,7 +9,6 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "outDir": "dist/types",
-    "paths": { "@/*": ["src/embed/*"] },
     "rootDir": "src",
     "skipLibCheck": true,
     "strict": true,

@@ -5,9 +5,9 @@ import type {} from "@deepseek-ai/dsh-client-ui-settings/client";
 import type {} from "@deepseek-ai/dsh-client-ui-settings-plugins/client";
 import type {} from "@deepseek-ai/dsh-client-ui-sidebar/client";
 import type {} from "@deepseek-ai/dsh-client-ui-layout/client";
-import { apply as applyCoding } from "../features/coding/client/index.tsx";
+import { apply as applyCoding } from "../features/coding/client/index.js";
 import { apply as applyMtmCanvas } from "mtmcanvas";
-import { apply as applyMtmP2p } from "../features/p2p/client.ts";
+import { apply as applyMtmP2p } from "../features/p2p/client.js";
 
 export { applyCoding };
 export const inject = ["slots", "locale", "settingsScope", "connection"];

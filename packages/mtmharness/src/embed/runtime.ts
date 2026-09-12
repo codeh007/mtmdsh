@@ -1,5 +1,5 @@
-import type { MtmHarnessWebSocketFactory } from "@/app/config";
-import { MemoryTokenSource, type MtmHarnessAuthSnapshot, type MtmHarnessTokenSource } from "@/app/auth";
+import type { MtmHarnessWebSocketFactory } from "./app/config.js";
+import { MemoryTokenSource, type MtmHarnessAuthSnapshot, type MtmHarnessTokenSource } from "./app/auth.js";
 import {
   DshApiClient,
   DshApiError,
@@ -10,8 +10,8 @@ import {
   type DshSessionEvent,
   type DshWorkspaceView,
   type MtmSessionSummary,
-} from "@/dsh/adapter";
-import { SandboxApiClient, type SandboxClient, type SandboxRecord, type SandboxStatus } from "@/sandbox/adapter";
+} from "./dsh/adapter.js";
+import { SandboxApiClient, type SandboxClient, type SandboxRecord, type SandboxStatus } from "./sandbox/adapter.js";
 
 export type RuntimeStatus = "idle" | "loading" | "streaming" | "auth-required" | "error";
 export type RuntimeConnectionStatus = "disconnected" | "connecting" | "connected";

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type DragEvent, type FormEvent, type ReactElement } from "react";
-import type { CanvasNode } from "../contract/canvas.ts";
-import type { CanvasActions, CanvasViewState } from "./runtime.ts";
+import type { CanvasNode } from "../contract/canvas.js";
+import type { CanvasActions, CanvasViewState } from "./runtime.js";
 
 function NodeCard({ node, selected, onSelect, onDragEnd }: { node: CanvasNode; selected: boolean; onSelect: () => void; onDragEnd: (event: DragEvent<HTMLElement>) => void }): ReactElement {
   return (

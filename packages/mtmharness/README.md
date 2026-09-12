@@ -15,7 +15,7 @@ Only mtmharness is installed as a DSH plugin. Restart the DSH Web host after cha
 
 ## Embed
 
-The package exposes an embed IIFE at dist/embed/mtmharness.iife.js and explicit ./embed and ./auth exports. Configure the API origin and pre-registered public OAuth client before the embed script runs:
+The package exposes an embed IIFE at dist/embed/mtmharness.iife.js. The ./embed entry is mount-only; OAuth helpers and types are exposed through ./auth. Configure the API origin and pre-registered public OAuth client before the embed script runs:
 
     <script>
       window.__MTM_HARNESS_CONFIG__ = {
@@ -55,5 +55,4 @@ The official DSH plugin keeps the host FullShell and local session untouched.
 ## Development
 
     pnpm install
-    pnpm exec turbo run typecheck test --filter=mtmharness
-    pnpm exec turbo run build --filter=mtmharness
+    pnpm exec turbo run typecheck test --filter=mtmharness...

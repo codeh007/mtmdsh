@@ -1,13 +1,13 @@
 import { Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, Ellipsis, Folder, GitFork, LayoutDashboard, Menu, PanelLeft, Pencil, Plus, RefreshCcw, Search, Settings2, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useState, type ChangeEvent, type FormEvent, type ReactElement, type ReactNode } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
-import type { MtmHarnessAuthClient } from "@/app/auth";
-import { AuthControls } from "@/app/auth-controls";
-import type { MtmSessionSummary } from "@/dsh/adapter";
-import { MtmHarnessRuntime, type RuntimeSnapshot } from "@/runtime";
+import { Badge } from "./ui/badge.js";
+import { Button } from "./ui/button.js";
+import { Separator } from "./ui/separator.js";
+import { cn } from "../lib/utils.js";
+import type { MtmHarnessAuthClient } from "../app/auth.js";
+import { AuthControls } from "../app/auth-controls.js";
+import type { MtmSessionSummary } from "../dsh/adapter.js";
+import { MtmHarnessRuntime, type RuntimeSnapshot } from "../runtime.js";
 
 export interface FullShellFrameProps {
   children: ReactNode;
