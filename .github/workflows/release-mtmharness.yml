@@ -66,8 +66,7 @@ jobs:
       - name: Check workspace packages
         run: |
           set -euo pipefail
-          pnpm --filter mtmcanvas run build
-          pnpm --filter mtmharness run check
+          pnpm exec turbo run check --filter=mtmharness...
 
       - name: Pack release tarball
         id: pack

@@ -3,11 +3,16 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.7.0",
-  "engines": { "node": ">=22.19.0" },
+  "engines": {
+    "node": ">=22.19.0"
+  },
   "scripts": {
-    "build": "pnpm --filter mtmcanvas run build && pnpm --filter mtmharness run build",
-    "check": "pnpm run check:references && pnpm --filter mtmcanvas run build && pnpm --filter mtmcanvas run check && pnpm --filter mtmharness run check",
+    "build": "turbo run build",
+    "check": "pnpm run check:references && turbo run check",
     "check:references": "node scripts/check-workspace-references.mjs"
   },
-  "devDependencies": { "typescript": "6.0.3" }
+  "devDependencies": {
+    "turbo": "^2.10.12",
+    "typescript": "6.0.3"
+  }
 }
