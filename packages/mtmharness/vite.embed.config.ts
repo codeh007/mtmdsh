@@ -15,7 +15,7 @@ export default defineConfig({
     sourcemap: true,
     cssCodeSplit: false,
     lib: {
-      entry: fileURLToPath(new URL("./src/embed/embed.tsx", import.meta.url)),
+      entry: fileURLToPath(new URL("./src/embed/index.tsx", import.meta.url)),
       name: "MtmHarnessClient",
       formats: ["es", "iife"],
       fileName: (format) => format === "iife" ? "mtmharness.iife.js" : "mtmharness.js",

@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "baseUrl": ".",
+    "declaration": true,
+    "declarationMap": false,
+    "emitDeclarationOnly": true,
+    "ignoreDeprecations": "6.0",
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "outDir": "dist/types",
+    "paths": { "@/*": ["src/embed/*"] },
+    "rootDir": "src",
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2022",
+    "types": ["vite/client"]
+  },
+  "include": ["src/embed/**/*.ts", "src/embed/**/*.tsx"],
+  "exclude": ["src/embed/**/*.test.ts", "src/embed/**/*.test.tsx"]
+}
