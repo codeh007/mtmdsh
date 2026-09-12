@@ -199,7 +199,17 @@ jobs:
           echo "$PUBLISHED_PACKAGES" | jq -c '.[]' | while read -r package; do
             name="$(jq -r '.name' <<<"$package")"
             version="$(jq -r '.version' <<<"$package")"
-            metadata="$(npm view "$name@$version" --json)"
+            metadata=""
+            for attempt in 1 2 3 4 5; do
+              if metadata="$(npm view "$name@$version" --json 2>/dev/null)"; then
+                break
+              fi
+              if [[ "$attempt" -eq 5 ]]; then
+                echo "npm registry did not expose $name@$version after retries" >&2
+                exit 1
+              fi
+              sleep $((attempt * 5))
+            done
             test "$(jq -r '.name' <<<"$metadata")" = "$name"
             test "$(jq -r '.version' <<<"$metadata")" = "$version"
             test -n "$(jq -r '.dist.integrity' <<<"$metadata")"
