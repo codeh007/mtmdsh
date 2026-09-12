@@ -70,8 +70,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --config vitest.config.ts && node --test tests/*.test.mjs",
-    "prepack": "pnpm exec turbo run build --filter=mtmharness..."
+    "test": "vitest run --config vitest.config.ts && node --test tests/*.test.mjs"
   },
   "license": "MIT",
   "publishConfig": {
