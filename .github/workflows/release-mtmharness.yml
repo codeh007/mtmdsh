@@ -90,7 +90,7 @@ jobs:
             package/dist/embed/mtmharness.js \
             package/dist/embed/mtmharness.iife.js \
             package/dist/auth.js \
-            package/dist/types/embed/index.d.ts \
+            package/lib/types/embed/index.d.ts \
             package/cordis.patch.yml; do
             grep -qx "$entry" <<<"$entries"
           done
@@ -99,15 +99,15 @@ jobs:
           tar -xzf "${{ steps.pack.outputs.tarball }}" -C "$unpack"
           export UNPACK_ROOT="$unpack"
           grep -q 'window.__ModuleLoader__.load' "$unpack/package/lib/client.cjs"
-          if grep -R -q '@/' "$unpack/package/dist/types"; then
+          if grep -R -q '@/' "$unpack/package/lib/types"; then
             echo "mtmharness declarations contain a source-only path alias" >&2
             exit 1
           fi
-          if grep -R -Eq '\.(ts|tsx)"' "$unpack/package/dist/types"; then
+          if grep -R -Eq '\.(ts|tsx)"' "$unpack/package/lib/types"; then
             echo "mtmharness declarations contain source TypeScript extensions" >&2
             exit 1
           fi
-          if grep -Eq 'export .*OAuthClient|export .*createMemoryTokenSource|export .*createPkceChallenge' "$unpack/package/dist/types/embed/index.d.ts"; then
+          if grep -Eq 'export .*OAuthClient|export .*createMemoryTokenSource|export .*createPkceChallenge' "$unpack/package/lib/types/embed/index.d.ts"; then
             echo "mtmharness embed entry must remain mount-only" >&2
             exit 1
           fi

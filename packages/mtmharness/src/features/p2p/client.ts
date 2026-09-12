@@ -1,5 +1,4 @@
 import type { Context as ClientContext } from "@deepseek-ai/cordis";
-import { loadStorage } from "./storage.js";
 import {
   DEFAULT_TIMEOUT_MS,
   MAX_PAYLOAD_BYTES,
@@ -9,6 +8,8 @@ import {
   validateMessageId,
   validateRequest,
 } from "./protocol.js";
+import { loadStorage } from "./storage.js";
+
 export * from "./protocol.js";
 export interface P2pClientOptions {
   readonly worker?: SharedWorker;
@@ -137,8 +138,16 @@ function freeze(value: P2pSnapshot): P2pSnapshot {
 
 export interface MtmP2pClientConfig extends P2pClientOptions {}
 
-export function apply(ctx: ClientContext, config: MtmP2pClientConfig = {}): void {
+export function apply(
+  ctx: ClientContext,
+  config: MtmP2pClientConfig = {},
+): void {
   const client = new MtmP2pClient(config);
   ctx.provide("mtm-p2p-client", client);
-  ctx.effect(() => async () => { await client.close(); }, "mtm-p2p: client lifecycle");
+  ctx.effect(
+    () => async () => {
+      await client.close();
+    },
+    "mtm-p2p: client lifecycle",
+  );
 }

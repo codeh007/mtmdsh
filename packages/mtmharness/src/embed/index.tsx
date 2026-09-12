@@ -1,4 +1,3 @@
-export { autoMount, MtmHarnessClient, mount } from "./embed.js";
 export type {
   MtmHarnessClientConfig,
   MtmHarnessClientHandle,
@@ -9,3 +8,4 @@ export type {
   MtmHarnessWebSocketFactory,
   NormalizedClientConfig,
 } from "./app/config.js";
+export { autoMount, MtmHarnessClient, mount } from "./embed.js";

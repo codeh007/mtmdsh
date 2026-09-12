@@ -50,21 +50,28 @@ export type MtmCodingLocaleKey =
 export const en: Record<MtmCodingLocaleKey, string> = {
   nav: "Coding",
   title: "MTM Coding",
-  description: "Codebase Memory, Modern Go, Ponytail, and RTK coding assistance.",
+  description:
+    "Codebase Memory, Modern Go, Ponytail, and RTK coding assistance.",
   codebaseMemoryEnabled: "Codebase Memory",
-  codebaseMemoryEnabledHint: "Expose graph-first code discovery tools and guidance.",
+  codebaseMemoryEnabledHint:
+    "Expose graph-first code discovery tools and guidance.",
   dynamicCanvasEnabled: "Dynamic Canvas",
-  dynamicCanvasEnabledHint: "Load the pinned Canvas extension at runtime from its published artifact.",
+  dynamicCanvasEnabledHint:
+    "Load the pinned Canvas extension at runtime from its published artifact.",
   codebaseMemoryAugmentHooks: "Codebase Memory context augmentation",
-  codebaseMemoryAugmentHooksHint: "Add bounded repository context around session and read/search events.",
+  codebaseMemoryAugmentHooksHint:
+    "Add bounded repository context around session and read/search events.",
   ponytailEnabled: "Ponytail",
-  ponytailEnabledHint: "Apply the lazy-senior-dev rules and managed editable skills.",
+  ponytailEnabledHint:
+    "Apply the lazy-senior-dev rules and managed editable skills.",
   ponytailMode: "Ponytail intensity",
-  ponytailModeHint: "The default mode used for new agents; /ponytail can override one agent.",
+  ponytailModeHint:
+    "The default mode used for new agents; /ponytail can override one agent.",
   ponytailSubagents: "Apply Ponytail to subagents",
   ponytailSubagentsHint: "Carry the coding rules into child agents.",
   rtkMode: "RTK mode",
-  rtkModeHint: "Use guidance for explicit RTK commands; transparent rewrite is unavailable with the current DSH tool contract.",
+  rtkModeHint:
+    "Use guidance for explicit RTK commands; transparent rewrite is unavailable with the current DSH tool contract.",
   rtkModeOff: "Off",
   rtkModeGuidance: "Guidance",
   rtkModeAuto: "Guidance (default)",
@@ -84,7 +91,8 @@ export const en: Record<MtmCodingLocaleKey, string> = {
   show: "Show settings",
   hide: "Hide settings",
   updateTitle: "mtmharness update",
-  updateHint: "Check the stable npm release installed in this DSH Web profile. Updating requires a host restart.",
+  updateHint:
+    "Check the stable npm release installed in this DSH Web profile. Updating requires a host restart.",
   currentVersion: "Current version",
   latestVersion: "Latest version",
   checkForUpdates: "Check for updates",
@@ -100,13 +108,15 @@ export const en: Record<MtmCodingLocaleKey, string> = {
 export const zh: Record<MtmCodingLocaleKey, string> = {
   nav: "编程",
   title: "MTM 编程",
-  description: "统一配置 Codebase Memory、Modern Go、Ponytail 与 RTK 编程辅助。",
+  description:
+    "统一配置 Codebase Memory、Modern Go、Ponytail 与 RTK 编程辅助。",
   codebaseMemoryEnabled: "Codebase Memory",
   codebaseMemoryEnabledHint: "启用图谱优先的代码发现工具和指导。",
   dynamicCanvasEnabled: "动态画布",
   dynamicCanvasEnabledHint: "从已发布的固定版本载荷中运行时加载 Canvas 扩展。",
   codebaseMemoryAugmentHooks: "Codebase Memory 上下文增强",
-  codebaseMemoryAugmentHooksHint: "在会话和读/搜索事件周围加入有边界的仓库上下文。",
+  codebaseMemoryAugmentHooksHint:
+    "在会话和读/搜索事件周围加入有边界的仓库上下文。",
   ponytailEnabled: "Ponytail",
   ponytailEnabledHint: "启用 lazy senior dev 规则和可编辑的托管 skills。",
   ponytailMode: "Ponytail 强度",
@@ -134,7 +144,8 @@ export const zh: Record<MtmCodingLocaleKey, string> = {
   show: "展开设置",
   hide: "收起设置",
   updateTitle: "mtmharness 更新",
-  updateHint: "检查此 DSH Web profile 中安装的稳定版 npm 包；更新后需要重启 Host。",
+  updateHint:
+    "检查此 DSH Web profile 中安装的稳定版 npm 包；更新后需要重启 Host。",
   currentVersion: "当前版本",
   latestVersion: "最新版本",
   checkForUpdates: "检查更新",

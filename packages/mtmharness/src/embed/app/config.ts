@@ -1,8 +1,17 @@
-import { MemoryTokenSource, OAuthClient, type MtmHarnessTokenSource, type OAuthClientConfig } from "./auth.js";
+import { hasControlCharacter } from "../validation.js";
+import {
+  MemoryTokenSource,
+  type MtmHarnessTokenSource,
+  OAuthClient,
+  type OAuthClientConfig,
+} from "./auth.js";
 
 export type MtmHarnessClientMode = "floating" | "dialog" | "fullscreen";
 export type ClientPresentation = "embed";
-export type MtmHarnessWebSocketFactory = (url: URL, protocols: readonly string[]) => WebSocket | Promise<WebSocket>;
+export type MtmHarnessWebSocketFactory = (
+  url: URL,
+  protocols: readonly string[],
+) => WebSocket | Promise<WebSocket>;
 export type MtmHarnessPresentationState = "closed" | "panel" | "fullscreen";
 
 export interface MtmHarnessPresentationController {
@@ -13,8 +22,11 @@ export interface MtmHarnessPresentationController {
   openFullShell(): void;
 }
 
-export function createPresentationController(mode: MtmHarnessClientMode): MtmHarnessPresentationController {
-  let state: MtmHarnessPresentationState = mode === "fullscreen" ? "fullscreen" : "closed";
+export function createPresentationController(
+  mode: MtmHarnessClientMode,
+): MtmHarnessPresentationController {
+  let state: MtmHarnessPresentationState =
+    mode === "fullscreen" ? "fullscreen" : "closed";
   const listeners = new Set<() => void>();
   const publish = (next: MtmHarnessPresentationState): void => {
     if (state === next) return;
@@ -25,7 +37,9 @@ export function createPresentationController(mode: MtmHarnessClientMode): MtmHar
     snapshot: () => state,
     subscribe(listener) {
       listeners.add(listener);
-      return () => { listeners.delete(listener); };
+      return () => {
+        listeners.delete(listener);
+      };
     },
     open: () => publish(mode === "fullscreen" ? "fullscreen" : "panel"),
     close: () => publish("closed"),
@@ -75,7 +89,11 @@ export interface MtmHarnessClientHandle {
   openFullShell(): void;
 }
 
-const MODES: readonly MtmHarnessClientMode[] = ["floating", "dialog", "fullscreen"];
+const MODES: readonly MtmHarnessClientMode[] = [
+  "floating",
+  "dialog",
+  "fullscreen",
+];
 
 export function normalizeUrl(value: string, field: string): string {
   let url: URL;
@@ -94,18 +112,26 @@ export function normalizeOrigin(value: string, field: string): string {
   return new URL(normalizeUrl(value, field)).origin;
 }
 
-function normalizeOAuthConfig(value: OAuthClientConfig | undefined): OAuthClientConfig | undefined {
+function normalizeOAuthConfig(
+  value: OAuthClientConfig | undefined,
+): OAuthClientConfig | undefined {
   if (value === undefined) return undefined;
   const issuer = normalizeIssuer(value.issuer);
   const redirectUri = normalizeRedirectUri(value.redirectUri);
   const resource = normalizeHttpsUrl(value.resource, "oauth.resource");
   const clientId = value.clientId.trim();
-  if (!clientId || clientId.length > 256 || /[\u0000-\u001f\u007f]/u.test(clientId)) {
+  if (!clientId || clientId.length > 256 || hasControlCharacter(clientId)) {
     throw new TypeError("oauth.clientId must be a non-empty safe string");
   }
-  const discoveryUrl = value.discoveryUrl === undefined ? undefined : normalizeHttpsUrl(value.discoveryUrl, "oauth.discoveryUrl");
+  const discoveryUrl =
+    value.discoveryUrl === undefined
+      ? undefined
+      : normalizeHttpsUrl(value.discoveryUrl, "oauth.discoveryUrl");
   const scopes = [...value.scopes];
-  if (scopes.length === 0 || scopes.some((scope) => typeof scope !== "string" || !scope.trim())) {
+  if (
+    scopes.length === 0 ||
+    scopes.some((scope) => typeof scope !== "string" || !scope.trim())
+  ) {
     throw new TypeError("oauth.scopes must contain non-empty strings");
   }
   return {
@@ -120,7 +146,13 @@ function normalizeOAuthConfig(value: OAuthClientConfig | undefined): OAuthClient
 
 function normalizeIssuer(value: string): string {
   const url = new URL(normalizeUrl(value, "oauth.issuer"));
-  if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) {
+  if (
+    url.protocol !== "https:" ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash
+  ) {
     throw new TypeError("oauth.issuer must be a canonical HTTPS URL");
   }
   return url.pathname === "/" ? url.origin : url.toString();
@@ -129,21 +161,36 @@ function normalizeIssuer(value: string): string {
 function normalizeHttpsUrl(value: string, field: string): string {
   const url = new URL(normalizeUrl(value, field));
   if (url.protocol !== "https:" || url.username || url.password || url.hash) {
-    throw new TypeError(field + " must use HTTPS without credentials or fragments");
+    throw new TypeError(
+      field + " must use HTTPS without credentials or fragments",
+    );
   }
   return url.toString();
 }
 
 function normalizeRedirectUri(value: string): string {
   const url = new URL(normalizeUrl(value, "oauth.redirectUri"));
-  const loopback = url.protocol === "http:" && (url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "[::1]");
-  if ((!loopback && url.protocol !== "https:") || url.username || url.password || url.hash) {
-    throw new TypeError("oauth.redirectUri must use HTTPS or loopback HTTP without credentials or fragments");
+  const loopback =
+    url.protocol === "http:" &&
+    (url.hostname === "localhost" ||
+      url.hostname === "127.0.0.1" ||
+      url.hostname === "[::1]");
+  if (
+    (!loopback && url.protocol !== "https:") ||
+    url.username ||
+    url.password ||
+    url.hash
+  ) {
+    throw new TypeError(
+      "oauth.redirectUri must use HTTPS or loopback HTTP without credentials or fragments",
+    );
   }
   return url.toString();
 }
 
-export function normalizeConfig(config: MtmHarnessClientConfig): NormalizedClientConfig {
+export function normalizeConfig(
+  config: MtmHarnessClientConfig,
+): NormalizedClientConfig {
   const mode = config.mode ?? "floating";
   if (!MODES.includes(mode)) {
     throw new TypeError("mode must be one of: " + MODES.join(", "));
@@ -153,25 +200,38 @@ export function normalizeConfig(config: MtmHarnessClientConfig): NormalizedClien
   if (accessToken === "") throw new TypeError("accessToken must not be empty");
   return {
     apiOrigin,
-    ...(config.oauth === undefined ? {} : { oauth: normalizeOAuthConfig(config.oauth) }),
+    ...(config.oauth === undefined
+      ? {}
+      : { oauth: normalizeOAuthConfig(config.oauth) }),
     ...(accessToken === undefined ? {} : { accessToken }),
-    ...(config.tokenSource === undefined ? {} : { tokenSource: config.tokenSource }),
-    ...(config.webSocketFactory === undefined ? {} : { webSocketFactory: config.webSocketFactory }),
+    ...(config.tokenSource === undefined
+      ? {}
+      : { tokenSource: config.tokenSource }),
+    ...(config.webSocketFactory === undefined
+      ? {}
+      : { webSocketFactory: config.webSocketFactory }),
     mode,
   };
 }
 
-export function createTokenSource(config: NormalizedClientConfig): MtmHarnessTokenSource | undefined {
+export function createTokenSource(
+  config: NormalizedClientConfig,
+): MtmHarnessTokenSource | undefined {
   if (config.tokenSource !== undefined) return config.tokenSource;
   if (config.oauth !== undefined) return new OAuthClient(config.oauth);
-  return config.accessToken === undefined ? undefined : new MemoryTokenSource(config.accessToken);
+  return config.accessToken === undefined
+    ? undefined
+    : new MemoryTokenSource(config.accessToken);
 }
 
-export function resolveTarget(target: MtmHarnessClientConfig["target"]): Element {
+export function resolveTarget(
+  target: MtmHarnessClientConfig["target"],
+): Element {
   if (typeof document === "undefined") {
     throw new Error("mtmharness can only mount in a browser");
   }
-  if (typeof Element !== "undefined" && target instanceof Element) return target;
+  if (typeof Element !== "undefined" && target instanceof Element)
+    return target;
   if (typeof target === "string") {
     const element = document.querySelector(target);
     if (element) return element;

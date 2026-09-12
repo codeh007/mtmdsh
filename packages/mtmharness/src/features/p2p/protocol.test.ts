@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { validateRequest, validateMessageId } from "./protocol.ts";
+import { validateMessageId, validateRequest } from "./protocol.ts";
+
 describe("p2p validation", () => {
   it("rejects malformed ids", () =>
     expect(() => validateMessageId("bad id")).toThrow());

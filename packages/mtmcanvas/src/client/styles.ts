@@ -1,4 +1,5 @@
-export const MTM_CANVAS_CSS =   ".mtmcanvas-view{display:flex;min-height:520px;height:100%;flex-direction:column;background:#f8fafc;color:#172033;font:12px ui-sans-serif,system-ui,sans-serif}" +
+export const MTM_CANVAS_CSS =
+  ".mtmcanvas-view{display:flex;min-height:520px;height:100%;flex-direction:column;background:#f8fafc;color:#172033;font:12px ui-sans-serif,system-ui,sans-serif}" +
   ".mtmcanvas-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border-bottom:1px solid #dbe3ee;background:#fff}" +
   ".mtmcanvas-heading,.mtmcanvas-header-actions{display:flex;align-items:center;gap:8px;min-width:0}" +
   ".mtmcanvas-heading span{overflow:hidden;color:#64748b;text-overflow:ellipsis;white-space:nowrap}" +

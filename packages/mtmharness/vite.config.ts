@@ -1,16 +1,23 @@
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import packageManifest from "./package.json" with { type: "json" };
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+import packageManifest from "./package.json" with { type: "json" };
 
 const packageRoot = fileURLToPath(new URL(".", import.meta.url));
 const embedExport = packageManifest.exports["./embed"];
-const embedOutput = typeof embedExport === "object" ? embedExport.import : undefined;
+const embedOutput =
+  typeof embedExport === "object" ? embedExport.import : undefined;
 const embedIifeOutput = packageManifest.unpkg;
-if (typeof embedOutput !== "string" || typeof embedIifeOutput !== "string" || dirname(embedOutput) !== dirname(embedIifeOutput)) {
-  throw new Error("mtmharness embed build: package embed outputs must share a directory");
+if (
+  typeof embedOutput !== "string" ||
+  typeof embedIifeOutput !== "string" ||
+  dirname(embedOutput) !== dirname(embedIifeOutput)
+) {
+  throw new Error(
+    "mtmharness embed build: package embed outputs must share a directory",
+  );
 }
 
 export default defineConfig({
@@ -25,7 +32,8 @@ export default defineConfig({
       entry: fileURLToPath(new URL("./src/embed/index.tsx", import.meta.url)),
       name: "MtmHarnessClient",
       formats: ["es", "iife"],
-      fileName: (format) => format === "iife" ? basename(embedIifeOutput) : basename(embedOutput),
+      fileName: (format) =>
+        format === "iife" ? basename(embedIifeOutput) : basename(embedOutput),
     },
   },
 });

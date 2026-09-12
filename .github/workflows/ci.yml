@@ -44,8 +44,11 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Check formatting and lint
+        run: pnpm exec turbo run //#format-and-lint
+
       - name: Check workspace
-        run: pnpm check
+        run: pnpm exec turbo run build typecheck test
 
       - name: Pack mtmharness bundle
         id: pack

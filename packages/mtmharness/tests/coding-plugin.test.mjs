@@ -4,13 +4,13 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import {
-  applyCoding,
   applyCodebaseMemory,
+  applyCoding,
   applyPonytail,
   applyRtk,
-  resolveConfig,
   MTM_CODING_PACKAGES,
   name,
+  resolveConfig,
 } from "../lib/index.js";
 
 const DEFAULT_SETTINGS = {
@@ -30,7 +30,12 @@ const DEFAULT_SETTINGS = {
   toolCallTimeoutMs: 60_000,
   hookTimeoutMs: 2_000,
   failOnStartupError: false,
-  reconnect: { enabled: true, initialDelayMs: 500, maxDelayMs: 30_000, maxAttempts: 10 },
+  reconnect: {
+    enabled: true,
+    initialDelayMs: 500,
+    maxDelayMs: 30_000,
+    maxAttempts: 10,
+  },
 };
 
 const previousDshHome = process.env.DSH_HOME;
@@ -41,30 +46,72 @@ const managedSkillsRoot = join(testDshHome, "mtmharness", "skills");
 function writeSkill(root, name, description, body) {
   const directory = join(root, name);
   mkdirSync(directory, { recursive: true });
-  writeFileSync(join(directory, "SKILL.md"), "---\nname: " + name + "\ndescription: " + description + "\n---\n\n" + body + "\n");
+  writeFileSync(
+    join(directory, "SKILL.md"),
+    "---\nname: " +
+      name +
+      "\ndescription: " +
+      description +
+      "\n---\n\n" +
+      body +
+      "\n",
+  );
 }
 
 function manifestSkillNames() {
-  return MTM_CODING_PACKAGES.packages.flatMap((packageManifest) =>
-    packageManifest.skills?.files.map((file) => file.name) ?? []);
+  return MTM_CODING_PACKAGES.packages.flatMap(
+    (packageManifest) =>
+      packageManifest.skills?.files.map((file) => file.name) ?? [],
+  );
 }
 
-writeSkill(join(managedSkillsRoot, "modern-go"), "use-modern-go", "Modern Go test guidance.", "Run go run github.com/JetBrains/go-modern-guidelines@v0.1.1 list --file-path.");
-const modernGoScripts = join(managedSkillsRoot, "modern-go", "use-modern-go", "scripts");
+writeSkill(
+  join(managedSkillsRoot, "modern-go"),
+  "use-modern-go",
+  "Modern Go test guidance.",
+  "Run go run github.com/JetBrains/go-modern-guidelines@v0.1.1 list --file-path.",
+);
+const modernGoScripts = join(
+  managedSkillsRoot,
+  "modern-go",
+  "use-modern-go",
+  "scripts",
+);
 mkdirSync(modernGoScripts, { recursive: true });
-for (const name of ["VERSION", "run-tool.ps1", "run-tool.sh"]) writeFileSync(join(modernGoScripts, name), "pinned resource fixture\n");
-for (const name of ["ponytail", "ponytail-review", "ponytail-audit", "ponytail-debt", "ponytail-gain", "ponytail-help"]) {
-  writeSkill(join(managedSkillsRoot, "ponytail"), name, "Ponytail test guidance.", "Ponytail skill body.");
+for (const name of ["VERSION", "run-tool.ps1", "run-tool.sh"])
+  writeFileSync(join(modernGoScripts, name), "pinned resource fixture\n");
+for (const name of [
+  "ponytail",
+  "ponytail-review",
+  "ponytail-audit",
+  "ponytail-debt",
+  "ponytail-gain",
+  "ponytail-help",
+]) {
+  writeSkill(
+    join(managedSkillsRoot, "ponytail"),
+    name,
+    "Ponytail test guidance.",
+    "Ponytail skill body.",
+  );
 }
 
-const cloudflarePackage = MTM_CODING_PACKAGES.packages.find((item) => item.id === "cloudflare");
-if (cloudflarePackage?.skills === undefined) throw new Error("Cloudflare test fixture metadata is unavailable");
+const cloudflarePackage = MTM_CODING_PACKAGES.packages.find(
+  (item) => item.id === "cloudflare",
+);
+if (cloudflarePackage?.skills === undefined)
+  throw new Error("Cloudflare test fixture metadata is unavailable");
 for (const file of cloudflarePackage.skills.files) {
   const parts = file.path.split("/");
   const target = join(managedSkillsRoot, "cloudflare", ...parts.slice(1));
   mkdirSync(dirname(target), { recursive: true });
   if (parts.at(-1) === "SKILL.md") {
-    writeFileSync(target, "---\nname: " + file.name + "\ndescription: Cloudflare test guidance.\n---\n\nCloudflare skill fixture.\n");
+    writeFileSync(
+      target,
+      "---\nname: " +
+        file.name +
+        "\ndescription: Cloudflare test guidance.\n---\n\nCloudflare skill fixture.\n",
+    );
   } else {
     writeFileSync(target, "Cloudflare test resource.\n");
   }
@@ -140,7 +187,9 @@ function createContext(settingsValue = {}) {
           get: () => settings,
           watch(callback) {
             watchers.add(callback);
-            return () => { watchers.delete(callback); };
+            return () => {
+              watchers.delete(callback);
+            };
           },
         };
       },
@@ -158,7 +207,8 @@ function createContext(settingsValue = {}) {
         currentFiber = fiber;
         try {
           const result = await plugin.apply(context, config);
-          if (result !== undefined && typeof result !== "function") throw new TypeError("Invalid effect");
+          if (result !== undefined && typeof result !== "function")
+            throw new TypeError("Invalid effect");
         } finally {
           currentFiber = previous;
         }
@@ -192,7 +242,9 @@ function createContext(settingsValue = {}) {
         const candidates = [];
         for (const provider of skillProviders) {
           const listed = await provider.list(options);
-          candidates.push(...(Array.isArray(listed) ? listed : listed.candidates));
+          candidates.push(
+            ...(Array.isArray(listed) ? listed : listed.candidates),
+          );
         }
         return candidates;
       },
@@ -222,11 +274,24 @@ function createContext(settingsValue = {}) {
         spawnSpecs.push(spec);
         const isHook = spec.argv.at(-1) === "hook-augment";
         const stdout = isHook
-          ? JSON.stringify({ hookSpecificOutput: { additionalContext: "CBM context" } })
+          ? JSON.stringify({
+              hookSpecificOutput: { additionalContext: "CBM context" },
+            })
           : "";
-        const reader = { readFrom: () => ({ text: stdout, nextOffset: stdout.length, lossy: false }) };
+        const reader = {
+          readFrom: () => ({
+            text: stdout,
+            nextOffset: stdout.length,
+            lossy: false,
+          }),
+        };
         return {
-          collected: { stdout: reader, stderr: { readFrom: () => ({ text: "", nextOffset: 0, lossy: false }) } },
+          collected: {
+            stdout: reader,
+            stderr: {
+              readFrom: () => ({ text: "", nextOffset: 0, lossy: false }),
+            },
+          },
           done: Promise.resolve({ exitCode: 0, signal: null }),
           terminate() {},
           waitForExit: async () => true,
@@ -234,11 +299,15 @@ function createContext(settingsValue = {}) {
       },
     },
     logger: { debug() {}, error() {}, warn() {} },
-    get() { return undefined; },
+    get() {
+      return undefined;
+    },
     effect(execute) {
       const disposer = execute();
       currentFiber.effects.push(disposer);
-      return async () => { if (typeof disposer === "function") await disposer(); };
+      return async () => {
+        if (typeof disposer === "function") await disposer();
+      };
     },
     on: addListener,
   };
@@ -255,9 +324,13 @@ function createContext(settingsValue = {}) {
     skillProviders,
     async trigger(next) {
       settings = next;
-      await Promise.all([...watchers].map((watcher) => watcher(next, undefined)));
+      await Promise.all(
+        [...watchers].map((watcher) => watcher(next, undefined)),
+      );
     },
-    async dispose() { await root.dispose(); },
+    async dispose() {
+      await root.dispose();
+    },
     getSettings: () => settings,
   };
 }
@@ -278,7 +351,9 @@ test("Codebase Memory mounts the official MCP client and graph guidance", async 
     command: "/controlled/codebase-memory-mcp",
     augmentHooks: false,
   });
-  const nested = fake.pluginCalls.find((call) => call.config?.transport === "stdio");
+  const nested = fake.pluginCalls.find(
+    (call) => call.config?.transport === "stdio",
+  );
   assert.ok(nested);
   assert.equal(nested.config.serverName, "codebase_memory");
   assert.equal(nested.config.command, "/controlled/codebase-memory-mcp");
@@ -293,10 +368,25 @@ test("Codebase Memory mounts the official MCP client and graph guidance", async 
 });
 
 test("Codebase Memory rejects reconnect values outside the DSH contract", () => {
-  assert.throws(() => resolveConfig({ reconnect: { initialDelayMs: 0 } }), /initialDelayMs/);
-  assert.throws(() => resolveConfig({ reconnect: { maxDelayMs: 1.5 } }), /maxDelayMs/);
-  assert.throws(() => resolveConfig({ reconnect: { maxAttempts: 0 } }), /maxAttempts/);
-  assert.throws(() => resolveConfig({ reconnect: { initialDelayMs: 2_000, maxDelayMs: 1_000 } }), /less than or equal/);
+  assert.throws(
+    () => resolveConfig({ reconnect: { initialDelayMs: 0 } }),
+    /initialDelayMs/,
+  );
+  assert.throws(
+    () => resolveConfig({ reconnect: { maxDelayMs: 1.5 } }),
+    /maxDelayMs/,
+  );
+  assert.throws(
+    () => resolveConfig({ reconnect: { maxAttempts: 0 } }),
+    /maxAttempts/,
+  );
+  assert.throws(
+    () =>
+      resolveConfig({
+        reconnect: { initialDelayMs: 2_000, maxDelayMs: 1_000 },
+      }),
+    /less than or equal/,
+  );
 });
 
 test("Codebase Memory does not preflight its lazy npx command", async () => {
@@ -307,11 +397,18 @@ test("Codebase Memory does not preflight its lazy npx command", async () => {
     rtkMode: "off",
   });
   await applyCoding(fake.context, {});
-  const mcp = fake.pluginCalls.find((call) => call.config?.transport === "stdio");
+  const mcp = fake.pluginCalls.find(
+    (call) => call.config?.transport === "stdio",
+  );
   assert.ok(mcp);
   assert.equal(mcp.config.command, process.execPath);
   assert.match(mcp.config.args[0], /npm[/\\]bin[/\\]npx-cli\.js$/);
-  assert.deepEqual(mcp.config.args.slice(1, 5), ["--yes", "--package", "codebase-memory-mcp@0.10.8", "codebase-memory-mcp"]);
+  assert.deepEqual(mcp.config.args.slice(1, 5), [
+    "--yes",
+    "--package",
+    "codebase-memory-mcp@0.10.8",
+    "codebase-memory-mcp",
+  ]);
   assert.equal(fake.spawnSpecs.length, 0);
   await fake.dispose();
 });
@@ -323,13 +420,24 @@ test("Codebase Memory hooks become bounded DSH context messages", async () => {
   });
   const agent = {
     session: { header: { cwd: "/workspace/example" } },
-    inject(message) { fake.injected.push(message); },
+    inject(message) {
+      fake.injected.push(message);
+    },
   };
   onlyListener(fake.listeners, "agent/session-start")({ agent });
   const preStep = onlyListener(fake.listeners, "agent/pre-step");
-  const direct = { id: "direct", source: { kind: "user" }, content: [{ type: "text", text: "inspect" }] };
+  const direct = {
+    id: "direct",
+    source: { kind: "user" },
+    content: [{ type: "text", text: "inspect" }],
+  };
   const entered = await preStep(
-    { agent, messages: [direct], step: 1, signal: new AbortController().signal },
+    {
+      agent,
+      messages: [direct],
+      step: 1,
+      signal: new AbortController().signal,
+    },
     async () => ({ kind: "enter", messages: [direct] }),
   );
   assert.equal(entered.kind, "enter");
@@ -345,11 +453,16 @@ test("Codebase Memory hooks become bounded DSH context messages", async () => {
   const toolPre = onlyListener(fake.listeners, "tools/pre-execute");
   const toolPost = onlyListener(fake.listeners, "tools/post-execute");
   const grep = {
-    token: Symbol("grep"), agent, name: "grep", arguments: { pattern: "Context" },
+    token: Symbol("grep"),
+    agent,
+    name: "grep",
+    arguments: { pattern: "Context" },
     signal: new AbortController().signal,
   };
   await toolPre(grep, async () => ({ kind: "allow" }));
-  const grepResult = await toolPost(grep, { isError: false }, async () => ({ kind: "accept" }));
+  const grepResult = await toolPost(grep, { isError: false }, async () => ({
+    kind: "accept",
+  }));
   assert.equal(grepResult.additionalContexts.length, 1);
   assert.equal(grepResult.additionalContexts[0].source.form, "notice");
   assert.deepEqual(JSON.parse(fake.spawnSpecs[1].stdio.stdin.data), {
@@ -360,19 +473,29 @@ test("Codebase Memory hooks become bounded DSH context messages", async () => {
   });
 
   const glob = {
-    token: Symbol("glob"), agent, name: "glob", arguments: { pattern: "**/*.ts" },
+    token: Symbol("glob"),
+    agent,
+    name: "glob",
+    arguments: { pattern: "**/*.ts" },
     signal: new AbortController().signal,
   };
   await toolPre(glob, async () => ({ kind: "allow" }));
   await toolPost(glob, { isError: false }, async () => ({ kind: "accept" }));
-  assert.equal(JSON.parse(fake.spawnSpecs[2].stdio.stdin.data).tool_name, "Glob");
+  assert.equal(
+    JSON.parse(fake.spawnSpecs[2].stdio.stdin.data).tool_name,
+    "Glob",
+  );
 
   const read = {
-    token: Symbol("read"), agent, name: "read",
+    token: Symbol("read"),
+    agent,
+    name: "read",
     arguments: { file_path: "/workspace/example/src/index.ts", offset: 20 },
     signal: new AbortController().signal,
   };
-  const readResult = await toolPost(read, { isError: false }, async () => ({ kind: "accept" }));
+  const readResult = await toolPost(read, { isError: false }, async () => ({
+    kind: "accept",
+  }));
   assert.equal(readResult.additionalContexts.length, 1);
   assert.deepEqual(JSON.parse(fake.spawnSpecs[3].stdio.stdin.data), {
     hook_event_name: "PostToolUse",
@@ -381,23 +504,50 @@ test("Codebase Memory hooks become bounded DSH context messages", async () => {
     cwd: "/workspace/example",
   });
   const beforeFailedRead = fake.spawnSpecs.length;
-  await toolPost({ ...read, token: Symbol("failed-read") }, { isError: true }, async () => ({ kind: "accept" }));
+  await toolPost(
+    { ...read, token: Symbol("failed-read") },
+    { isError: true },
+    async () => ({ kind: "accept" }),
+  );
   assert.equal(fake.spawnSpecs.length, beforeFailedRead);
   await fake.dispose();
 });
 
 test("unified settings reconcile coding features and unregister the watcher", async () => {
-  const fake = createContext({ codebaseMemoryEnabled: false, ponytailMode: "lite" });
+  const fake = createContext({
+    codebaseMemoryEnabled: false,
+    ponytailMode: "lite",
+  });
   await applyCoding(fake.context, {});
   assert.equal(name, "mtmharness");
   const listedSkills = await fake.context.skills.list({});
   assert.equal(listedSkills.length, 20);
-  assert.deepEqual(listedSkills.filter((skill) => skill.provider === "mtm-coding-cloudflare").map((skill) => skill.name).sort(), [
-    "agents-sdk", "cloudflare", "cloudflare-email-service", "cloudflare-one", "cloudflare-one-migrations",
-    "durable-objects", "sandbox-migrate-to-next", "sandbox-next", "sandbox-stable", "turnstile-spin",
-    "web-perf", "workers-best-practices", "wrangler",
-  ]);
-  assert.equal(MTM_CODING_PACKAGES.packages.filter((item) => item.kind === "data-only").length, 2);
+  assert.deepEqual(
+    listedSkills
+      .filter((skill) => skill.provider === "mtm-coding-cloudflare")
+      .map((skill) => skill.name)
+      .sort(),
+    [
+      "agents-sdk",
+      "cloudflare",
+      "cloudflare-email-service",
+      "cloudflare-one",
+      "cloudflare-one-migrations",
+      "durable-objects",
+      "sandbox-migrate-to-next",
+      "sandbox-next",
+      "sandbox-stable",
+      "turnstile-spin",
+      "web-perf",
+      "workers-best-practices",
+      "wrangler",
+    ],
+  );
+  assert.equal(
+    MTM_CODING_PACKAGES.packages.filter((item) => item.kind === "data-only")
+      .length,
+    2,
+  );
   assert.equal(fake.skillProviders.length, 3);
   const modernGo = await fake.context.skills.get("use-modern-go");
   assert.ok(modernGo);
@@ -406,30 +556,66 @@ test("unified settings reconcile coding features and unregister the watcher", as
   assert.equal(modernGo.provider, "mtm-coding-modern-go");
   assert.equal(modernGo.source, "custom");
   assert.equal(modernGo.resourceBase.kind, "directory");
-  assert.match(modernGo.resourceBase.path, /mtmharness[/\\]skills[/\\]modern-go[/\\]use-modern-go$/);
-  assert.match(modernGo.path, /mtmharness[/\\]skills[/\\]modern-go[/\\]use-modern-go[/\\]SKILL\.md$/);
-  assert.match(modernGo.content, /go run github\.com\/JetBrains\/go-modern-guidelines@v0\.1\.1/);
+  assert.match(
+    modernGo.resourceBase.path,
+    /mtmharness[/\\]skills[/\\]modern-go[/\\]use-modern-go$/,
+  );
+  assert.match(
+    modernGo.path,
+    /mtmharness[/\\]skills[/\\]modern-go[/\\]use-modern-go[/\\]SKILL\.md$/,
+  );
+  assert.match(
+    modernGo.content,
+    /go run github\.com\/JetBrains\/go-modern-guidelines@v0\.1\.1/,
+  );
   assert.match(modernGo.content, /list --file-path/);
   assert.equal(fake.spawnSpecs.length, 0);
-  const autoSection = fake.sections.find((section) => section.name === "mtm-coding:rtk:status");
+  const autoSection = fake.sections.find(
+    (section) => section.name === "mtm-coding:rtk:status",
+  );
   assert.ok(autoSection);
   assert.match(autoSection.text({}), /guidance is active/);
-  assert.equal(fake.sections.find((section) => section.name === "mtm-coding:rtk:prompt")?.text, "RTK only concerns Bash shell commands. DSH read, grep, glob, PowerShell, and persistent terminal calls are not covered by this integration.\nRTK failures and unsupported commands pass through; RTK_DISABLED=1 disables one command.");
+  assert.equal(
+    fake.sections.find((section) => section.name === "mtm-coding:rtk:prompt")
+      ?.text,
+    "RTK only concerns Bash shell commands. DSH read, grep, glob, PowerShell, and persistent terminal calls are not covered by this integration.\nRTK failures and unsupported commands pass through; RTK_DISABLED=1 disables one command.",
+  );
   assert.equal(fake.listeners.has("tools/pre-record-input"), false);
-  assert.equal(fake.pluginCalls.filter((call) => call.config?.transport === "stdio").length, 0);
+  assert.equal(
+    fake.pluginCalls.filter((call) => call.config?.transport === "stdio")
+      .length,
+    0,
+  );
   await fake.trigger({ ...fake.getSettings(), codebaseMemoryEnabled: true });
-  assert.equal(fake.pluginCalls.filter((call) => call.config?.transport === "stdio").length, 1);
+  assert.equal(
+    fake.pluginCalls.filter((call) => call.config?.transport === "stdio")
+      .length,
+    1,
+  );
   await fake.trigger({ ...fake.getSettings(), rtkMode: "off" });
   assert.equal(fake.skillProviders.length, 3);
-  assert.equal(fake.sections.some((section) => section.name === "mtm-coding:rtk:prompt"), false);
-  assert.equal((await fake.context.skills.list({})).some((skill) => skill.name === "rtk"), false);
+  assert.equal(
+    fake.sections.some((section) => section.name === "mtm-coding:rtk:prompt"),
+    false,
+  );
+  assert.equal(
+    (await fake.context.skills.list({})).some((skill) => skill.name === "rtk"),
+    false,
+  );
   await fake.trigger({ ...fake.getSettings(), rtkMode: "guidance" });
   assert.equal(fake.skillProviders.length, 3);
-  assert.equal(fake.sections.some((section) => section.name === "mtm-coding:rtk:prompt"), true);
+  assert.equal(
+    fake.sections.some((section) => section.name === "mtm-coding:rtk:prompt"),
+    true,
+  );
   const callsBeforeDispose = fake.pluginCalls.length;
   await fake.dispose();
   assert.equal(fake.skillProviders.length, 0);
-  await fake.trigger({ ...fake.getSettings(), codebaseMemoryEnabled: false, ponytailEnabled: false });
+  await fake.trigger({
+    ...fake.getSettings(),
+    codebaseMemoryEnabled: false,
+    ponytailEnabled: false,
+  });
   assert.equal(fake.pluginCalls.length, callsBeforeDispose);
 });
 
@@ -437,7 +623,9 @@ test("coding features do not duplicate manifest skills as commands", async () =>
   const fake = createContext();
   await applyCoding(fake.context, {});
   const commandNames = new Set(fake.commands.map((command) => command.name));
-  const skillCommandNames = manifestSkillNames().filter((name) => commandNames.has(name));
+  const skillCommandNames = manifestSkillNames().filter((name) =>
+    commandNames.has(name),
+  );
   assert.deepEqual(skillCommandNames, ["ponytail"]);
   await fake.dispose();
   assert.equal(fake.skillProviders.length, 0);
@@ -450,8 +638,14 @@ test("data-only manifest packages mount without package-specific feature code", 
   assert.ok(skill);
   assert.equal(skill.source, "custom");
   assert.equal(skill.resourceBase.kind, "directory");
-  assert.match(skill.path, /mtmharness[/\\]skills[/\\]modern-go[/\\]use-modern-go[/\\]SKILL\.md$/);
-  assert.match(skill.content, /go run github\.com\/JetBrains\/go-modern-guidelines@v0\.1\.1 list --file-path/);
+  assert.match(
+    skill.path,
+    /mtmharness[/\\]skills[/\\]modern-go[/\\]use-modern-go[/\\]SKILL\.md$/,
+  );
+  assert.match(
+    skill.content,
+    /go run github\.com\/JetBrains\/go-modern-guidelines@v0\.1\.1 list --file-path/,
+  );
   assert.equal(enabled.spawnSpecs.length, 0);
   await enabled.dispose();
   assert.equal(enabled.skillProviders.length, 0);
@@ -459,24 +653,49 @@ test("data-only manifest packages mount without package-specific feature code", 
 
 test("RTK does not register an unsupported DSH input hook", async () => {
   const fake = createContext();
-  fake.context.get = (key) => key === "tools"
-    ? { resolveRecordInput() {}, get() { return {}; } }
-    : key === "subprocess" ? {} : undefined;
+  fake.context.get = (key) =>
+    key === "tools"
+      ? {
+          resolveRecordInput() {},
+          get() {
+            return {};
+          },
+        }
+      : key === "subprocess"
+        ? {}
+        : undefined;
   await applyRtk(fake.context, { mode: "rewrite" });
   assert.equal(fake.listeners.has("tools/pre-record-input"), false);
   assert.equal(await fake.context.skills.get("rtk"), undefined);
-  const section = fake.sections.find((item) => item.name === "mtm-coding:rtk:status");
+  const section = fake.sections.find(
+    (item) => item.name === "mtm-coding:rtk:status",
+  );
   assert.ok(section);
   assert.match(section.text({}), /unavailable/);
-  const manifestPrompt = fake.sections.find((item) => item.name === "mtm-coding:rtk:prompt");
+  const manifestPrompt = fake.sections.find(
+    (item) => item.name === "mtm-coding:rtk:prompt",
+  );
   assert.ok(manifestPrompt);
   assert.match(manifestPrompt.text, /Bash/);
-  const agent = { session: { header: {} }, inject(message) { fake.injected.push(message); } };
+  const agent = {
+    session: { header: {} },
+    inject(message) {
+      fake.injected.push(message);
+    },
+  };
   onlyListener(fake.listeners, "agent/session-start")({ agent });
   assert.match(fake.injected[0].content[0].text, /unavailable/);
   const command = fake.commands.find((item) => item.name === "rtk");
-  assert.equal((await command.handler({ rawInput: "", agent })).text.includes("unavailable"), true);
-  assert.equal((await command.handler({ rawInput: "skill", agent })).kind, "error");
+  assert.equal(
+    (await command.handler({ rawInput: "", agent })).text.includes(
+      "unavailable",
+    ),
+    true,
+  );
+  assert.equal(
+    (await command.handler({ rawInput: "skill", agent })).kind,
+    "error",
+  );
   await fake.dispose();
   assert.equal(fake.skillProviders.length, 0);
 });
@@ -486,26 +705,55 @@ test("Ponytail exposes skills without duplicating companion commands", async () 
   await applyPonytail(fake.context, { mode: "full", applyToSubagents: true });
   const ponytailSkills = await fake.context.skills.list({});
   assert.deepEqual(ponytailSkills.map((skill) => skill.name).sort(), [
-    "ponytail", "ponytail-audit", "ponytail-debt", "ponytail-gain", "ponytail-help", "ponytail-review",
+    "ponytail",
+    "ponytail-audit",
+    "ponytail-debt",
+    "ponytail-gain",
+    "ponytail-help",
+    "ponytail-review",
   ]);
   assert.equal(ponytailSkills.length, 6);
-  assert.ok(ponytailSkills.every((skill) => skill.provider === "mtm-coding-ponytail" && skill.source === "custom" && skill.invocation.modelInvocable && skill.invocation.userInvocable));
+  assert.ok(
+    ponytailSkills.every(
+      (skill) =>
+        skill.provider === "mtm-coding-ponytail" &&
+        skill.source === "custom" &&
+        skill.invocation.modelInvocable &&
+        skill.invocation.userInvocable,
+    ),
+  );
   const reviewSkill = await fake.context.skills.get("ponytail-review");
   assert.ok(reviewSkill);
   assert.match(reviewSkill.content, /Ponytail skill body/);
-  assert.deepEqual(fake.commands.map((command) => command.name), ["ponytail"]);
+  assert.deepEqual(
+    fake.commands.map((command) => command.name),
+    ["ponytail"],
+  );
   const agent = { session: { header: { origin: "main" } } };
   const start = onlyListener(fake.listeners, "agent/session-start");
   start({ agent });
-  const section = fake.sections.find((item) => item.name === "mtm-coding:ponytail");
+  const section = fake.sections.find(
+    (item) => item.name === "mtm-coding:ponytail",
+  );
   assert.ok(section);
   assert.match(section.text({ agent }), /PONYTAIL MODE ACTIVE - level: full/);
-  const modeCommand = fake.commands.find((command) => command.name === "ponytail");
+  const modeCommand = fake.commands.find(
+    (command) => command.name === "ponytail",
+  );
   assert.ok(modeCommand);
-  assert.equal(modeCommand.handler({ rawInput: "off", agent }).text, "Ponytail mode: off");
-  assert.equal(modeCommand.handler({ rawInput: "", agent }).text, "Ponytail mode: full");
+  assert.equal(
+    modeCommand.handler({ rawInput: "off", agent }).text,
+    "Ponytail mode: off",
+  );
+  assert.equal(
+    modeCommand.handler({ rawInput: "", agent }).text,
+    "Ponytail mode: full",
+  );
   assert.match(section.text({ agent }), /PONYTAIL MODE ACTIVE - level: full/);
-  assert.equal(modeCommand.handler({ rawInput: "ultra", agent }).text, "Ponytail mode: ultra");
+  assert.equal(
+    modeCommand.handler({ rawInput: "ultra", agent }).text,
+    "Ponytail mode: ultra",
+  );
   assert.match(section.text({ agent }), /PONYTAIL MODE ACTIVE - level: ultra/);
   await fake.dispose();
   assert.equal(fake.skillProviders.length, 0);
@@ -521,12 +769,16 @@ test("Ponytail respects model invocation and clears stale skills", async () => {
     source: "custom",
     content: "Ponytail skill body.",
   };
-  fake.context.skills.get = async (name) => name === "ponytail" ? coreSkill : undefined;
+  fake.context.skills.get = async (name) =>
+    name === "ponytail" ? coreSkill : undefined;
   await applyPonytail(fake.context, { mode: "full" });
   const section = fake.sections[0];
   assert.match(section.text({}), /Ponytail skill body/);
 
-  coreSkill = { ...coreSkill, invocation: { modelInvocable: false, userInvocable: true } };
+  coreSkill = {
+    ...coreSkill,
+    invocation: { modelInvocable: false, userInvocable: true },
+  };
   await onlyListener(fake.listeners, "skills/change")();
   assert.equal(section.text({}), "");
 

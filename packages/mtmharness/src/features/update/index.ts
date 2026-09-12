@@ -3,7 +3,11 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Context } from "@deepseek-ai/cordis";
 import { runCollected } from "../coding/runtime.js";
-import { MTM_UPDATE_CHANNEL, parseMtmUpdateRpcRequest, type MtmUpdateResponse } from "./contract.js";
+import {
+  MTM_UPDATE_CHANNEL,
+  type MtmUpdateResponse,
+  parseMtmUpdateRpcRequest,
+} from "./contract.js";
 
 const PACKAGE_NAME = "mtmharness";
 const UPDATE_TIMEOUT_MS = 300_000;
@@ -11,14 +15,23 @@ const VERSION_PATTERN = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
 
 type RpcResult<T> =
   | { readonly ok: true; readonly value: T }
-  | { readonly ok: false; readonly error: { readonly code: "internal"; readonly message: string; readonly details: Record<string, never> } };
+  | {
+      readonly ok: false;
+      readonly error: {
+        readonly code: "internal";
+        readonly message: string;
+        readonly details: Record<string, never>;
+      };
+    };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function stableVersion(value: unknown): string | undefined {
-  return typeof value === "string" && VERSION_PATTERN.test(value) ? value : undefined;
+  return typeof value === "string" && VERSION_PATTERN.test(value)
+    ? value
+    : undefined;
 }
 
 function versionParts(version: string): [number, number, number] {
@@ -51,14 +64,16 @@ function failure(error: unknown): RpcResult<never> {
 }
 
 function profileDirFromContext(ctx: Context): string {
-  if (ctx.baseUrl === undefined) throw new Error("mtm-update: active DSH profile is unavailable");
+  if (ctx.baseUrl === undefined)
+    throw new Error("mtm-update: active DSH profile is unavailable");
   let url: URL;
   try {
     url = new URL(ctx.baseUrl);
   } catch {
     throw new Error("mtm-update: active DSH profile URL is invalid");
   }
-  if (url.protocol !== "file:") throw new Error("mtm-update: active DSH profile is not file-backed");
+  if (url.protocol !== "file:")
+    throw new Error("mtm-update: active DSH profile is not file-backed");
   return fileURLToPath(url);
 }
 
@@ -75,13 +90,22 @@ async function readProfileManifest(profileDir: string): Promise<void> {
   } catch {
     throw new Error("mtm-update: active DSH profile manifest is invalid");
   }
-  if (!isRecord(manifest)) throw new Error("mtm-update: active DSH profile manifest is invalid");
+  if (!isRecord(manifest))
+    throw new Error("mtm-update: active DSH profile manifest is invalid");
   const dsh = isRecord(manifest.dsh) ? manifest.dsh : undefined;
-  const profile = dsh !== undefined && isRecord(dsh.profile) ? dsh.profile : undefined;
+  const profile =
+    dsh !== undefined && isRecord(dsh.profile) ? dsh.profile : undefined;
   const dependencies = manifest.dependencies;
-  if (profile === undefined || !Array.isArray(profile.bundles) || !profile.bundles.includes(PACKAGE_NAME)
-    || !isRecord(dependencies) || !Object.hasOwn(dependencies, PACKAGE_NAME)) {
-    throw new Error("mtm-update: mtmharness is not an active DSH profile dependency");
+  if (
+    profile === undefined ||
+    !Array.isArray(profile.bundles) ||
+    !profile.bundles.includes(PACKAGE_NAME) ||
+    !isRecord(dependencies) ||
+    !Object.hasOwn(dependencies, PACKAGE_NAME)
+  ) {
+    throw new Error(
+      "mtm-update: mtmharness is not an active DSH profile dependency",
+    );
   }
 }
 
@@ -89,9 +113,14 @@ async function readInstalledVersion(profileDir: string): Promise<string> {
   await readProfileManifest(profileDir);
   let raw: string;
   try {
-    raw = await readFile(join(profileDir, "node_modules", PACKAGE_NAME, "package.json"), "utf8");
+    raw = await readFile(
+      join(profileDir, "node_modules", PACKAGE_NAME, "package.json"),
+      "utf8",
+    );
   } catch {
-    throw new Error("mtm-update: mtmharness is not installed in the active profile");
+    throw new Error(
+      "mtm-update: mtmharness is not installed in the active profile",
+    );
   }
   let manifest: unknown;
   try {
@@ -99,21 +128,42 @@ async function readInstalledVersion(profileDir: string): Promise<string> {
   } catch {
     throw new Error("mtm-update: installed mtmharness manifest is invalid");
   }
-  const version = isRecord(manifest) && manifest.name === PACKAGE_NAME ? stableVersion(manifest.version) : undefined;
-  if (version === undefined) throw new Error("mtm-update: installed mtmharness manifest is invalid");
+  const version =
+    isRecord(manifest) && manifest.name === PACKAGE_NAME
+      ? stableVersion(manifest.version)
+      : undefined;
+  if (version === undefined)
+    throw new Error("mtm-update: installed mtmharness manifest is invalid");
   return version;
 }
 
-async function runPnpm(ctx: Context, profileDir: string, args: readonly string[], signal: AbortSignal) {
+async function runPnpm(
+  ctx: Context,
+  profileDir: string,
+  args: readonly string[],
+  signal: AbortSignal,
+) {
   let executable: string;
   try {
-    executable = await ctx.subprocess.resolveExecutable("pnpm", undefined, signal);
+    executable = await ctx.subprocess.resolveExecutable(
+      "pnpm",
+      undefined,
+      signal,
+    );
   } catch {
     if (signal.aborted) throw new Error("mtm-update: operation cancelled");
     throw new Error("mtm-update: pnpm is unavailable");
   }
   try {
-    return await runCollected(ctx, [executable, ...args], profileDir, {}, "", UPDATE_TIMEOUT_MS, signal);
+    return await runCollected(
+      ctx,
+      [executable, ...args],
+      profileDir,
+      {},
+      "",
+      UPDATE_TIMEOUT_MS,
+      signal,
+    );
   } catch {
     if (signal.aborted) throw new Error("mtm-update: operation cancelled");
     throw new Error("mtm-update: package manager could not start");
@@ -129,27 +179,65 @@ function parseLatestVersion(output: string): string {
   }
   if (Array.isArray(value) && value.length === 1) value = value[0];
   const version = stableVersion(value);
-  if (version === undefined) throw new Error("mtm-update: npm registry returned an invalid stable version");
+  if (version === undefined)
+    throw new Error(
+      "mtm-update: npm registry returned an invalid stable version",
+    );
   return version;
 }
 
-async function readLatestVersion(ctx: Context, profileDir: string, signal: AbortSignal): Promise<string> {
-  const result = await runPnpm(ctx, profileDir, ["view", PACKAGE_NAME + "@latest", "version", "--json"], signal);
+async function readLatestVersion(
+  ctx: Context,
+  profileDir: string,
+  signal: AbortSignal,
+): Promise<string> {
+  const result = await runPnpm(
+    ctx,
+    profileDir,
+    ["view", PACKAGE_NAME + "@latest", "version", "--json"],
+    signal,
+  );
   if (signal.aborted) throw new Error("mtm-update: operation cancelled");
-  if (result.timedOut) throw new Error("mtm-update: npm registry check timed out");
-  if (result.outcome.exitCode !== 0 || result.outcome.signal !== null) throw new Error("mtm-update: npm registry check failed");
+  if (result.timedOut)
+    throw new Error("mtm-update: npm registry check timed out");
+  if (result.outcome.exitCode !== 0 || result.outcome.signal !== null)
+    throw new Error("mtm-update: npm registry check failed");
   return parseLatestVersion(result.stdout);
 }
 
-function unavailable(currentVersion: string | null, latestVersion: string | null, error: unknown): MtmUpdateResponse {
-  return { currentVersion, latestVersion, status: "unavailable", error: errorMessage(error, "mtm-update is unavailable"), restartRequired: false };
+function unavailable(
+  currentVersion: string | null,
+  latestVersion: string | null,
+  error: unknown,
+): MtmUpdateResponse {
+  return {
+    currentVersion,
+    latestVersion,
+    status: "unavailable",
+    error: errorMessage(error, "mtm-update is unavailable"),
+    restartRequired: false,
+  };
 }
 
-function failed(currentVersion: string | null, latestVersion: string | null, error: unknown, restartRequired: boolean): MtmUpdateResponse {
-  return { currentVersion, latestVersion, status: "failed", error: errorMessage(error, "mtm-update failed"), restartRequired };
+function failed(
+  currentVersion: string | null,
+  latestVersion: string | null,
+  error: unknown,
+  restartRequired: boolean,
+): MtmUpdateResponse {
+  return {
+    currentVersion,
+    latestVersion,
+    status: "failed",
+    error: errorMessage(error, "mtm-update failed"),
+    restartRequired,
+  };
 }
 
-async function check(ctx: Context, signal: AbortSignal): Promise<MtmUpdateResponse> {
+async function check(
+  ctx: Context,
+  signal: AbortSignal,
+): Promise<MtmUpdateResponse> {
   let profileDir: string;
   let currentVersion: string;
   try {
@@ -164,7 +252,8 @@ async function check(ctx: Context, signal: AbortSignal): Promise<MtmUpdateRespon
     return {
       currentVersion,
       latestVersion,
-      status: comparison === 0 ? "current" : comparison > 0 ? "ahead" : "available",
+      status:
+        comparison === 0 ? "current" : comparison > 0 ? "ahead" : "available",
       error: null,
       restartRequired: false,
     };
@@ -173,23 +262,59 @@ async function check(ctx: Context, signal: AbortSignal): Promise<MtmUpdateRespon
   }
 }
 
-async function update(ctx: Context, signal: AbortSignal, markRestartRequired: () => void): Promise<MtmUpdateResponse> {
+async function update(
+  ctx: Context,
+  signal: AbortSignal,
+  markRestartRequired: () => void,
+): Promise<MtmUpdateResponse> {
   const checked = await check(ctx, signal);
-  if (checked.status !== "available" || checked.latestVersion === null) return checked;
+  if (checked.status !== "available" || checked.latestVersion === null)
+    return checked;
   let profileDir: string;
   try {
     profileDir = profileDirFromContext(ctx);
-    const result = await runPnpm(ctx, profileDir, ["update", PACKAGE_NAME, "--latest"], signal);
-    if (signal.aborted) return failed(checked.currentVersion, checked.latestVersion, new Error("mtm-update: operation cancelled"), false);
-    if (result.timedOut || result.outcome.exitCode !== 0 || result.outcome.signal !== null) {
-      return failed(checked.currentVersion, checked.latestVersion, new Error("mtm-update: package manager update failed"), false);
+    const result = await runPnpm(
+      ctx,
+      profileDir,
+      ["update", PACKAGE_NAME, "--latest"],
+      signal,
+    );
+    if (signal.aborted)
+      return failed(
+        checked.currentVersion,
+        checked.latestVersion,
+        new Error("mtm-update: operation cancelled"),
+        false,
+      );
+    if (
+      result.timedOut ||
+      result.outcome.exitCode !== 0 ||
+      result.outcome.signal !== null
+    ) {
+      return failed(
+        checked.currentVersion,
+        checked.latestVersion,
+        new Error("mtm-update: package manager update failed"),
+        false,
+      );
     }
     const installedVersion = await readInstalledVersion(profileDir);
     if (installedVersion !== checked.latestVersion) {
-      return failed(installedVersion, checked.latestVersion, new Error("mtm-update: installed version did not match the registry"), false);
+      return failed(
+        installedVersion,
+        checked.latestVersion,
+        new Error("mtm-update: installed version did not match the registry"),
+        false,
+      );
     }
     markRestartRequired();
-    return { ...checked, currentVersion: installedVersion, status: "updated", error: null, restartRequired: true };
+    return {
+      ...checked,
+      currentVersion: installedVersion,
+      status: "updated",
+      error: null,
+      restartRequired: true,
+    };
   } catch (error) {
     return failed(checked.currentVersion, checked.latestVersion, error, false);
   }
@@ -199,7 +324,11 @@ async function update(ctx: Context, signal: AbortSignal, markRestartRequired: ()
 export const name = "mtm-update";
 export const inject = ["connection", "subprocess"];
 
-export type MtmUpdateRpcHandler = ((endpoint: string, payload: unknown, signal: AbortSignal) => Promise<RpcResult<unknown>>) & {
+export type MtmUpdateRpcHandler = ((
+  endpoint: string,
+  payload: unknown,
+  signal: AbortSignal,
+) => Promise<RpcResult<unknown>>) & {
   dispose(): Promise<void>;
 };
 
@@ -212,24 +341,45 @@ export function createMtmUpdateRpcHandler(ctx: Context): MtmUpdateRpcHandler {
 
   const enqueue = <T>(job: () => Promise<T>): Promise<T> => {
     const result = tail.then(job, job);
-    tail = result.then(() => undefined, () => undefined);
+    tail = result.then(
+      () => undefined,
+      () => undefined,
+    );
     return result;
   };
 
   const handler = Object.assign(
-    async (endpoint: string, payload: unknown, signal: AbortSignal): Promise<RpcResult<unknown>> => {
-      if (owner.signal.aborted) return failure(new Error("mtm-update: operation cancelled"));
-      if (endpoint !== "request") return failure(new Error("mtm-update: unknown RPC endpoint"));
+    async (
+      endpoint: string,
+      payload: unknown,
+      signal: AbortSignal,
+    ): Promise<RpcResult<unknown>> => {
+      if (owner.signal.aborted)
+        return failure(new Error("mtm-update: operation cancelled"));
+      if (endpoint !== "request")
+        return failure(new Error("mtm-update: unknown RPC endpoint"));
       try {
-        const request = parseMtmUpdateRpcRequest((payload as { args?: unknown } | null)?.args);
+        const request = parseMtmUpdateRpcRequest(
+          (payload as { args?: unknown } | null)?.args,
+        );
         const requestSignal = AbortSignal.any([owner.signal, signal]);
-        const pending = enqueue(() => request.kind === "check"
-          ? check(ctx, requestSignal)
-          : update(ctx, requestSignal, () => { restartRequired = true; }));
+        const pending = enqueue(() =>
+          request.kind === "check"
+            ? check(ctx, requestSignal)
+            : update(ctx, requestSignal, () => {
+                restartRequired = true;
+              }),
+        );
         active.add(pending);
         try {
           const value = await pending;
-          return { ok: true, value: { ...value, restartRequired: value.restartRequired || restartRequired } };
+          return {
+            ok: true,
+            value: {
+              ...value,
+              restartRequired: value.restartRequired || restartRequired,
+            },
+          };
         } finally {
           active.delete(pending);
         }
