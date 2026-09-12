@@ -10,8 +10,7 @@
     "build": "turbo run build",
     "format-and-lint": "biome check .",
     "format-and-lint:fix": "biome check --write .",
-    "check": "turbo run //#format-and-lint build typecheck test",
-    "release": "pnpm check && PNPM_CONFIG_PROVENANCE=true changeset publish"
+    "check": "turbo run //#format-and-lint build typecheck test"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",
