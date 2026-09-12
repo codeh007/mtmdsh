@@ -1,4 +1,9 @@
-import { createCanvasDocument, createNodeId, type CanvasDocument, type CanvasPosition } from "../contract/canvas.js";
+import {
+  type CanvasDocument,
+  type CanvasPosition,
+  createCanvasDocument,
+  createNodeId,
+} from "../contract/canvas.js";
 
 export interface CanvasFile {
   name: string;
@@ -49,7 +54,9 @@ export class CanvasRuntime implements CanvasActions {
 
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
-    return () => { this.listeners.delete(listener); };
+    return () => {
+      this.listeners.delete(listener);
+    };
   };
 
   dispose(): void {
@@ -67,7 +74,12 @@ export class CanvasRuntime implements CanvasActions {
       this.set({ error: "Canvas file was not found" });
       return;
     }
-    this.set({ name, version: file.version, document: createCanvasDocument(name.slice(0, -".canvas".length)), error: undefined });
+    this.set({
+      name,
+      version: file.version,
+      document: createCanvasDocument(name.slice(0, -".canvas".length)),
+      error: undefined,
+    });
   }
 
   create(name: string): void {
@@ -77,14 +89,30 @@ export class CanvasRuntime implements CanvasActions {
       return;
     }
     const file = { name: fileName, version: "0" };
-    const files = [...this.view.files.filter((item) => item.name !== fileName), file];
-    this.set({ files, name: fileName, version: file.version, document: createCanvasDocument(fileName.slice(0, -".canvas".length)), error: undefined });
+    const files = [
+      ...this.view.files.filter((item) => item.name !== fileName),
+      file,
+    ];
+    this.set({
+      files,
+      name: fileName,
+      version: file.version,
+      document: createCanvasDocument(fileName.slice(0, -".canvas".length)),
+      error: undefined,
+    });
   }
 
   addPrompt(): void {
     if (this.view.document === undefined) return;
     const document = structuredClone(this.view.document);
-    document.nodes.push({ id: createNodeId(), kind: "prompt", title: "Prompt", position: { x: 120, y: 360 }, size: { width: 300, height: 170 }, prompt: "" });
+    document.nodes.push({
+      id: createNodeId(),
+      kind: "prompt",
+      title: "Prompt",
+      position: { x: 120, y: 360 },
+      size: { width: 300, height: 170 },
+      prompt: "",
+    });
     document.revision += 1;
     document.updatedAt = Date.now();
     this.set({ document });
@@ -108,13 +136,21 @@ export class CanvasRuntime implements CanvasActions {
   }
 
   save(): void {
-    if (this.view.name === undefined || this.view.document === undefined) return;
+    if (this.view.name === undefined || this.view.document === undefined)
+      return;
     const version = String(Number.parseInt(this.view.version ?? "0", 10) + 1);
-    const files = this.view.files.map((file) => file.name === this.view.name ? { ...file, version } : file);
+    const files = this.view.files.map((file) =>
+      file.name === this.view.name ? { ...file, version } : file,
+    );
     this.set({ files, version, error: undefined });
   }
 
-  private patch(id: string, patch: Partial<Pick<CanvasDocument["nodes"][number], "position" | "prompt">>): void {
+  private patch(
+    id: string,
+    patch: Partial<
+      Pick<CanvasDocument["nodes"][number], "position" | "prompt">
+    >,
+  ): void {
     if (this.view.document === undefined) return;
     const document = structuredClone(this.view.document);
     const node = document.nodes.find((item) => item.id === id);

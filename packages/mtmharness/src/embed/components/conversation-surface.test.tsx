@@ -6,7 +6,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MtmHarnessRuntime, RuntimeSnapshot } from "../runtime";
 import { ConversationSurface } from "./conversation-surface";
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
 
 const snapshot: RuntimeSnapshot = {
   status: "auth-required",
@@ -54,8 +56,19 @@ describe("ConversationSurface authentication gate", () => {
       );
     });
 
-    expect(container.querySelector('[role="status"]')?.textContent).toContain("Sign in above or continue anonymously on the sign-in page");
-    expect((container.querySelector("#mtmharness-prompt") as HTMLTextAreaElement).disabled).toBe(true);
-    expect((container.querySelector('button[aria-label="Send message"]') as HTMLButtonElement).disabled).toBe(true);
+    expect(container.querySelector('[role="status"]')?.textContent).toContain(
+      "Sign in above or continue anonymously on the sign-in page",
+    );
+    expect(
+      (container.querySelector("#mtmharness-prompt") as HTMLTextAreaElement)
+        .disabled,
+    ).toBe(true);
+    expect(
+      (
+        container.querySelector(
+          'button[aria-label="Send message"]',
+        ) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
   });
 });

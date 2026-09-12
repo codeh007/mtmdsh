@@ -1,40 +1,70 @@
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { createRoot } from "react-dom/client";
-import embedStyles from "./styles/globals.css?inline";
-import { createClientRouter } from "./app/router.js";
-import { createPresentationController, createTokenSource, normalizeConfig, resolveTarget, type MtmHarnessClientConfig, type MtmHarnessClientHandle } from "./app/config.js";
 import type { MtmHarnessAuthClient } from "./app/auth.js";
+import {
+  createPresentationController,
+  createTokenSource,
+  type MtmHarnessClientConfig,
+  type MtmHarnessClientHandle,
+  normalizeConfig,
+  resolveTarget,
+} from "./app/config.js";
+import { createClientRouter } from "./app/router.js";
 import { MtmHarnessRuntime } from "./runtime.js";
+import embedStyles from "./styles/globals.css?inline";
 
 function mountClient(config: MtmHarnessClientConfig): MtmHarnessClientHandle {
   const normalizedConfig = normalizeConfig(config);
-  const presentationController = createPresentationController(normalizedConfig.mode);
+  const presentationController = createPresentationController(
+    normalizedConfig.mode,
+  );
   const target = resolveTarget(config.target);
   const host = document.createElement("div");
   const shadowRoot = host.attachShadow({ mode: "open" });
   const style = document.createElement("style");
   const container = document.createElement("div");
   host.dataset.mtmharness = "true";
-  style.textContent = embedStyles + "\n:host { --font-sans: ui-sans-serif, system-ui, sans-serif; }";
+  style.textContent =
+    embedStyles +
+    "\n:host { --font-sans: ui-sans-serif, system-ui, sans-serif; }";
   shadowRoot.append(style, container);
   target.append(host);
 
   const syncTheme = (): void => {
-    host.classList.toggle("dark", document.documentElement.classList.contains("dark") || document.body?.classList.contains("dark") === true);
+    host.classList.toggle(
+      "dark",
+      document.documentElement.classList.contains("dark") ||
+        document.body?.classList.contains("dark") === true,
+    );
   };
   syncTheme();
   const observer = new MutationObserver(syncTheme);
-  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-  if (document.body) observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class"],
+  });
+  if (document.body)
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
 
   const tokenSource = createTokenSource(normalizedConfig);
-  const auth = tokenSource !== undefined && "consumeCallback" in tokenSource ? tokenSource as MtmHarnessAuthClient : undefined;
+  const auth =
+    tokenSource !== undefined && "consumeCallback" in tokenSource
+      ? (tokenSource as MtmHarnessAuthClient)
+      : undefined;
   const runtime = new MtmHarnessRuntime(normalizedConfig.apiOrigin, {
     tokenSource,
     webSocketFactory: normalizedConfig.webSocketFactory,
   });
   if (auth !== undefined) {
-    void auth.consumeCallback().then((consumed) => consumed ? runtime.refreshRegistry().catch(() => undefined) : undefined).catch(() => undefined);
+    void auth
+      .consumeCallback()
+      .then((consumed) =>
+        consumed ? runtime.refreshRegistry().catch(() => undefined) : undefined,
+      )
+      .catch(() => undefined);
   }
   const router = createClientRouter({
     config: normalizedConfig,
@@ -68,15 +98,30 @@ export function mount(config: MtmHarnessClientConfig): MtmHarnessClientHandle {
   return mountClient(config);
 }
 
-export function autoMount(script: HTMLScriptElement): MtmHarnessClientHandle | null {
+export function autoMount(
+  script: HTMLScriptElement,
+): MtmHarnessClientHandle | null {
   const apiOrigin = script.dataset.apiOrigin;
   if (!apiOrigin) return null;
   const bootstrap = window.__MTM_HARNESS_CONFIG__ ?? {};
-  const oauthValues = [script.dataset.oauthIssuer, script.dataset.oauthClientId, script.dataset.oauthRedirectUri, script.dataset.oauthResource, script.dataset.oauthScopes];
+  const oauthValues = [
+    script.dataset.oauthIssuer,
+    script.dataset.oauthClientId,
+    script.dataset.oauthRedirectUri,
+    script.dataset.oauthResource,
+    script.dataset.oauthScopes,
+  ];
   const hasOAuthAttributes = oauthValues.some((value) => value !== undefined);
-  if (hasOAuthAttributes && oauthValues.some((value) => value === undefined)) throw new TypeError("OAuth data attributes must be provided together");
+  if (hasOAuthAttributes && oauthValues.some((value) => value === undefined))
+    throw new TypeError("OAuth data attributes must be provided together");
   const oauth = hasOAuthAttributes
-    ? { issuer: oauthValues[0]!, clientId: oauthValues[1]!, redirectUri: oauthValues[2]!, resource: oauthValues[3]!, scopes: oauthValues[4]!.split(/\s+/u) }
+    ? {
+        issuer: oauthValues[0]!,
+        clientId: oauthValues[1]!,
+        redirectUri: oauthValues[2]!,
+        resource: oauthValues[3]!,
+        scopes: oauthValues[4]!.split(/\s+/u),
+      }
     : bootstrap.oauth;
   const handle = mountClient({
     apiOrigin,
@@ -94,13 +139,21 @@ export function autoMount(script: HTMLScriptElement): MtmHarnessClientHandle | n
 export const MtmHarnessClient = { autoMount, mount };
 
 declare global {
-  interface Window { MtmHarnessClient?: typeof MtmHarnessClient; }
+  interface Window {
+    MtmHarnessClient?: typeof MtmHarnessClient;
+  }
 }
 
 function findAutoMountScript(): HTMLScriptElement | undefined {
   const current = document.currentScript;
-  if (current instanceof HTMLScriptElement && current.dataset.apiOrigin) return current;
-  return [...document.scripts].reverse().find((script) => script.dataset.apiOrigin && script.dataset.mtmharnessMounted !== "true");
+  if (current instanceof HTMLScriptElement && current.dataset.apiOrigin)
+    return current;
+  return [...document.scripts]
+    .reverse()
+    .find(
+      (script) =>
+        script.dataset.apiOrigin && script.dataset.mtmharnessMounted !== "true",
+    );
 }
 
 if (typeof window !== "undefined") {

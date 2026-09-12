@@ -1,11 +1,40 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { MtmUpdateResponse } from "../../update/contract.ts";
+
+vi.mock("@deepseek-ai/dsh-client-store", () => ({
+  createSnapshotStore<T>(initial: T) {
+    let value = initial;
+    const listeners = new Set<() => void>();
+    return {
+      getSnapshot: () => value,
+      subscribe(listener: () => void) {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+      set(next: T) {
+        value = next;
+        for (const listener of listeners) listener();
+      },
+    };
+  },
+}));
+
 import { MtmCodingCardController } from "./controller.ts";
 
 function settingsScope() {
   let snapshot = {
     status: "ready",
-    value: { codebaseMemoryEnabled: true, dynamicCanvasEnabled: false, codebaseMemoryAugmentHooks: true, ponytailEnabled: true, ponytailMode: "full", ponytailSubagents: true, rtkMode: "auto" },
+    value: {
+      codebaseMemoryEnabled: true,
+      dynamicCanvasEnabled: false,
+      codebaseMemoryAugmentHooks: true,
+      ponytailEnabled: true,
+      ponytailMode: "full",
+      ponytailSubagents: true,
+      rtkMode: "auto",
+    },
     base: {},
     user: {},
     revision: 1,
@@ -16,13 +45,26 @@ function settingsScope() {
     scope: {
       getSnapshot: () => snapshot,
       subscribe: () => () => {},
-      async set(field: string, value: unknown) { snapshot = { ...snapshot, value: { ...snapshot.value, [field]: value }, user: { ...snapshot.user, [field]: value } }; },
-      async unset(field: string) { const user = { ...snapshot.user }; delete user[field]; snapshot = { ...snapshot, user }; },
+      async set(field: string, value: unknown) {
+        snapshot = {
+          ...snapshot,
+          value: { ...snapshot.value, [field]: value },
+          user: { ...snapshot.user, [field]: value },
+        };
+      },
+      async unset(field: string) {
+        const user = { ...snapshot.user };
+        delete user[field];
+        snapshot = { ...snapshot, user };
+      },
     },
   };
 }
 
-const response = (status: MtmUpdateResponse["status"], restartRequired = false): MtmUpdateResponse => ({
+const response = (
+  status: MtmUpdateResponse["status"],
+  restartRequired = false,
+): MtmUpdateResponse => ({
   currentVersion: "0.5.5",
   latestVersion: "0.6.0",
   status,
@@ -31,15 +73,21 @@ const response = (status: MtmUpdateResponse["status"], restartRequired = false):
 });
 
 async function flush(): Promise<void> {
-  await new Promise<void>((resolve) => { queueMicrotask(resolve); });
-  await new Promise<void>((resolve) => { queueMicrotask(resolve); });
+  await new Promise<void>((resolve) => {
+    queueMicrotask(resolve);
+  });
+  await new Promise<void>((resolve) => {
+    queueMicrotask(resolve);
+  });
 }
 
 describe("MtmCodingCardController update actions", () => {
   it("hides update actions without a loopback RPC", () => {
     const { scope } = settingsScope();
     const controller = new MtmCodingCardController(scope as never);
-    expect(controller.inject().hooks.mtmCodingCard.getSnapshot().update).toMatchObject({ available: false, status: "idle" });
+    expect(
+      controller.inject().hooks.mtmCodingCard.getSnapshot().update,
+    ).toMatchObject({ available: false, status: "idle" });
     controller.dispose();
   });
 
@@ -47,22 +95,41 @@ describe("MtmCodingCardController update actions", () => {
     const { scope } = settingsScope();
     let resolveRpc: ((result: unknown) => void) | undefined;
     const calls: unknown[] = [];
-    const rpc = { call: async (_channel: string, _endpoint: string, payload: unknown) => {
-      calls.push(payload);
-      return await new Promise<unknown>((resolve) => { resolveRpc = resolve; });
-    } };
-    const controller = new MtmCodingCardController(scope as never, rpc as never);
+    const rpc = {
+      call: async (_channel: string, _endpoint: string, payload: unknown) => {
+        calls.push(payload);
+        return await new Promise<unknown>((resolve) => {
+          resolveRpc = resolve;
+        });
+      },
+    };
+    const controller = new MtmCodingCardController(
+      scope as never,
+      rpc as never,
+    );
     const face = controller.inject();
     face.checkForUpdate();
-    expect(face.hooks.mtmCodingCard.getSnapshot().update).toMatchObject({ available: true, checking: true, updating: false });
+    expect(face.hooks.mtmCodingCard.getSnapshot().update).toMatchObject({
+      available: true,
+      checking: true,
+      updating: false,
+    });
     resolveRpc!({ ok: true, value: response("available") });
     await flush();
-    expect(face.hooks.mtmCodingCard.getSnapshot().update).toMatchObject({ status: "available", checking: false, error: null });
+    expect(face.hooks.mtmCodingCard.getSnapshot().update).toMatchObject({
+      status: "available",
+      checking: false,
+      error: null,
+    });
     face.updatePackage();
     expect(face.hooks.mtmCodingCard.getSnapshot().update.updating).toBe(true);
     resolveRpc!({ ok: true, value: response("updated", true) });
     await flush();
-    expect(face.hooks.mtmCodingCard.getSnapshot().update).toMatchObject({ status: "updated", updating: false, restartRequired: true });
+    expect(face.hooks.mtmCodingCard.getSnapshot().update).toMatchObject({
+      status: "updated",
+      updating: false,
+      restartRequired: true,
+    });
     expect(calls).toEqual([
       { args: { kind: "check" } },
       { args: { kind: "update" } },
@@ -72,13 +139,24 @@ describe("MtmCodingCardController update actions", () => {
 
   it("keeps the card alive and reports malformed Host responses as errors", async () => {
     const { scope } = settingsScope();
-    const rpc = { call: async () => ({ ok: true, value: { status: "available" } }) };
-    const controller = new MtmCodingCardController(scope as never, rpc as never);
+    const rpc = {
+      call: async () => ({ ok: true, value: { status: "available" } }),
+    };
+    const controller = new MtmCodingCardController(
+      scope as never,
+      rpc as never,
+    );
     const face = controller.inject();
     face.checkForUpdate();
     await flush();
-    expect(face.hooks.mtmCodingCard.getSnapshot().update).toMatchObject({ available: true, status: "failed", checking: false });
-    expect(face.hooks.mtmCodingCard.getSnapshot().update.error).toContain("currentVersion");
+    expect(face.hooks.mtmCodingCard.getSnapshot().update).toMatchObject({
+      available: true,
+      status: "failed",
+      checking: false,
+    });
+    expect(face.hooks.mtmCodingCard.getSnapshot().update.error).toContain(
+      "currentVersion",
+    );
     controller.dispose();
   });
 });

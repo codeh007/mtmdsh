@@ -1,12 +1,29 @@
 import type { ClientConnectionRpc } from "@deepseek-ai/dsh-client-connection/client";
-import { createSnapshotStore, type SnapshotStore } from "@deepseek-ai/dsh-client-store";
+import {
+  createSnapshotStore,
+  type SnapshotStore,
+} from "@deepseek-ai/dsh-client-store";
 import type { SettingsScope } from "@deepseek-ai/dsh-client-ui-settings/client";
-import { assertMtmUpdateResponse, MTM_UPDATE_CHANNEL, type MtmUpdateStatus } from "../../update/contract.js";
+import {
+  assertMtmUpdateResponse,
+  MTM_UPDATE_CHANNEL,
+  type MtmUpdateStatus,
+} from "../../update/contract.js";
 import type { MtmCodingSettings, PonytailMode, RtkMode } from "../types.js";
 
 export const SETTINGS_NAMESPACE = "mtm-coding";
-export const MODE_VALUES: readonly PonytailMode[] = ["off", "lite", "full", "ultra"];
-export const RTK_MODE_VALUES: readonly RtkMode[] = ["off", "guidance", "auto", "rewrite"];
+export const MODE_VALUES: readonly PonytailMode[] = [
+  "off",
+  "lite",
+  "full",
+  "ultra",
+];
+export const RTK_MODE_VALUES: readonly RtkMode[] = [
+  "off",
+  "guidance",
+  "auto",
+  "rewrite",
+];
 const FIELD_NAMES = [
   "codebaseMemoryEnabled",
   "dynamicCanvasEnabled",
@@ -60,26 +77,42 @@ type StagedEdit = { readonly text: string; readonly clear: boolean };
 type FieldValue = boolean | PonytailMode | RtkMode;
 
 function format(field: MtmCodingField, value: unknown): string {
-  if (field === "ponytailMode" || field === "rtkMode") return typeof value === "string" ? value : "";
+  if (field === "ponytailMode" || field === "rtkMode")
+    return typeof value === "string" ? value : "";
   return typeof value === "boolean" ? String(value) : "";
 }
 
 function parse(field: MtmCodingField, text: string): FieldValue | undefined {
-  if (field === "ponytailMode") return MODE_VALUES.includes(text as PonytailMode) ? text as PonytailMode : undefined;
-  if (field === "rtkMode") return RTK_MODE_VALUES.includes(text as RtkMode) ? text as RtkMode : undefined;
+  if (field === "ponytailMode")
+    return MODE_VALUES.includes(text as PonytailMode)
+      ? (text as PonytailMode)
+      : undefined;
+  if (field === "rtkMode")
+    return RTK_MODE_VALUES.includes(text as RtkMode)
+      ? (text as RtkMode)
+      : undefined;
   if (text === "true" || text === "false") return text === "true";
   return undefined;
 }
 
-function valueOf(snapshot: ReturnType<SettingsScope<MtmCodingSettings>["getSnapshot"]>, field: MtmCodingField): unknown {
+function readValue(
+  snapshot: ReturnType<SettingsScope<MtmCodingSettings>["getSnapshot"]>,
+  field: MtmCodingField,
+): unknown {
   return (snapshot.value as Record<string, unknown> | undefined)?.[field];
 }
 
-function baseOf(snapshot: ReturnType<SettingsScope<MtmCodingSettings>["getSnapshot"]>, field: MtmCodingField): unknown {
+function baseOf(
+  snapshot: ReturnType<SettingsScope<MtmCodingSettings>["getSnapshot"]>,
+  field: MtmCodingField,
+): unknown {
   return (snapshot.base as Record<string, unknown> | undefined)?.[field];
 }
 
-function userHas(snapshot: ReturnType<SettingsScope<MtmCodingSettings>["getSnapshot"]>, field: MtmCodingField): boolean {
+function userHas(
+  snapshot: ReturnType<SettingsScope<MtmCodingSettings>["getSnapshot"]>,
+  field: MtmCodingField,
+): boolean {
   const user = snapshot.user as Record<string, unknown> | undefined;
   return user !== undefined && Object.hasOwn(user, field);
 }
@@ -95,7 +128,10 @@ export class MtmCodingCardController {
   private disposed = false;
   private readonly unsubscribe: () => void;
 
-  constructor(private readonly scope: SettingsScope<MtmCodingSettings>, updateRpc?: ClientConnectionRpc) {
+  constructor(
+    private readonly scope: SettingsScope<MtmCodingSettings>,
+    updateRpc?: ClientConnectionRpc,
+  ) {
     this.updateRpc = updateRpc;
     this.updateState = {
       available: updateRpc !== undefined,
@@ -108,18 +144,32 @@ export class MtmCodingCardController {
       restartRequired: false,
     };
     this.store = createSnapshotStore(this.projection());
-    this.unsubscribe = scope.subscribe(() => { this.publish(); });
+    this.unsubscribe = scope.subscribe(() => {
+      this.publish();
+    });
   }
 
   inject(): MtmCodingCardFace {
     return {
       hooks: { mtmCodingCard: this.store },
-      edit: (field, text) => { this.edit(field, text); },
-      resetField: (field) => { this.resetField(field); },
-      save: () => { void this.save(); },
-      discard: () => { this.discard(); },
-      checkForUpdate: () => { void this.requestUpdate("check"); },
-      updatePackage: () => { void this.requestUpdate("update"); },
+      edit: (field, text) => {
+        this.edit(field, text);
+      },
+      resetField: (field) => {
+        this.resetField(field);
+      },
+      save: () => {
+        void this.save();
+      },
+      discard: () => {
+        this.discard();
+      },
+      checkForUpdate: () => {
+        void this.requestUpdate("check");
+      },
+      updatePackage: () => {
+        void this.requestUpdate("update");
+      },
     };
   }
 
@@ -130,7 +180,12 @@ export class MtmCodingCardController {
 
   private async requestUpdate(kind: "check" | "update"): Promise<void> {
     const rpc = this.updateRpc;
-    if (rpc === undefined || this.updateState.checking || this.updateState.updating) return;
+    if (
+      rpc === undefined ||
+      this.updateState.checking ||
+      this.updateState.updating
+    )
+      return;
     this.updateState = {
       ...this.updateState,
       checking: kind === "check",
@@ -139,10 +194,17 @@ export class MtmCodingCardController {
     };
     this.publish();
     try {
-      const result = await rpc.call(MTM_UPDATE_CHANNEL, "request", { args: { kind } });
+      const result = await rpc.call(MTM_UPDATE_CHANNEL, "request", {
+        args: { kind },
+      });
       if (!result.ok) throw new Error(result.error.message);
       assertMtmUpdateResponse(result.value);
-      this.updateState = { ...result.value, available: true, checking: false, updating: false };
+      this.updateState = {
+        ...result.value,
+        available: true,
+        checking: false,
+        updating: false,
+      };
     } catch (error) {
       this.updateState = {
         ...this.updateState,
@@ -163,7 +225,10 @@ export class MtmCodingCardController {
 
   private resetField(field: MtmCodingField): void {
     const snapshot = this.scope.getSnapshot();
-    this.staged.set(field, { text: format(field, baseOf(snapshot, field)), clear: true });
+    this.staged.set(field, {
+      text: format(field, baseOf(snapshot, field)),
+      clear: true,
+    });
     this.failed = false;
     this.publish();
   }
@@ -176,15 +241,18 @@ export class MtmCodingCardController {
 
   private async save(): Promise<void> {
     const plan = this.plan();
-    const writes = plan.flatMap(item => item.run === undefined ? [] : [item.run]);
-    if (this.saving || this.staged.size === 0 || writes.length !== plan.length) return;
+    const writes = plan.flatMap((item) =>
+      item.run === undefined ? [] : [item.run],
+    );
+    if (this.saving || this.staged.size === 0 || writes.length !== plan.length)
+      return;
     this.saving = true;
     this.failed = false;
     this.publish();
     let landed = true;
     for await (const write of writes) {
       try {
-        landed = await write() && landed;
+        landed = (await write()) && landed;
       } catch {
         landed = false;
       }
@@ -195,18 +263,29 @@ export class MtmCodingCardController {
     this.publish();
   }
 
-  private plan(): Array<{ field: MtmCodingField; run: (() => Promise<boolean>) | undefined }> {
+  private plan(): Array<{
+    field: MtmCodingField;
+    run: (() => Promise<boolean>) | undefined;
+  }> {
     const snapshot = this.scope.getSnapshot();
-    const plan: Array<{ field: MtmCodingField; run: (() => Promise<boolean>) | undefined }> = [];
+    const plan: Array<{
+      field: MtmCodingField;
+      run: (() => Promise<boolean>) | undefined;
+    }> = [];
     for (const [field, edit] of this.staged) {
       if (edit.clear) {
-        if (userHas(snapshot, field)) plan.push({ field, run: () => this.clear(field) });
+        if (userHas(snapshot, field))
+          plan.push({ field, run: () => this.clear(field) });
         continue;
       }
-      const current = format(field, valueOf(snapshot, field));
+      const current = format(field, readValue(snapshot, field));
       if (edit.text === current) continue;
       const value = parse(field, edit.text);
-      plan.push({ field, run: value === undefined ? undefined : () => this.writeValue(field, value) });
+      plan.push({
+        field,
+        run:
+          value === undefined ? undefined : () => this.writeValue(field, value),
+      });
     }
     return plan;
   }
@@ -216,11 +295,18 @@ export class MtmCodingCardController {
     return !userHas(this.scope.getSnapshot(), field);
   }
 
-  private async writeValue(field: MtmCodingField, value: FieldValue): Promise<boolean> {
+  private async writeValue(
+    field: MtmCodingField,
+    value: FieldValue,
+  ): Promise<boolean> {
     await this.scope.set(field, value);
     const snapshot = this.scope.getSnapshot();
     const user = snapshot.user as Record<string, unknown> | undefined;
-    return user !== undefined && Object.hasOwn(user, field) && Object.is(user[field], value);
+    return (
+      user !== undefined &&
+      Object.hasOwn(user, field) &&
+      Object.is(user[field], value)
+    );
   }
 
   private field(field: MtmCodingField): FieldState {
@@ -228,27 +314,31 @@ export class MtmCodingCardController {
     const staged = this.staged.get(field);
     if (staged === undefined) {
       return {
-        text: format(field, valueOf(snapshot, field)),
+        text: format(field, readValue(snapshot, field)),
         overridden: userHas(snapshot, field),
         invalid: false,
       };
     }
     return {
       text: staged.text,
-      overridden: staged.clear ? false : parse(field, staged.text) !== undefined,
+      overridden: staged.clear
+        ? false
+        : parse(field, staged.text) !== undefined,
       invalid: !staged.clear && parse(field, staged.text) === undefined,
     };
   }
 
   private projection(): MtmCodingCardState {
     const snapshot = this.scope.getSnapshot();
-    const fields = Object.fromEntries(FIELD_NAMES.map(field => [field, this.field(field)])) as Record<MtmCodingField, FieldState>;
+    const fields = Object.fromEntries(
+      FIELD_NAMES.map((field) => [field, this.field(field)]),
+    ) as Record<MtmCodingField, FieldState>;
     const plan = this.plan();
     return {
       available: snapshot.status === "ready",
       writable: snapshot.writable,
       dirty: plan.length > 0 || this.staged.size > 0,
-      invalid: plan.some(item => item.run === undefined),
+      invalid: plan.some((item) => item.run === undefined),
       saving: this.saving,
       failed: this.failed,
       fields,

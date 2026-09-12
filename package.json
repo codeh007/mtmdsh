@@ -8,9 +8,13 @@
   },
   "scripts": {
     "build": "turbo run build",
-    "check": "turbo run typecheck test"
+    "format-and-lint": "biome check .",
+    "format-and-lint:fix": "biome check --write .",
+    "check": "turbo run //#format-and-lint build typecheck test"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.13",
+    "@changesets/cli": "3.0.2",
     "turbo": "2.10.12"
   }
 }

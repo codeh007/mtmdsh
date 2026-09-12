@@ -1,0 +1,218 @@
+name: release
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate release state
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    outputs:
+      mode: ${{ steps.select-mode.outputs.mode }}
+      publish-plan-artifact-id: ${{ steps.select-mode.outputs.publish-plan-artifact-id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.7.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Verify pnpm version
+        run: test "$(pnpm --version)" = 11.7.0
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Check workspace
+        run: pnpm check
+
+      - name: Select Changesets mode
+        id: select-mode
+        uses: changesets/action/select-mode@v2.1.2
+
+  version:
+    name: Create version pull request
+    if: needs.validate.outputs.mode == 'version'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.7.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Version packages
+        uses: changesets/action/version@v2.1.2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: version packages"
+          pr-title: "chore: version packages"
+
+  pack:
+    name: Pack release artifacts
+    if: needs.validate.outputs.mode == 'publish'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      mode: ${{ needs.validate.outputs.mode }}
+      pack-dir-artifact-id: ${{ steps.pack.outputs.pack-dir-artifact-id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.7.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Check workspace
+        run: pnpm check
+
+      - name: Pack Changesets release plan
+        id: pack
+        uses: changesets/action/pack@v2.1.2
+        with:
+          publish-plan-artifact-id: ${{ needs.validate.outputs.publish-plan-artifact-id }}
+
+      - name: Download packed tarballs
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ steps.pack.outputs.pack-dir-artifact-id }}
+          path: ${{ runner.temp }}/changeset-pack
+
+      - name: Check package metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          tarballs=("$RUNNER_TEMP/changeset-pack"/packages/*.tgz)
+          test "${#tarballs[@]}" -gt 0
+          for tarball in "${tarballs[@]}"; do
+            pnpm dlx publint@0.3.24 run "$tarball" --strict
+          done
+
+  publish:
+    name: Publish packages
+    if: needs.pack.outputs.mode == 'publish'
+    needs: pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.7.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+          registry-url: https://registry.npmjs.org
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Publish Changesets release
+        id: publish
+        uses: changesets/action/publish@v2.1.2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          pack-dir-artifact-id: ${{ needs.pack.outputs.pack-dir-artifact-id }}
+          create-github-releases: true
+          push-git-tags: true
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PNPM_CONFIG_PROVENANCE: "true"
+
+      - name: Read back npm release
+        if: steps.publish.outputs.published == 'true'
+        env:
+          PUBLISHED_PACKAGES: ${{ steps.publish.outputs.published-packages }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "$PUBLISHED_PACKAGES" | jq -c '.[]' | while read -r package; do
+            name="$(jq -r '.name' <<<"$package")"
+            version="$(jq -r '.version' <<<"$package")"
+            metadata=""
+            for attempt in 1 2 3 4 5; do
+              if metadata="$(npm view "$name@$version" --json 2>/dev/null)"; then
+                break
+              fi
+              if [[ "$attempt" -eq 5 ]]; then
+                echo "npm registry did not expose $name@$version after retries" >&2
+                exit 1
+              fi
+              sleep $((attempt * 5))
+            done
+            test "$(jq -r '.name' <<<"$metadata")" = "$name"
+            test "$(jq -r '.version' <<<"$metadata")" = "$version"
+            test -n "$(jq -r '.dist.integrity' <<<"$metadata")"
+            test "$(jq -r '.dist.attestations.provenance.predicateType' <<<"$metadata")" = "https://slsa.dev/provenance/v1"
+            echo "$name@$version $(jq -r '.dist.integrity' <<<"$metadata")"
+          done

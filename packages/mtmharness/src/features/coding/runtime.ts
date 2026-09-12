@@ -37,15 +37,25 @@ export function resolveBundledCommand(
   try {
     packageJson = resolveModule("npm/package.json");
   } catch (error) {
-    throw new Error("mtm-coding: package-owned npm CLI is unavailable", { cause: error });
+    throw new Error("mtm-coding: package-owned npm CLI is unavailable", {
+      cause: error,
+    });
   }
   const npxCli = join(dirname(packageJson), "bin", "npx-cli.js");
   if (!existsSync(npxCli)) {
-    throw new Error("mtm-coding: package-owned npx CLI is missing at " + npxCli);
+    throw new Error(
+      "mtm-coding: package-owned npx CLI is missing at " + npxCli,
+    );
   }
   return {
     command: process.execPath,
-    args: [npxCli, "--yes", "--package", "codebase-memory-mcp@" + CBM_PACKAGE_VERSION, "codebase-memory-mcp"],
+    args: [
+      npxCli,
+      "--yes",
+      "--package",
+      "codebase-memory-mcp@" + CBM_PACKAGE_VERSION,
+      "codebase-memory-mcp",
+    ],
     bundled: true,
   };
 }
@@ -63,7 +73,10 @@ export function resolveCommand(
 }
 
 /** Normalize an empty or relative working directory to one absolute path. */
-export function resolveWorkingDirectory(cwd: string | undefined, base = process.cwd()): string {
+export function resolveWorkingDirectory(
+  cwd: string | undefined,
+  base = process.cwd(),
+): string {
   return resolve(base, cwd?.trim() || ".");
 }
 
@@ -80,11 +93,17 @@ export function resolveEnvironment(
   };
 }
 
-function collectOutput(handle: SubprocessHandle, stream: "stdout" | "stderr"): string {
+function collectOutput(
+  handle: SubprocessHandle,
+  stream: "stdout" | "stderr",
+): string {
   return handle.collected[stream]?.readFrom(0).text ?? "";
 }
 
-function combinedSignal(parent: AbortSignal | undefined, timeout: AbortSignal): AbortSignal {
+function combinedSignal(
+  parent: AbortSignal | undefined,
+  timeout: AbortSignal,
+): AbortSignal {
   return parent === undefined ? timeout : AbortSignal.any([parent, timeout]);
 }
 
@@ -141,7 +160,8 @@ function contextFromJson(value: unknown): string | undefined {
   const direct = record.additionalContext;
   if (typeof direct === "string" && direct.trim()) return direct;
   const systemMessage = record.systemMessage;
-  if (typeof systemMessage === "string" && systemMessage.trim()) return systemMessage;
+  if (typeof systemMessage === "string" && systemMessage.trim())
+    return systemMessage;
   const hookOutput = record.hookSpecificOutput;
   if (typeof hookOutput !== "object" || hookOutput === null) return undefined;
   const nested = (hookOutput as Record<string, unknown>).additionalContext;

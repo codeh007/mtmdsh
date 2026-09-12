@@ -1,33 +1,45 @@
 import assert from "node:assert/strict";
-import { deflateRawSync, gzipSync } from "node:zlib";
 import { join } from "node:path";
 import test from "node:test";
+import { deflateRawSync, gzipSync } from "node:zlib";
 import {
   bindRtkExecutable,
   buildMcpConfig,
   extractHookContext,
   extractRtkBinary,
+  RTK_VERSION,
   resolveBundledCommand,
   resolveCommand,
   resolveConfig,
   resolveEnvironment,
   resolveWorkingDirectory,
+  rewriteRtk,
   rtkAssetFor,
   rtkAssetUrl,
   rtkDisabled,
   rtkEnvironment,
-  rewriteRtk,
   shouldRewriteRtk,
-  RTK_VERSION,
 } from "../lib/index.js";
 
 test("resolves Codebase Memory through the pinned lazy npx command", () => {
   const command = resolveCommand(undefined, ["--ui"]);
   assert.equal(command.command, process.execPath);
   assert.match(command.args[0], /npm[/\\]bin[/\\]npx-cli\.js$/);
-  assert.deepEqual(command.args.slice(1, 6), ["--yes", "--package", "codebase-memory-mcp@0.10.8", "codebase-memory-mcp", "--ui"]);
+  assert.deepEqual(command.args.slice(1, 6), [
+    "--yes",
+    "--package",
+    "codebase-memory-mcp@0.10.8",
+    "codebase-memory-mcp",
+    "--ui",
+  ]);
   assert.equal(command.bundled, true);
-  assert.throws(() => resolveBundledCommand(() => { throw new Error("missing"); }), /npm CLI is unavailable/);
+  assert.throws(
+    () =>
+      resolveBundledCommand(() => {
+        throw new Error("missing");
+      }),
+    /npm CLI is unavailable/,
+  );
 });
 
 test("preserves an explicit Codebase Memory command", () => {
@@ -40,32 +52,56 @@ test("preserves an explicit Codebase Memory command", () => {
 
 test("normalizes working directory and explicit CBM environment", () => {
   assert.equal(resolveWorkingDirectory(".").startsWith("/"), true);
-  assert.equal(resolveWorkingDirectory(undefined, "/workspace/example"), "/workspace/example");
-  assert.equal(resolveWorkingDirectory("src", "/workspace/example"), "/workspace/example/src");
-  assert.deepEqual(resolveEnvironment({ CBM_LOG_LEVEL: "warn" }, "./cache", "./repo"), {
-    CBM_LOG_LEVEL: "warn",
-    CBM_CACHE_DIR: join(process.cwd(), "cache"),
-    CBM_ALLOWED_ROOT: join(process.cwd(), "repo"),
-  });
+  assert.equal(
+    resolveWorkingDirectory(undefined, "/workspace/example"),
+    "/workspace/example",
+  );
+  assert.equal(
+    resolveWorkingDirectory("src", "/workspace/example"),
+    "/workspace/example/src",
+  );
+  assert.deepEqual(
+    resolveEnvironment({ CBM_LOG_LEVEL: "warn" }, "./cache", "./repo"),
+    {
+      CBM_LOG_LEVEL: "warn",
+      CBM_CACHE_DIR: join(process.cwd(), "cache"),
+      CBM_ALLOWED_ROOT: join(process.cwd(), "repo"),
+    },
+  );
 });
 
 test("hook output is fail-open and supports DSH-compatible envelopes", () => {
   assert.equal(extractHookContext(""), undefined);
   assert.equal(extractHookContext("not json"), undefined);
-  assert.equal(extractHookContext(JSON.stringify({ additionalContext: "direct" })), "direct");
-  assert.equal(extractHookContext(JSON.stringify({ systemMessage: "system" })), "system");
-  assert.equal(extractHookContext(JSON.stringify({ hookSpecificOutput: { additionalContext: "nested" } })), "nested");
+  assert.equal(
+    extractHookContext(JSON.stringify({ additionalContext: "direct" })),
+    "direct",
+  );
+  assert.equal(
+    extractHookContext(JSON.stringify({ systemMessage: "system" })),
+    "system",
+  );
+  assert.equal(
+    extractHookContext(
+      JSON.stringify({ hookSpecificOutput: { additionalContext: "nested" } }),
+    ),
+    "nested",
+  );
 });
 
 test("config defaults are deterministic and MCP config uses the resolved command", () => {
   const config = resolveConfig({ cwd: ".", env: { CBM_LOG_LEVEL: "warn" } });
   assert.equal(config.serverName, "codebase_memory");
   assert.equal(config.augmentHooks, true);
-  const mcp = buildMcpConfig(config, {
-    command: process.execPath,
-    args: ["/tmp/cbm/bin.js"],
-    bundled: true,
-  }, config.env);
+  const mcp = buildMcpConfig(
+    config,
+    {
+      command: process.execPath,
+      args: ["/tmp/cbm/bin.js"],
+      bundled: true,
+    },
+    config.env,
+  );
   assert.equal(mcp.transport, "stdio");
   assert.equal(mcp.command, process.execPath);
   assert.deepEqual(mcp.args, ["/tmp/cbm/bin.js"]);
@@ -73,10 +109,19 @@ test("config defaults are deterministic and MCP config uses the resolved command
 });
 
 test("config rejects unsafe namespaces and applies timeout-specific bounds", () => {
-  assert.throws(() => resolveConfig({ serverName: "bad namespace" }), /invalid serverName/);
+  assert.throws(
+    () => resolveConfig({ serverName: "bad namespace" }),
+    /invalid serverName/,
+  );
   assert.throws(() => resolveConfig({ hookTimeoutMs: 0 }), /hookTimeoutMs/);
-  assert.throws(() => resolveConfig({ hookTimeoutMs: 10_001 }), /hookTimeoutMs/);
-  assert.equal(resolveConfig({ toolCallTimeoutMs: 600_000 }).toolCallTimeoutMs, 600_000);
+  assert.throws(
+    () => resolveConfig({ hookTimeoutMs: 10_001 }),
+    /hookTimeoutMs/,
+  );
+  assert.equal(
+    resolveConfig({ toolCallTimeoutMs: 600_000 }).toolCallTimeoutMs,
+    600_000,
+  );
 });
 
 test("maps the supported RTK release matrix and isolates its runtime data", () => {
@@ -84,16 +129,26 @@ test("maps the supported RTK release matrix and isolates its runtime data", () =
   assert.equal(linux?.name, "rtk-x86_64-unknown-linux-musl.tar.gz");
   assert.equal(rtkAssetFor("linux", "ppc64"), undefined);
   assert.match(rtkAssetUrl(linux), new RegExp("v" + RTK_VERSION));
-  const env = rtkEnvironment("/tmp/dsh/runtimes/rtk/v" + RTK_VERSION, { PATH: "/controlled/bin" });
+  const env = rtkEnvironment("/tmp/dsh/runtimes/rtk/v" + RTK_VERSION, {
+    PATH: "/controlled/bin",
+  });
   assert.equal(env.HOME, "/tmp/dsh");
   assert.equal(env.RTK_TELEMETRY_DISABLED, "1");
-  assert.equal(env.RTK_TEE_DIR, "/tmp/dsh/runtimes/rtk/v" + RTK_VERSION + "/tee");
+  assert.equal(
+    env.RTK_TEE_DIR,
+    "/tmp/dsh/runtimes/rtk/v" + RTK_VERSION + "/tee",
+  );
   assert.equal(env.RTK_CONFIG, undefined);
   assert.equal(env.PATH, "/controlled/bin");
   assert.equal(rtkDisabled("RTK_DISABLED=1 git status"), true);
   assert.equal(rtkDisabled("FOO=bar RTK_DISABLED=1 git status"), true);
   assert.equal(rtkDisabled("git status"), false);
-  const filtered = rtkEnvironment("/tmp/dsh/runtimes/rtk/v" + RTK_VERSION, { RTK_CONFIG: "/tmp/host", HOME: "/tmp/host", XDG_CONFIG_HOME: "/tmp/host-config", KEEP: "yes" });
+  const filtered = rtkEnvironment("/tmp/dsh/runtimes/rtk/v" + RTK_VERSION, {
+    RTK_CONFIG: "/tmp/host",
+    HOME: "/tmp/host",
+    XDG_CONFIG_HOME: "/tmp/host-config",
+    KEEP: "yes",
+  });
   assert.equal(filtered.KEEP, "yes");
   assert.equal(filtered.HOME, "/tmp/dsh");
   assert.equal(filtered.RTK_CONFIG, undefined);
@@ -109,9 +164,15 @@ test("only eligible Bash commands enter the RTK rewrite hook", () => {
 
 test("binds a managed RTK executable without changing ambient PATH", () => {
   assert.equal(bindRtkExecutable("git status", "/tmp/rtk"), "git status");
-  assert.equal(bindRtkExecutable("rtk git status", "/tmp/rtk"), "'/tmp/rtk' git status");
+  assert.equal(
+    bindRtkExecutable("rtk git status", "/tmp/rtk"),
+    "'/tmp/rtk' git status",
+  );
   assert.equal(bindRtkExecutable("rtk", "/tmp/a'b"), "'/tmp/a'\\''b'");
-  assert.equal(bindRtkExecutable("rtk\tgit status", "/tmp/rtk"), "'/tmp/rtk'\tgit status");
+  assert.equal(
+    bindRtkExecutable("rtk\tgit status", "/tmp/rtk"),
+    "'/tmp/rtk'\tgit status",
+  );
 });
 
 function tarArchive(entries) {
@@ -120,9 +181,13 @@ function tarArchive(entries) {
     const body = Buffer.from(entry.body);
     const header = Buffer.alloc(512);
     header.write(entry.name, 0, "utf8");
-    header.write((body.length.toString(8).padStart(11, "0") + "\0"), 124, "ascii");
+    header.write(
+      body.length.toString(8).padStart(11, "0") + "\0",
+      124,
+      "ascii",
+    );
     header[156] = entry.type ?? 0;
-    chunks.push(header, body, Buffer.alloc((512 - body.length % 512) % 512));
+    chunks.push(header, body, Buffer.alloc((512 - (body.length % 512)) % 512));
   }
   chunks.push(Buffer.alloc(1024));
   return gzipSync(Buffer.concat(chunks));
@@ -171,12 +236,57 @@ test("extracts only exact RTK archive members and bounds expansion", () => {
   const tarAsset = rtkAssetFor("linux", "x64");
   const zipAsset = rtkAssetFor("win32", "x64");
   const binary = Buffer.from("rtk-binary");
-  assert.deepEqual(extractRtkBinary(tarArchive([{ name: "rtk", body: binary }]), tarAsset), binary);
-  assert.deepEqual(extractRtkBinary(zipArchive([{ name: "rtk.exe", body: binary, method: 0 }]), zipAsset), binary);
-  assert.throws(() => extractRtkBinary(tarArchive([{ name: "nested/rtk", body: binary }]), tarAsset), /does not contain/);
-  assert.throws(() => extractRtkBinary(tarArchive([{ name: "rtk", body: binary }, { name: "rtk", body: binary }]), tarAsset), /duplicate/);
-  assert.throws(() => extractRtkBinary(tarArchive([{ name: "rtk", body: Buffer.alloc(13 * 1024 * 1024, "x") }]), tarAsset), /(?:larger|size|limit)/i);
-  assert.throws(() => extractRtkBinary(zipArchive([{ name: "rtk.exe", body: Buffer.alloc(7 * 1024 * 1024, "x") }, { name: "other", body: Buffer.alloc(7 * 1024 * 1024, "y") }]), zipAsset), /expanded output/);
+  assert.deepEqual(
+    extractRtkBinary(tarArchive([{ name: "rtk", body: binary }]), tarAsset),
+    binary,
+  );
+  assert.deepEqual(
+    extractRtkBinary(
+      zipArchive([{ name: "rtk.exe", body: binary, method: 0 }]),
+      zipAsset,
+    ),
+    binary,
+  );
+  assert.throws(
+    () =>
+      extractRtkBinary(
+        tarArchive([{ name: "nested/rtk", body: binary }]),
+        tarAsset,
+      ),
+    /does not contain/,
+  );
+  assert.throws(
+    () =>
+      extractRtkBinary(
+        tarArchive([
+          { name: "rtk", body: binary },
+          { name: "rtk", body: binary },
+        ]),
+        tarAsset,
+      ),
+    /duplicate/,
+  );
+  assert.throws(
+    () =>
+      extractRtkBinary(
+        tarArchive([
+          { name: "rtk", body: Buffer.alloc(13 * 1024 * 1024, "x") },
+        ]),
+        tarAsset,
+      ),
+    /(?:larger|size|limit)/i,
+  );
+  assert.throws(
+    () =>
+      extractRtkBinary(
+        zipArchive([
+          { name: "rtk.exe", body: Buffer.alloc(7 * 1024 * 1024, "x") },
+          { name: "other", body: Buffer.alloc(7 * 1024 * 1024, "y") },
+        ]),
+        zipAsset,
+      ),
+    /expanded output/,
+  );
 });
 
 function rewriteContext(exitCode, stdout, spawnError = false) {
@@ -187,9 +297,20 @@ function rewriteContext(exitCode, stdout, spawnError = false) {
       spawn(spec) {
         calls.push(spec);
         if (spawnError) throw new Error("spawn failed");
-        const reader = { readFrom: () => ({ text: stdout, nextOffset: stdout.length, lossy: false }) };
+        const reader = {
+          readFrom: () => ({
+            text: stdout,
+            nextOffset: stdout.length,
+            lossy: false,
+          }),
+        };
         return {
-          collected: { stdout: reader, stderr: { readFrom: () => ({ text: "", nextOffset: 0, lossy: false }) } },
+          collected: {
+            stdout: reader,
+            stderr: {
+              readFrom: () => ({ text: "", nextOffset: 0, lossy: false }),
+            },
+          },
           done: Promise.resolve({ exitCode, signal: null }),
           terminate() {},
         };
@@ -201,7 +322,13 @@ function rewriteContext(exitCode, stdout, spawnError = false) {
 test("accepts RTK rewrite exits 0 and 3, but never changes DSH policy", async () => {
   for (const exitCode of [0, 3]) {
     const fake = rewriteContext(exitCode, "rtk git status\n");
-    const result = await rewriteRtk(fake, "/tmp/rtk", "git status", "/repo", {});
+    const result = await rewriteRtk(
+      fake,
+      "/tmp/rtk",
+      "git status",
+      "/repo",
+      {},
+    );
     assert.deepEqual(result, { command: "'/tmp/rtk' git status", exitCode });
     assert.deepEqual(fake.calls[0].argv, ["/tmp/rtk", "rewrite", "git status"]);
   }
@@ -209,16 +336,58 @@ test("accepts RTK rewrite exits 0 and 3, but never changes DSH policy", async ()
 
 test("fails open for passthrough, malformed, and process-error RTK results", async () => {
   const disabled = rewriteContext(0, "rtk git status\n");
-  assert.equal(await rewriteRtk(disabled, "/tmp/rtk", "RTK_DISABLED=1 git status", "/repo", {}), undefined);
+  assert.equal(
+    await rewriteRtk(
+      disabled,
+      "/tmp/rtk",
+      "RTK_DISABLED=1 git status",
+      "/repo",
+      {},
+    ),
+    undefined,
+  );
   assert.equal(disabled.calls.length, 0);
   const manual = rewriteContext(0, "rtk git status\n");
-  assert.equal(await rewriteRtk(manual, "/tmp/rtk", "rtk git status", "/repo", {}), undefined);
+  assert.equal(
+    await rewriteRtk(manual, "/tmp/rtk", "rtk git status", "/repo", {}),
+    undefined,
+  );
   assert.equal(manual.calls.length, 0);
   const multiline = rewriteContext(0, "rtk git status\nwarning");
-  assert.equal(await rewriteRtk(multiline, "/tmp/rtk", "git status", "/repo", {}), undefined);
+  assert.equal(
+    await rewriteRtk(multiline, "/tmp/rtk", "git status", "/repo", {}),
+    undefined,
+  );
   for (const exitCode of [1, 2]) {
-    assert.equal(await rewriteRtk(rewriteContext(exitCode, ""), "/tmp/rtk", "git status", "/repo", {}), undefined);
+    assert.equal(
+      await rewriteRtk(
+        rewriteContext(exitCode, ""),
+        "/tmp/rtk",
+        "git status",
+        "/repo",
+        {},
+      ),
+      undefined,
+    );
   }
-  assert.equal(await rewriteRtk(rewriteContext(0, ""), "/tmp/rtk", "git status", "/repo", {}), undefined);
-  assert.equal(await rewriteRtk(rewriteContext(1, "", true), "/tmp/rtk", "git status", "/repo", {}), undefined);
+  assert.equal(
+    await rewriteRtk(
+      rewriteContext(0, ""),
+      "/tmp/rtk",
+      "git status",
+      "/repo",
+      {},
+    ),
+    undefined,
+  );
+  assert.equal(
+    await rewriteRtk(
+      rewriteContext(1, "", true),
+      "/tmp/rtk",
+      "git status",
+      "/repo",
+      {},
+    ),
+    undefined,
+  );
 });

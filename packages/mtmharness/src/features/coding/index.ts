@@ -1,20 +1,33 @@
 import type { Context, Fiber } from "@deepseek-ai/cordis";
 import type {} from "@deepseek-ai/dsh-settings";
-import { apply as applyCodebaseMemory, type Config as CodebaseMemoryConfig } from "./codebase-memory.js";
-import { apply as applyPonytail } from "./ponytail.js";
+import {
+  apply as applyCodebaseMemory,
+  type Config as CodebaseMemoryConfig,
+} from "./codebase-memory.js";
 import { applyDataOnlyPackages } from "./manifest.js";
+import { apply as applyPonytail } from "./ponytail.js";
 import { apply as applyRtk } from "./rtk.js";
 import {
-  MtmCodingSettingsSchema,
   codebaseMemoryConfig,
   type MtmCodingConfig,
   type MtmCodingSettings,
+  MtmCodingSettingsSchema,
 } from "./types.js";
 
-export { buildMcpConfig, resolveConfig } from "./codebase-memory.js";
-export { MtmCodingSettingsSchema, codebaseMemoryConfig } from "./types.js";
-export { MTM_CODING_PACKAGES, codingPackage } from "./manifest.js";
-export type { MtmCodingPackageCatalog, MtmCodingPackageKind, MtmCodingPackageManifest, MtmCodingSkillSource } from "./manifest.js";
+export {
+  apply as applyCodebaseMemory,
+  buildMcpConfig,
+  resolveConfig,
+} from "./codebase-memory.js";
+export type {
+  MtmCodingPackageCatalog,
+  MtmCodingPackageKind,
+  MtmCodingPackageManifest,
+  MtmCodingSkillSource,
+} from "./manifest.js";
+export { codingPackage, MTM_CODING_PACKAGES } from "./manifest.js";
+export { apply as applyPonytail } from "./ponytail.js";
+export { apply as applyRtk } from "./rtk.js";
 export {
   extractHookContext,
   resolveBundledCommand,
@@ -22,10 +35,13 @@ export {
   resolveEnvironment,
   resolveWorkingDirectory,
 } from "./runtime.js";
-export { apply as applyCodebaseMemory } from "./codebase-memory.js";
-export { apply as applyPonytail } from "./ponytail.js";
-export { apply as applyRtk } from "./rtk.js";
-export type { MtmCodingConfig, MtmCodingSettings, PonytailMode, RtkMode } from "./types.js";
+export type {
+  MtmCodingConfig,
+  MtmCodingSettings,
+  PonytailMode,
+  RtkMode,
+} from "./types.js";
+export { codebaseMemoryConfig, MtmCodingSettingsSchema } from "./types.js";
 
 export const name = "mtm-coding";
 export const inject = ["settings"];
@@ -86,7 +102,10 @@ function rtkKey(settings: MtmCodingSettings): string {
 }
 
 /** Mount the unified coding domains and expose one persisted settings namespace. */
-export async function apply(ctx: Context, rawConfig: MtmCodingConfig = {}): Promise<void> {
+export async function apply(
+  ctx: Context,
+  rawConfig: MtmCodingConfig = {},
+): Promise<void> {
   const settings = ctx.settings.register(
     "mtm-coding",
     MtmCodingSettingsSchema,
@@ -106,7 +125,10 @@ export async function apply(ctx: Context, rawConfig: MtmCodingConfig = {}): Prom
     const nextPonytailKey = ponytailKey(next);
     const nextRtkKey = rtkKey(next);
 
-    if (nextCodebaseKey !== activeCodebaseKey || (next.codebaseMemoryEnabled && codebaseMemoryFiber === undefined)) {
+    if (
+      nextCodebaseKey !== activeCodebaseKey ||
+      (next.codebaseMemoryEnabled && codebaseMemoryFiber === undefined)
+    ) {
       await dispose(codebaseMemoryFiber);
       codebaseMemoryFiber = undefined;
       activeCodebaseKey = "";
@@ -118,14 +140,19 @@ export async function apply(ctx: Context, rawConfig: MtmCodingConfig = {}): Prom
           );
           activeCodebaseKey = nextCodebaseKey;
         } catch (error) {
-          ctx.logger.warn("mtm-coding: Codebase Memory is unavailable: " + String(error));
+          ctx.logger.warn(
+            "mtm-coding: Codebase Memory is unavailable: " + String(error),
+          );
         }
       } else {
         activeCodebaseKey = nextCodebaseKey;
       }
     }
 
-    if (nextPonytailKey !== activePonytailKey || (next.ponytailEnabled && ponytailFiber === undefined)) {
+    if (
+      nextPonytailKey !== activePonytailKey ||
+      (next.ponytailEnabled && ponytailFiber === undefined)
+    ) {
       await dispose(ponytailFiber);
       ponytailFiber = undefined;
       activePonytailKey = "";
@@ -137,14 +164,19 @@ export async function apply(ctx: Context, rawConfig: MtmCodingConfig = {}): Prom
           });
           activePonytailKey = nextPonytailKey;
         } catch (error) {
-          ctx.logger.warn("mtm-coding: Ponytail is unavailable: " + String(error));
+          ctx.logger.warn(
+            "mtm-coding: Ponytail is unavailable: " + String(error),
+          );
         }
       } else {
         activePonytailKey = nextPonytailKey;
       }
     }
 
-    if (nextRtkKey !== activeRtkKey || (next.rtkMode !== "off" && rtkFiber === undefined)) {
+    if (
+      nextRtkKey !== activeRtkKey ||
+      (next.rtkMode !== "off" && rtkFiber === undefined)
+    ) {
       await dispose(rtkFiber);
       rtkFiber = undefined;
       activeRtkKey = "";
@@ -165,7 +197,9 @@ export async function apply(ctx: Context, rawConfig: MtmCodingConfig = {}): Prom
     reconciling = reconciling
       .then(() => reconcile(settings.get()))
       .catch((error: unknown) => {
-        ctx.logger.error("mtm-coding settings reconciliation failed: " + String(error));
+        ctx.logger.error(
+          "mtm-coding settings reconciliation failed: " + String(error),
+        );
       });
     return reconciling;
   };
@@ -174,11 +208,14 @@ export async function apply(ctx: Context, rawConfig: MtmCodingConfig = {}): Prom
     return queueReconcile();
   });
 
-  ctx.effect(() => async () => {
-    stopped = true;
-    stopWatching();
-    await reconciling;
-  }, "mtm-coding.lifecycle");
+  ctx.effect(
+    () => async () => {
+      stopped = true;
+      stopWatching();
+      await reconciling;
+    },
+    "mtm-coding.lifecycle",
+  );
 
   if (typeof ctx.plugin === "function") await ctx.plugin(DataOnlyFeature);
   await queueReconcile();

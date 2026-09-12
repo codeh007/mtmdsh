@@ -3,7 +3,7 @@
 Status: accepted decision record for issue #1017 P0.
 Baseline: main at ab58dfc (2026-09-12).
 
-This record freezes the current public package surface and the migration decisions that later P1-P4 work must preserve. It does not implement the Changesets migration or remove the existing release workflows.
+This record freezes the current public package surface and the migration decisions that later P1-P4 work must preserve. The P1/P2 amendment below supersedes the original split declaration output for mtmharness after validation with one TypeScript configuration. It does not implement the Changesets migration or remove the existing release workflows.
 
 ## Scope
 
@@ -43,7 +43,7 @@ Manifest: packages/mtmharness/package.json
 | types | ./lib/types/index.d.ts |
 | unpkg | ./dist/embed/mtmharness.iife.js |
 | jsdelivr | ./dist/embed/mtmharness.iife.js |
-| files | lib/index.js, lib/client.cjs, lib/p2p-worker.cjs, lib/types/**/*.d.ts, dist/embed, dist/auth.js, dist/types, cordis.patch.yml, README.md, package.json, LICENSE |
+| files | lib/index.js, lib/client.cjs, lib/p2p-worker.cjs, lib/types/**/*.d.ts, dist/embed, dist/auth.js, cordis.patch.yml, README.md, package.json, LICENSE |
 | dependencies.npm | 11.7.0; runtime dependency used to resolve the package-owned npx CLI |
 
 The explicit export map is intentionally heterogeneous:
@@ -52,8 +52,8 @@ The explicit export map is intentionally heterogeneous:
 | --- | --- | --- | --- |
 | . | lib/index.js | lib/types/index.d.ts | DSH Host plugin |
 | ./client | lib/client.cjs | lib/types/client/index.d.ts | DSH Web client loader |
-| ./embed | dist/embed/mtmharness.js | dist/types/embed/index.d.ts | Browser ESM mount API |
-| ./auth | dist/auth.js | dist/types/embed/app/auth.d.ts | Standalone browser OAuth client |
+| ./embed | dist/embed/mtmharness.js | lib/types/embed/index.d.ts | Browser ESM mount API |
+| ./auth | dist/auth.js | lib/types/embed/app/auth.d.ts | Standalone browser OAuth client |
 | ./p2p-worker | lib/p2p-worker.cjs | lib/types/features/p2p/worker.d.ts | Worker entry |
 | ./cordis.patch.yml | cordis.patch.yml | n/a | DSH bundle patch |
 | ./package.json | package.json | n/a | Package metadata |
@@ -72,9 +72,15 @@ The ./embed and ./auth entries remain explicit. A wildcard export would erase th
 The baseline passed pnpm exec turbo run build. The generated files are ignored build outputs, but their paths are part of the package contract:
 
 - mtmcanvas: lib/client.js and declarations under lib/types/.
-- mtmharness: lib/index.js, lib/client.cjs, lib/p2p-worker.cjs, dist/auth.js, dist/embed/mtmharness.js, dist/embed/mtmharness.iife.js, declarations under lib/types/ and dist/types/embed/.
+- mtmharness: lib/index.js, lib/client.cjs, lib/p2p-worker.cjs, dist/auth.js, dist/embed/mtmharness.js, dist/embed/mtmharness.iife.js, declarations under lib/types/.
 
-Baseline npm pack --dry-run --ignore-scripts produced 10 entries for mtmcanvas@0.2.0 and 53 entries for mtmharness@0.9.26. Package-local pack is a validation operation, not a supported publishing authority.
+## P1/P2 Contract Amendment
+
+P1/P2 consolidated mtmharness declarations into the single `tsconfig.json` output at `lib/types/`. The previous `dist/types/embed/` entries above were a stale record of the removed embed-only TypeScript configuration, not a separately required runtime surface. The manifest, exports, build output checks, and packed tarball checks now use `lib/types/` for every mtmharness declaration.
+
+This amendment was accepted after the rebased build and typecheck passed, the packed manifest resolved every declared export target, and the embed declaration remained mount-only while OAuth declarations stayed under `./auth`. No JavaScript entry, package name, version line, CDN field, or consumer role changed.
+
+Baseline npm pack --dry-run --ignore-scripts produced 10 entries for mtmcanvas@0.2.0 and 54 entries for mtmharness@0.9.26 after the P1/P2 declaration consolidation. Package-local pack is a validation operation, not a supported publishing authority.
 
 ## Version and Release Decisions
 
