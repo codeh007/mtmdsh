@@ -55,5 +55,5 @@ The official DSH plugin keeps the host FullShell and local session untouched.
 ## Development
 
     pnpm install
-    pnpm --filter mtmharness run check
-    pnpm --filter mtmharness run build
+    pnpm exec turbo run typecheck test --filter=mtmharness
+    pnpm exec turbo run build --filter=mtmharness

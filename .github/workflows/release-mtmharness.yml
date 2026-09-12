@@ -16,7 +16,6 @@ concurrency:
 
 env:
   PACKAGE_NAME: mtmharness
-  PACKAGE_DIR: packages/mtmharness
   TAG_PREFIX: mtmharness-v
 
 jobs:
@@ -43,9 +42,6 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: pnpm
 
-      - name: Enable Corepack
-        run: corepack enable
-
       - name: Verify pnpm version
         run: test "$(pnpm --version)" = 11.7.0
 
@@ -66,7 +62,7 @@ jobs:
       - name: Check workspace packages
         run: |
           set -euo pipefail
-          pnpm exec turbo run check --filter=mtmharness...
+          pnpm exec turbo run typecheck test --filter=mtmharness
 
       - name: Pack release tarball
         id: pack

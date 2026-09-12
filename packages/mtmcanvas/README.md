@@ -8,4 +8,4 @@ Canvas data remains in browser memory.
 
 ## Development
 
-    pnpm --filter mtmcanvas run check
+    pnpm exec turbo run typecheck test --filter=mtmcanvas
