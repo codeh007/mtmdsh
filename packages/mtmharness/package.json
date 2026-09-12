@@ -59,7 +59,6 @@
   },
   "files": [
     "lib/index.js",
-    "lib/client.js",
     "lib/client.cjs",
     "lib/p2p-worker.cjs",
     "lib/types/**/*.d.ts",

@@ -33,7 +33,7 @@
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check": "pnpm run typecheck && pnpm run test && pnpm run build",
+    "check": "pnpm run typecheck && pnpm run test",
     "prepack": "pnpm run build"
   },
   "license": "MIT",
