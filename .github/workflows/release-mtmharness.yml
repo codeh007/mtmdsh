@@ -75,7 +75,7 @@ jobs:
           set -euo pipefail
           pack_dir="$RUNNER_TEMP/mtmharness"
           mkdir -p "$pack_dir"
-          pnpm --filter mtmharness pack --pack-destination "$pack_dir"
+          pnpm --filter mtmharness exec npm pack --ignore-scripts --pack-destination "$pack_dir"
           tarball="$(find "$pack_dir" -maxdepth 1 -type f -name "${PACKAGE_NAME}-*.tgz" -print -quit)"
           test -n "$tarball"
           local_integrity="sha512-$(openssl dgst -sha512 -binary "$tarball" | base64 -w0)"
