@@ -9,20 +9,15 @@ import {
   type UserConfig,
   build as viteBuild,
 } from "vite";
-import packageManifest from "./package.json" with { type: "json" };
+
 
 const packageRoot = fileURLToPath(new URL(".", import.meta.url));
-const packageName = packageManifest.name;
+
 const source = (file: string) => resolve(packageRoot, "src", file);
 const isBareImport = (id: string): boolean =>
   !id.startsWith(".") && !id.startsWith("/") && !id.startsWith("\0");
-const isReactImport = (id: string): boolean =>
-  /^(?:react|react-dom)(?:\/|$)/u.test(id);
 const hostExternal = (id: string): boolean => isBareImport(id);
-const clientExternal = (id: string): boolean =>
-  isReactImport(id) || id.startsWith("@deepseek-ai/");
-
-type ProfileName = "host" | "client" | "worker" | "embed" | "auth";
+type ProfileName = "host" | "worker" | "embed" | "auth";
 type Format = "es" | "cjs" | "iife";
 
 type Profile = {
@@ -44,15 +39,6 @@ const profiles: Record<ProfileName, Profile> = {
     external: hostExternal,
     target: "node22",
     emptyOutDir: true,
-  },
-  client: {
-    entry: source("client/index.ts"),
-    outDir: "lib",
-    formats: ["cjs"],
-    fileName: "client",
-    external: clientExternal,
-    target: "es2020",
-    emptyOutDir: false,
   },
   worker: {
     entry: source("features/p2p/worker.ts"),
@@ -84,7 +70,6 @@ const profiles: Record<ProfileName, Profile> = {
 
 const profileOrder: readonly ProfileName[] = [
   "host",
-  "client",
   "worker",
   "embed",
   "auth",
@@ -96,9 +81,8 @@ function profileConfig(name: ProfileName, orchestrate: boolean): UserConfig {
     root: packageRoot,
     define: { "process.env.NODE_ENV": JSON.stringify("production") },
     plugins: [
-      ...(name === "client" || name === "embed" ? [react()] : []),
+      ...(name === "embed" ? [react()] : []),
       ...(name === "embed" ? [tailwindcss()] : []),
-      ...(name === "client" ? [dshClientLoaderPlugin()] : []),
       ...(name === "host" ? [declarationPlugin()] : []),
       ...(orchestrate ? [buildProfilesPlugin()] : []),
     ],
@@ -128,35 +112,6 @@ function buildProfilesPlugin(): Plugin {
     async closeBundle() {
       for (const name of profileOrder.slice(1))
         await viteBuild({ ...profileConfig(name, false), configFile: false });
-    },
-  };
-}
-
-function dshClientLoaderPlugin(): Plugin {
-  return {
-    name: "mtmharness-dsh-client-loader",
-    generateBundle(_options, bundle) {
-      const entry = Object.values(bundle).find(
-        (item) => item.type === "chunk" && item.isEntry,
-      );
-      if (entry?.type !== "chunk")
-        throw new Error("mtmharness build: DSH client entry chunk is missing");
-      const indented = entry.code
-        .split("\n")
-        .map((line) => `    ${line}`)
-        .join("\n");
-      entry.code = [
-        "window.__ModuleLoader__.load({",
-        `  id: ${JSON.stringify(packageName)},`,
-        "  factory: (require) => {",
-        "    var module = { exports: {} };",
-        "    var exports = module.exports;",
-        indented,
-        "    return module.exports;",
-        "  }",
-        "});",
-        "",
-      ].join("\n");
     },
   };
 }

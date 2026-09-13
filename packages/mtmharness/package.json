@@ -1,7 +1,7 @@
 {
   "name": "mtmharness",
   "version": "0.9.26",
-  "description": "Unified DeepSeek Harness Web plugin with Codebase Memory, Modern Go, Ponytail, and independent static/embed clients.",
+  "description": "Browser-first DeepSeek Harness app with optional DSH-local coding capabilities.",
   "type": "module",
   "engines": {
     "node": ">=22.19.0",
@@ -15,10 +15,6 @@
     ".": {
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
-    },
-    "./client": {
-      "types": "./lib/types/client/index.d.ts",
-      "default": "./lib/client.cjs"
     },
     "./embed": {
       "types": "./lib/types/embed/index.d.ts",
@@ -38,26 +34,10 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
-    },
-    "client": {
-      "platform": "web",
-      "inject": [
-        "@deepseek-ai/dsh-client-connection",
-        "@deepseek-ai/dsh-client-store",
-        "@deepseek-ai/dsh-client-ui-renderer",
-        "@deepseek-ai/dsh-client-ui-primitives",
-        "@deepseek-ai/dsh-client-ui-sidebar",
-        "@deepseek-ai/dsh-client-ui-layout",
-        "@deepseek-ai/dsh-client-locale",
-        "@deepseek-ai/dsh-client-ui-settings",
-        "@deepseek-ai/dsh-client-ui-settings-plugins",
-        "@deepseek-ai/dsh-client-ui-slots"
-      ]
     }
   },
   "files": [
     "lib/index.js",
-    "lib/client.cjs",
     "lib/p2p-worker.cjs",
     "lib/types/**/*.d.ts",
     "dist/mtmharness.js",
@@ -95,15 +75,6 @@
     "@deepseek-ai/dsh-attachment": "0.1.5-rc.1",
     "@deepseek-ai/dsh-brand": "0.1.5-rc.1",
     "@deepseek-ai/dsh-client-connection": "0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-locale": "0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-store": "0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-ui-layout": "0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-ui-primitives": "0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-ui-renderer": "0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-ui-settings": "0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-ui-settings-plugins": "0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-ui-sidebar": "0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-ui-slots": "0.1.5-rc.1",
     "@deepseek-ai/dsh-code-runtime": "0.1.5-rc.1",
     "@deepseek-ai/dsh-commands": "0.1.5-rc.1",
     "@deepseek-ai/dsh-fs": "0.1.5-rc.1",
@@ -142,15 +113,6 @@
     "@deepseek-ai/dsh-attachment": "0.1.5-rc.1",
     "@deepseek-ai/dsh-brand": "0.1.5-rc.1",
     "@deepseek-ai/dsh-client-connection": "0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-locale": "0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-store": "0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-ui-layout": "0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-ui-primitives": "0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-ui-renderer": "0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-ui-settings": "0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-ui-settings-plugins": "0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-ui-sidebar": "0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-ui-slots": "0.1.5-rc.1",
     "@deepseek-ai/dsh-code-runtime": "0.1.5-rc.1",
     "@deepseek-ai/dsh-commands": "0.1.5-rc.1",
     "@deepseek-ai/dsh-fs": "0.1.5-rc.1",

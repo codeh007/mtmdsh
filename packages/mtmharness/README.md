@@ -1,36 +1,25 @@
 # mtmharness
 
-mtmharness is one public npm package with one unified DSH plugin. The package root supplies the Host plugin, and ./client supplies the DSH Web client entry.
+mtmharness is a browser-first React application for conversation, workspace, P2P, and settings surfaces. The browser app owns its mount root, presentation, and navigation; DSH integration is optional and must be supplied by an explicit host capability.
 
-The client entry owns the browser P2P feature and coding settings inside the mtmharness fiber. Canvas is a separate `mtmcanvas` plugin and is not composed, configured, or loaded by this package. All registrations, styles, listeners, and clients owned by mtmharness are disposed with its Cordis fiber.
+The package does not register an mtmharness card in the DSH Settings page and does not implement package updates. In particular, it never reads a DSH profile from the filesystem or runs pnpm to update itself. A future DSH host may expose a narrow update capability; mtmharness will consume it only after that public contract exists.
 
-The Modern Go Guidelines wrapper uses the pinned upstream CLI with standard go install and user cache behavior. It never creates a project-local cache or overrides the active DSH file policy.
+## Browser app
 
-## DSH Web Plugin
+The package exposes browser bundles at dist/mtmharness.js (ESM) and dist/mtmharness.iife.js (IIFE). Configure the API origin and pre-registered public OAuth client before the bundle runs:
 
-    dsh plugin --profile web add mtmharness
-    dsh --profile web --dump-config
+    window.__MTM_HARNESS_CONFIG__ = {
+      apiOrigin: "https://gomtm-dev.yuepa8.com",
+      oauth: {
+        issuer: "https://gomtm-dev.yuepa8.com",
+        clientId: "<pre-registered-client-id>",
+        redirectUri: "https://host.example.test/mtm/callback",
+        resource: "https://gomtm-dev.yuepa8.com/api/dsh",
+        scopes: ["openid", "dsh:connect"]
+      }
+    };
 
-This installs only mtmharness. Install mtmcanvas separately when the Canvas overlay is needed. Restart the DSH Web host after changing profile composition.
-
-## Embed
-
-The package exposes browser bundles at dist/mtmharness.js (ESM) and dist/mtmharness.iife.js (IIFE). The ./embed entry is mount-only; OAuth helpers and types are exposed through ./auth. Configure the API origin and pre-registered public OAuth client before the embed script runs:
-
-    <script>
-      window.__MTM_HARNESS_CONFIG__ = {
-        apiOrigin: "https://gomtm-dev.yuepa8.com",
-        oauth: {
-          issuer: "https://gomtm-dev.yuepa8.com",
-          clientId: "<pre-registered-client-id>",
-          redirectUri: "https://host.example.test/mtm/callback",
-          resource: "https://gomtm-dev.yuepa8.com/api/dsh",
-          scopes: ["openid", "dsh:connect"]
-        }
-      };
-    </script>
-
-Use the ESM export from an application build:
+Use the ESM mount API from an application build:
 
     import { mount } from "mtmharness/embed";
 
@@ -40,19 +29,21 @@ Use the ESM export from an application build:
     handle.close();
     handle.unmount();
 
-The embed uses memory history and never changes the host page URL. It mounts inside an open ShadowRoot and removes its DOM, styles, observers, router, and runtime on unmount().
+Widget mounts use memory history and do not change the host page URL. Independent applications can use hash or browser history. The settings view accepts explicit capability objects for authentication, the remote product API, P2P, DSH-local actions, and browser-owned coding settings. Missing capabilities render as unavailable; errors are shown as errors.
 
-Declarative auto-mounting accepts only non-sensitive data-api-origin, data-mode, and data-target attributes. OAuth attributes must be provided together. It never reads a token from markup.
+HTTP resource calls use an Authorization: Bearer header with credentials omitted. Tokens remain in JavaScript memory and are never read from markup or localStorage.
 
-The reusable browser OAuth client uses discovery-first OAuth/OIDC Authorization Code + PKCE (S256). Issuer, client ID, exact redirect URI, resource, scopes, HTTPS endpoints, and provider capabilities are validated before authorization. Production clients and redirect URIs must be registered by the provider.
+## DSH Web
 
-Access and refresh tokens live only in JavaScript memory. The short-lived PKCE transaction is removed on every callback path. Tokens, roles, and capabilities are never put in markup, localStorage, or logs.
+Install mtmharness as a DSH host plugin when local coding capabilities are required:
 
-HTTP resource calls and revocation use an Authorization: Bearer header with credentials: omit. Session and streaming operations remain unavailable until their protected canonical contracts are implemented.
+    dsh plugin --profile web add mtmharness
+    dsh --profile web --dump-config
 
-The official DSH plugin keeps the host FullShell and local session untouched.
+The host plugin owns Codebase Memory, Modern Go, Ponytail, and RTK. These are DSH-local capabilities and are not automatically enabled by the browser app. Canvas is a separate mtmcanvas plugin.
 
 ## Development
 
     pnpm install
-    pnpm exec turbo run typecheck test --filter=mtmharness...
+    pnpm --filter mtmharness typecheck
+    pnpm --filter mtmharness test
