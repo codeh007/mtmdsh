@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { build } from "esbuild";
 import { execFileSync } from "node:child_process";
 import {
   existsSync,
@@ -10,7 +11,6 @@ import {
 } from "node:fs";
 import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { build } from "esbuild";
 
 const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 const libRoot = resolve(packageRoot, "lib");
@@ -174,7 +174,7 @@ writeFileSync(clientOutput, artifact);
 rmSync(clientTemp, { force: true });
 
 execFileSync(vite, ["build"], { cwd: packageRoot, stdio: "inherit" });
-execFileSync(tsc, ["--project", resolve(packageRoot, "tsconfig.embed.json")], {
+execFileSync(tsc, ["--project", resolve(packageRoot, )], {
   cwd: packageRoot,
   stdio: "inherit",
 });
