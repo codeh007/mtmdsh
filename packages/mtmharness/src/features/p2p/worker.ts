@@ -19,7 +19,7 @@ import {
   writePeerDiscoveryFrame,
 } from "./peer-discovery.js";
 import { createIdentity, loadStorage, restoreIdentity, saveStorage } from "./storage.js";
-import { DEFAULT_TIMEOUT_MS, MAX_BODY_BYTES, type P2pHttpRequest, type P2pMessage, type P2pSnapshot, type P2pStatus, validateMessageId, validateRequest } from "./protocol.js";
+import { DEFAULT_TIMEOUT_MS, MAX_BODY_BYTES, type P2pDiscoveryStatus, type P2pHttpRequest, type P2pMessage, type P2pSnapshot, type P2pStatus, validateMessageId, validateRequest } from "./protocol.js";
 
 const ports = new Set<MessagePort>();
 const peers = new Map<string, { id: string; addresses: Set<string>; protocols: Set<string>; status: P2pStatus }>();
@@ -30,6 +30,8 @@ const storedPeers = new Set<string>();
 let node: Libp2p | undefined;
 let nodePromise: Promise<Libp2p> | undefined;
 let status: P2pStatus = "idle";
+let discoveryStatus: P2pDiscoveryStatus = "idle";
+let discoveryError: string | undefined;
 let lastError: string | undefined;
 let peerWriteChain: Promise<void> = Promise.resolve();
 let stopPromise: Promise<void> | undefined;
@@ -101,7 +103,18 @@ async function connectPeer(port: MessagePort, id: string, rawAddress: string, si
     const connection = await created.dial(target.address, { signal });
     if (connection.remotePeer.toString() !== target.peerId) throw new Error("connected peer ID does not match the address");
     rememberPeer(target, "connected");
-    await discover(created, connection, target.peerId);
+    discoveryStatus = "discovering";
+    discoveryError = undefined;
+    publish();
+    try {
+      await discover(created, connection, target.peerId);
+      discoveryStatus = "connected";
+    } catch (error) {
+      discoveryStatus = "failed";
+      discoveryError = errorMessage(error);
+      throw error;
+    }
+    publish();
     storedPeers.add(target.full);
     await persistPeers();
     safePost(port, { type: "result", id });
@@ -327,6 +340,8 @@ function publish(): void {
     status,
     ...(node === undefined ? {} : { peerId: node.peerId.toString() }),
     peers: [...peers.values()].map((peer) => ({ id: peer.id, addresses: [...peer.addresses], protocols: [...peer.protocols], status: peer.status })),
+    discoveryStatus,
+    ...(discoveryError === undefined ? {} : { discoveryError }),
     ...(lastError === undefined ? {} : { error: lastError }),
   };
   for (const port of ports) safePost(port, { type: "snapshot", snapshot });
@@ -378,6 +393,8 @@ async function stopNode(): Promise<void> {
     node = undefined;
     nodePromise = undefined;
     status = "idle";
+    discoveryStatus = "idle";
+    discoveryError = undefined;
     publish();
   })();
   try {

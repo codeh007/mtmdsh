@@ -1,10 +1,17 @@
-import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { LayoutDashboard, Maximize2, MessageSquare, X } from "lucide-react";
+import { Link, Outlet, useMatchRoute, useRouter } from "@tanstack/react-router";
+import {
+  LayoutDashboard,
+  Maximize2,
+  MessageSquare,
+  Network,
+  X,
+} from "lucide-react";
 import { type ReactElement, useSyncExternalStore } from "react";
 import { Button } from "../components/ui/button.js";
 import type { MtmHarnessRuntime } from "../runtime.js";
 import type { MtmHarnessAuthClient } from "./auth.js";
 import { AuthControls } from "./auth-controls.js";
+import { DshIntegrationControl } from "./dsh-controls.js";
 import type {
   MtmHarnessPresentationController,
   NormalizedClientConfig,
@@ -15,11 +22,13 @@ export function EmbeddedShell({
   config,
   runtime,
   auth,
+  dsh,
   presentationController,
 }: {
   config: NormalizedClientConfig;
   runtime: MtmHarnessRuntime;
   auth?: MtmHarnessAuthClient;
+  dsh?: NormalizedClientConfig["dsh"];
   presentationController: MtmHarnessPresentationController;
 }): ReactElement {
   const state = useSyncExternalStore(
@@ -28,15 +37,21 @@ export function EmbeddedShell({
     presentationController.snapshot,
   );
   const matchRoute = useMatchRoute();
+  const router = useRouter();
   const isWorkspace = Boolean(matchRoute({ to: "/workspace" }));
-  const navigationLabel = isWorkspace ? "Open conversation" : "Open workspace";
-  const NavigationIcon = isWorkspace ? MessageSquare : LayoutDashboard;
+  const isP2p = Boolean(matchRoute({ to: "/p2p" }));
+  const navigationLabel =
+    isWorkspace || isP2p ? "Open conversation" : "Open workspace";
+  const navigationTo = isWorkspace || isP2p ? "/" : "/workspace";
+  const NavigationIcon = isWorkspace || isP2p ? MessageSquare : LayoutDashboard;
 
   if (state === "fullscreen") {
     return (
       <EmbeddedFullShell
         runtime={runtime}
         auth={auth}
+        dsh={dsh}
+        onOpenP2p={() => router.navigate({ to: "/p2p" })}
         presentationController={presentationController}
       />
     );
@@ -80,6 +95,10 @@ export function EmbeddedShell({
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <AuthControls auth={auth} />
+          <DshIntegrationControl
+            bridge={dsh}
+            onOpenP2p={() => router.navigate({ to: "/p2p" })}
+          />
           <Button
             type="button"
             size="icon-sm"
@@ -95,11 +114,22 @@ export function EmbeddedShell({
             size="icon-sm"
             variant="ghost"
             nativeButton={false}
-            render={<Link to={isWorkspace ? "/" : "/workspace"} />}
+            render={<Link to={navigationTo} />}
             aria-label={navigationLabel}
             title={navigationLabel}
           >
             <NavigationIcon />
+          </Button>
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            nativeButton={false}
+            render={<Link to={isP2p ? "/" : "/p2p"} />}
+            aria-label={isP2p ? "Open conversation" : "Open P2P node"}
+            title={isP2p ? "Open conversation" : "Open P2P node"}
+          >
+            <Network />
           </Button>
           <Button
             type="button"
