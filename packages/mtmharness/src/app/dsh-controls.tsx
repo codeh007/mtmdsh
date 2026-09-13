@@ -1,11 +1,11 @@
 import { LoaderCircle, Plug, Unplug } from "lucide-react";
 import { type ReactElement, useState, useSyncExternalStore } from "react";
+import { Badge } from "../components/ui/badge.js";
+import { Button } from "../components/ui/button.js";
 import type {
   MtmHarnessDshIntegrationBridge,
   MtmHarnessDshIntegrationSnapshot,
-} from "../../host/contract.js";
-import { Badge } from "../components/ui/badge.js";
-import { Button } from "../components/ui/button.js";
+} from "../host/contract.js";
 
 function statusLabel(snapshot: MtmHarnessDshIntegrationSnapshot): string {
   if (snapshot.status === "active") return "DSH active";

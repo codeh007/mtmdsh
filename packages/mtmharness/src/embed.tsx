@@ -5,9 +5,8 @@ import {
   type RouterHistory,
 } from "@tanstack/react-router";
 import { createRoot } from "react-dom/client";
-import { MtmP2pClient } from "../features/p2p/client.js";
-import type { MtmHarnessAuthClient } from "./app/auth.js";
 import { MtmHarnessApp } from "./app/app.js";
+import type { MtmHarnessAuthClient } from "./app/auth.js";
 import {
   createPresentationController,
   createTokenSource,
@@ -17,6 +16,7 @@ import {
   resolveTarget,
 } from "./app/config.js";
 import { createClientRouter } from "./app/router.js";
+import { MtmP2pClient } from "./features/p2p/client.js";
 import { MtmHarnessRuntime } from "./runtime.js";
 import embedStyles from "./styles/globals.css?inline";
 
@@ -164,7 +164,7 @@ export function autoMount(
         clientId: oauthValues[1]!,
         redirectUri: oauthValues[2]!,
         resource: oauthValues[3]!,
-        scopes: oauthValues[4]!.split(/\s+/u),
+        scopes: oauthValues[4]?.split(/\s+/u),
       }
     : runtimeBootstrap.oauth;
   const handle = bootstrap({

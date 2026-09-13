@@ -14,7 +14,7 @@ export function EmbeddedFullShell({
 }: {
   runtime: MtmHarnessRuntime;
   auth?: MtmHarnessAuthClient;
-  dsh?: import("../../host/contract.js").MtmHarnessDshIntegrationBridge;
+  dsh?: import("../host/contract.js").MtmHarnessDshIntegrationBridge;
   onOpenP2p?: () => Promise<void>;
   presentationController: MtmHarnessPresentationController;
 }): ReactElement {

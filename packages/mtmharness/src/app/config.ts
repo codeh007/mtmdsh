@@ -1,5 +1,5 @@
 import type { RouterHistory } from "@tanstack/react-router";
-import type { MtmHarnessHostCapabilities } from "../../host/contract.js";
+import type { MtmHarnessHostCapabilities } from "../host/contract.js";
 import { hasControlCharacter } from "../validation.js";
 import {
   MemoryTokenSource,
@@ -113,10 +113,10 @@ export function normalizeUrl(value: string, field: string): string {
   try {
     url = new URL(value.trim());
   } catch {
-    throw new TypeError(field + " must be an absolute URL");
+    throw new TypeError(`${field} must be an absolute URL`);
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new TypeError(field + " must use http or https");
+    throw new TypeError(`${field} must use http or https`);
   }
   return url.toString();
 }
@@ -175,7 +175,7 @@ function normalizeHttpsUrl(value: string, field: string): string {
   const url = new URL(normalizeUrl(value, field));
   if (url.protocol !== "https:" || url.username || url.password || url.hash) {
     throw new TypeError(
-      field + " must use HTTPS without credentials or fragments",
+      `${field} must use HTTPS without credentials or fragments`,
     );
   }
   return url.toString();
@@ -208,7 +208,7 @@ export function normalizeConfig(
   const historyMode =
     config.historyMode ?? (mode === "fullscreen" ? "hash" : "memory");
   if (!MODES.includes(mode)) {
-    throw new TypeError("mode must be one of: " + MODES.join(", "));
+    throw new TypeError(`mode must be one of: ${MODES.join(", ")}`);
   }
   if (!["memory", "hash", "browser"].includes(historyMode)) {
     throw new TypeError("historyMode must be memory, hash, or browser");
@@ -261,7 +261,7 @@ export function resolveTarget(
   if (typeof target === "string") {
     const element = document.querySelector(target);
     if (element) return element;
-    throw new Error("target selector did not match an element: " + target);
+    throw new Error(`target selector did not match an element: ${target}`);
   }
   return document.body ?? document.documentElement;
 }

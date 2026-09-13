@@ -26,8 +26,8 @@ import {
   useEffect,
   useState,
 } from "react";
-import type { MtmHarnessAuthClient } from "../app/auth.js";
 import { AuthControls } from "../app/auth-controls.js";
+import type { MtmHarnessAuthClient } from "../app/auth.js";
 import { DshIntegrationControl } from "../app/dsh-controls.js";
 import type { MtmSessionSummary } from "../dsh/adapter.js";
 import { cn } from "../lib/utils.js";
@@ -40,7 +40,7 @@ export interface FullShellFrameProps {
   children: ReactNode;
   runtime: MtmHarnessRuntime;
   auth?: MtmHarnessAuthClient;
-  dsh?: import("../../host/contract.js").MtmHarnessDshIntegrationBridge;
+  dsh?: import("../host/contract.js").MtmHarnessDshIntegrationBridge;
   onOpenP2p?: () => Promise<void>;
   onClose?: () => void;
 }
@@ -66,8 +66,8 @@ const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
 function formatUpdatedAt(updatedAt: number): string {
   const age = Math.max(0, Date.now() - updatedAt);
   if (age < 60_000) return "Just now";
-  if (age < 3_600_000) return Math.floor(age / 60_000) + "m ago";
-  if (age < 86_400_000) return Math.floor(age / 3_600_000) + "h ago";
+  if (age < 3_600_000) return `${Math.floor(age / 60_000)}m ago`;
+  if (age < 86_400_000) return `${Math.floor(age / 3_600_000)}h ago`;
   return DATE_FORMATTER.format(updatedAt);
 }
 
@@ -214,7 +214,7 @@ function SandboxControl({
         )}
       >
         {status}
-        {selected ? " · " + selected.workspaceId : ""}
+        {selected ? ` · ${selected.workspaceId}` : ""}
       </span>
       {creating ? (
         <form
@@ -716,7 +716,7 @@ function SessionHeader({
             </div>
             <p className="mt-1 truncate text-muted-foreground text-xs">
               {workspace
-                ? workspace.title + " / " + workspace.path
+                ? `${workspace.title} / ${workspace.path}`
                 : "Select a session from the sidebar"}
             </p>
           </>
@@ -925,10 +925,7 @@ export function FullShellFrame({
               {statusLabel(snapshot)}
             </Badge>
             <AuthControls auth={auth} />
-            <DshIntegrationControl
-              bridge={dsh}
-              onOpenP2p={onOpenP2p}
-            />
+            <DshIntegrationControl bridge={dsh} onOpenP2p={onOpenP2p} />
             {onClose ? (
               <Button
                 type="button"
@@ -1017,7 +1014,7 @@ export function WorkspaceOverview({
           </h2>
           <p className="mt-2 text-muted-foreground text-sm">
             {selectedSandbox
-              ? selectedSandbox.name + " · " + selectedSandbox.status
+              ? `${selectedSandbox.name} · ${selectedSandbox.status}`
               : "No sandbox selected"}
           </p>
           <p className="mt-1 break-all font-mono text-muted-foreground text-xs">
@@ -1039,7 +1036,7 @@ export function WorkspaceOverview({
             "Sessions",
             String(activeSessions.length),
             selected
-              ? "Selected session: " + sessionTitle(selected)
+              ? `Selected session: ${sessionTitle(selected)}`
               : "No session selected",
           ],
           [

@@ -7,8 +7,8 @@ import {
   type RouterHistory,
 } from "@tanstack/react-router";
 import { WorkspaceOverview } from "../components/full-shell.js";
-import type { MtmP2pClient } from "../../features/p2p/client.js";
-import type { MtmHarnessDshIntegrationBridge } from "../../host/contract.js";
+import type { MtmP2pClient } from "../features/p2p/client.js";
+import type { MtmHarnessDshIntegrationBridge } from "../host/contract.js";
 import type { MtmHarnessRuntime } from "../runtime.js";
 import type { MtmHarnessAuthClient } from "./auth.js";
 import type {

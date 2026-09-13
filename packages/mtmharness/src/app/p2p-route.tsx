@@ -15,11 +15,11 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import type { MtmP2pClient } from "../../features/p2p/client.js";
-import type { P2pSnapshot } from "../../features/p2p/protocol.js";
 import { Badge } from "../components/ui/badge.js";
 import { Button } from "../components/ui/button.js";
 import { Separator } from "../components/ui/separator.js";
+import type { MtmP2pClient } from "../features/p2p/client.js";
+import type { P2pSnapshot } from "../features/p2p/protocol.js";
 
 function useP2pSnapshot(client: MtmP2pClient): P2pSnapshot {
   return useSyncExternalStore(
@@ -136,7 +136,7 @@ export function P2pDebugView({
       );
     } catch (error) {
       if (controller.signal.aborted) return;
-      setRequestError("Request failed: " + errorMessage(error));
+      setRequestError(`Request failed: ${errorMessage(error)}`);
     } finally {
       if (requestController.current === controller)
         requestController.current = undefined;
