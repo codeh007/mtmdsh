@@ -9,8 +9,8 @@
   },
   "main": "./lib/index.js",
   "types": "./lib/types/index.d.ts",
-  "unpkg": "./dist/embed/mtmharness.iife.js",
-  "jsdelivr": "./dist/embed/mtmharness.iife.js",
+  "unpkg": "./dist/mtmharness.iife.js",
+  "jsdelivr": "./dist/mtmharness.iife.js",
   "exports": {
     ".": {
       "types": "./lib/types/index.d.ts",
@@ -21,11 +21,11 @@
       "default": "./lib/client.cjs"
     },
     "./embed": {
-      "types": "./dist/types/embed/index.d.ts",
-      "import": "./dist/embed/mtmharness.js"
+      "types": "./lib/types/embed/index.d.ts",
+      "import": "./dist/mtmharness.js"
     },
     "./auth": {
-      "types": "./dist/types/embed/app/auth.d.ts",
+      "types": "./lib/types/embed/app/auth.d.ts",
       "import": "./dist/auth.js"
     },
     "./p2p-worker": {
@@ -60,17 +60,17 @@
     "lib/client.cjs",
     "lib/p2p-worker.cjs",
     "lib/types/**/*.d.ts",
-    "dist/embed",
+    "dist/mtmharness.js",
+    "dist/mtmharness.iife.js",
     "dist/auth.js",
-    "dist/types",
     "cordis.patch.yml",
     "README.md",
     "package.json",
     "LICENSE"
   ],
   "scripts": {
-    "build": "node scripts/build.mjs",
-    "typecheck": "tsc --noEmit && tsc --noEmit",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts && node --test tests/*.test.mjs",
     "prepack": "pnpm exec turbo run build --filter=mtmharness..."
   },
@@ -180,7 +180,6 @@
     "@vitejs/plugin-react": "6.0.5",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
-    "esbuild": "0.28.2",
     "jsdom": "30.0.1",
     "lucide-react": "1.21.0",
 
