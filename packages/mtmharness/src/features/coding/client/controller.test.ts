@@ -28,7 +28,6 @@ function settingsScope() {
     status: "ready",
     value: {
       codebaseMemoryEnabled: true,
-      dynamicCanvasEnabled: false,
       codebaseMemoryAugmentHooks: true,
       ponytailEnabled: true,
       ponytailMode: "full",

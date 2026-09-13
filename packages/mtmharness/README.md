@@ -2,7 +2,7 @@
 
 mtmharness is one public npm package with one unified DSH plugin. The package root supplies the Host plugin, and ./client supplies the DSH Web client entry.
 
-The client entry composes mtmcanvas and the internal browser P2P feature inside the mtmharness fiber. P2P is owned by this package and has no separate plugin or product overlay. All registrations, styles, listeners, and clients are disposed with the owning Cordis fiber.
+The client entry owns the browser P2P feature and coding settings inside the mtmharness fiber. Canvas is a separate `mtmcanvas` plugin and is not composed, configured, or loaded by this package. All registrations, styles, listeners, and clients owned by mtmharness are disposed with its Cordis fiber.
 
 The Modern Go Guidelines wrapper uses the pinned upstream CLI with standard go install and user cache behavior. It never creates a project-local cache or overrides the active DSH file policy.
 
@@ -11,7 +11,7 @@ The Modern Go Guidelines wrapper uses the pinned upstream CLI with standard go i
     dsh plugin --profile web add mtmharness
     dsh --profile web --dump-config
 
-Only mtmharness is installed as a DSH plugin. Restart the DSH Web host after changing profile composition.
+This installs only mtmharness. Install mtmcanvas separately when the Canvas overlay is needed. Restart the DSH Web host after changing profile composition.
 
 ## Embed
 
