@@ -2,6 +2,7 @@ export const DEFAULT_TIMEOUT_MS = 10000;
 export const MAX_BODY_BYTES = 1024 * 1024;
 
 export type P2pStatus = "idle" | "connecting" | "connected" | "closed" | "error";
+export type P2pDiscoveryStatus = "idle" | "discovering" | "connected" | "failed";
 
 export interface P2pPeer {
   readonly id: string;
@@ -14,6 +15,8 @@ export interface P2pSnapshot {
   readonly status: P2pStatus;
   readonly peerId?: string;
   readonly peers: readonly P2pPeer[];
+  readonly discoveryStatus?: P2pDiscoveryStatus;
+  readonly discoveryError?: string;
   readonly error?: string;
 }
 

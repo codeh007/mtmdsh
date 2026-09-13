@@ -8,10 +8,14 @@ import type { MtmHarnessPresentationController } from "./config.js";
 export function EmbeddedFullShell({
   runtime,
   auth,
+  dsh,
+  onOpenP2p,
   presentationController,
 }: {
   runtime: MtmHarnessRuntime;
   auth?: MtmHarnessAuthClient;
+  dsh?: import("../../host/contract.js").MtmHarnessDshIntegrationBridge;
+  onOpenP2p?: () => Promise<void>;
   presentationController: MtmHarnessPresentationController;
 }): ReactElement {
   return (
@@ -19,6 +23,8 @@ export function EmbeddedFullShell({
       <FullShellFrame
         runtime={runtime}
         auth={auth}
+        dsh={dsh}
+        onOpenP2p={onOpenP2p}
         onClose={presentationController.close}
       >
         <Outlet />

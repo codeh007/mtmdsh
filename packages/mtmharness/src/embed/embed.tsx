@@ -1,6 +1,13 @@
-import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
+import {
+  createBrowserHistory,
+  createHashHistory,
+  createMemoryHistory,
+  type RouterHistory,
+} from "@tanstack/react-router";
 import { createRoot } from "react-dom/client";
+import { MtmP2pClient } from "../features/p2p/client.js";
 import type { MtmHarnessAuthClient } from "./app/auth.js";
+import { MtmHarnessApp } from "./app/app.js";
 import {
   createPresentationController,
   createTokenSource,
@@ -13,17 +20,38 @@ import { createClientRouter } from "./app/router.js";
 import { MtmHarnessRuntime } from "./runtime.js";
 import embedStyles from "./styles/globals.css?inline";
 
+const mountedRoots = new WeakMap<Element, MtmHarnessClientHandle>();
+
+function createHistory(
+  config: ReturnType<typeof normalizeConfig>,
+): RouterHistory {
+  if (config.history !== undefined) return config.history;
+  if (config.historyMode === "browser") return createBrowserHistory();
+  if (config.historyMode === "hash") return createHashHistory();
+  return createMemoryHistory({ initialEntries: ["/"] });
+}
+
 function mountClient(config: MtmHarnessClientConfig): MtmHarnessClientHandle {
   const normalizedConfig = normalizeConfig(config);
+  const target = resolveTarget(config.target);
+  const existing = mountedRoots.get(target);
+  if (existing !== undefined) return existing;
+  if (
+    [...target.children].some(
+      (element) => element.getAttribute("data-mtmharness-root") === "true",
+    )
+  )
+    throw new Error("mtmharness is already mounted in this target");
+
   const presentationController = createPresentationController(
     normalizedConfig.mode,
   );
-  const target = resolveTarget(config.target);
   const host = document.createElement("div");
   const shadowRoot = host.attachShadow({ mode: "open" });
   const style = document.createElement("style");
   const container = document.createElement("div");
   host.dataset.mtmharness = "true";
+  host.dataset.mtmharnessRoot = "true";
   style.textContent =
     embedStyles +
     "\n:host { --font-sans: ui-sans-serif, system-ui, sans-serif; }";
@@ -58,6 +86,7 @@ function mountClient(config: MtmHarnessClientConfig): MtmHarnessClientHandle {
     tokenSource,
     webSocketFactory: normalizedConfig.webSocketFactory,
   });
+  const p2p = new MtmP2pClient(normalizedConfig.p2p);
   if (auth !== undefined) {
     void auth
       .consumeCallback()
@@ -70,40 +99,55 @@ function mountClient(config: MtmHarnessClientConfig): MtmHarnessClientHandle {
     config: normalizedConfig,
     runtime,
     presentation: "embed",
-    history: createMemoryHistory({ initialEntries: ["/"] }),
+    history: createHistory(normalizedConfig),
     auth,
+    dsh: normalizedConfig.dsh,
+    p2p,
+    p2pBootstrapAddress: normalizedConfig.p2pBootstrapAddress,
     presentationController,
   });
   const root = createRoot(container);
-  root.render(<RouterProvider router={router} />);
+  root.render(<MtmHarnessApp router={router} />);
   let mounted = true;
-  return {
+  const handle: MtmHarnessClientHandle = {
     open: presentationController.open,
     close: presentationController.close,
     openFullShell: presentationController.openFullShell,
+    navigate: (route) => router.navigate({ to: route }),
+    openP2p: () => router.navigate({ to: "/p2p" }),
     unmount() {
       if (!mounted) return;
       mounted = false;
+      mountedRoots.delete(target);
       root.unmount();
       router.history.destroy();
       runtime.dispose();
+      void p2p.close();
+      if (normalizedConfig.dsh?.getSnapshot().status === "active")
+        void normalizedConfig.dsh.disable();
       auth?.dispose();
       observer.disconnect();
       host.remove();
     },
   };
+  mountedRoots.set(target, handle);
+  return handle;
 }
 
-export function mount(config: MtmHarnessClientConfig): MtmHarnessClientHandle {
+export function bootstrap(
+  config: MtmHarnessClientConfig,
+): MtmHarnessClientHandle {
   return mountClient(config);
 }
+
+export const mount = bootstrap;
 
 export function autoMount(
   script: HTMLScriptElement,
 ): MtmHarnessClientHandle | null {
   const apiOrigin = script.dataset.apiOrigin;
   if (!apiOrigin) return null;
-  const bootstrap = window.__MTM_HARNESS_CONFIG__ ?? {};
+  const runtimeBootstrap = window.__MTM_HARNESS_CONFIG__ ?? {};
   const oauthValues = [
     script.dataset.oauthIssuer,
     script.dataset.oauthClientId,
@@ -122,13 +166,16 @@ export function autoMount(
         resource: oauthValues[3]!,
         scopes: oauthValues[4]!.split(/\s+/u),
       }
-    : bootstrap.oauth;
-  const handle = mountClient({
+    : runtimeBootstrap.oauth;
+  const handle = bootstrap({
     apiOrigin,
     oauth,
-    accessToken: bootstrap.accessToken,
-    tokenSource: bootstrap.tokenSource,
-    webSocketFactory: bootstrap.webSocketFactory,
+    accessToken: runtimeBootstrap.accessToken,
+    tokenSource: runtimeBootstrap.tokenSource,
+    webSocketFactory: runtimeBootstrap.webSocketFactory,
+    p2p: runtimeBootstrap.p2p,
+    p2pBootstrapAddress: runtimeBootstrap.p2pBootstrapAddress,
+    dsh: runtimeBootstrap.dsh,
     mode: script.dataset.mode as MtmHarnessClientConfig["mode"] | undefined,
     target: script.dataset.target,
   });
@@ -136,7 +183,7 @@ export function autoMount(
   return handle;
 }
 
-export const MtmHarnessClient = { autoMount, mount };
+export const MtmHarnessClient = { autoMount, bootstrap, mount };
 
 declare global {
   interface Window {

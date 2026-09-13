@@ -1,3 +1,5 @@
+import type { RouterHistory } from "@tanstack/react-router";
+import type { MtmHarnessHostCapabilities } from "../../host/contract.js";
 import { hasControlCharacter } from "../validation.js";
 import {
   MemoryTokenSource,
@@ -7,6 +9,8 @@ import {
 } from "./auth.js";
 
 export type MtmHarnessClientMode = "floating" | "dialog" | "fullscreen";
+export type MtmHarnessHistoryMode = "memory" | "hash" | "browser";
+export type MtmHarnessRoute = "/" | "/workspace" | "/p2p";
 export type ClientPresentation = "embed";
 export type MtmHarnessWebSocketFactory = (
   url: URL,
@@ -47,9 +51,10 @@ export function createPresentationController(
   };
 }
 
-export interface MtmHarnessRuntimeBootstrap {
+export interface MtmHarnessRuntimeBootstrap extends MtmHarnessHostCapabilities {
   apiOrigin?: string;
   oauth?: OAuthClientConfig;
+  p2pBootstrapAddress?: string;
   /** Explicit in-memory host/test adapter. Never populate this from markup. */
   accessToken?: string;
   tokenSource?: MtmHarnessTokenSource;
@@ -62,10 +67,13 @@ declare global {
   }
 }
 
-export interface MtmHarnessClientConfig {
+export interface MtmHarnessClientConfig extends MtmHarnessHostCapabilities {
   target?: Element | string;
   apiOrigin: string;
   oauth?: OAuthClientConfig;
+  history?: RouterHistory;
+  historyMode?: MtmHarnessHistoryMode;
+  p2pBootstrapAddress?: string;
   /** Explicit in-memory host/test adapter. */
   accessToken?: string;
   tokenSource?: MtmHarnessTokenSource;
@@ -73,9 +81,12 @@ export interface MtmHarnessClientConfig {
   mode?: MtmHarnessClientMode;
 }
 
-export interface NormalizedClientConfig {
+export interface NormalizedClientConfig extends MtmHarnessHostCapabilities {
   apiOrigin: string;
   oauth?: OAuthClientConfig;
+  history?: RouterHistory;
+  historyMode: MtmHarnessHistoryMode;
+  p2pBootstrapAddress?: string;
   accessToken?: string;
   tokenSource?: MtmHarnessTokenSource;
   webSocketFactory?: MtmHarnessWebSocketFactory;
@@ -87,6 +98,8 @@ export interface MtmHarnessClientHandle {
   open(): void;
   close(): void;
   openFullShell(): void;
+  navigate(route: MtmHarnessRoute): Promise<void>;
+  openP2p(): Promise<void>;
 }
 
 const MODES: readonly MtmHarnessClientMode[] = [
@@ -192,14 +205,27 @@ export function normalizeConfig(
   config: MtmHarnessClientConfig,
 ): NormalizedClientConfig {
   const mode = config.mode ?? "floating";
+  const historyMode =
+    config.historyMode ?? (mode === "fullscreen" ? "hash" : "memory");
   if (!MODES.includes(mode)) {
     throw new TypeError("mode must be one of: " + MODES.join(", "));
   }
+  if (!["memory", "hash", "browser"].includes(historyMode)) {
+    throw new TypeError("historyMode must be memory, hash, or browser");
+  }
   const apiOrigin = normalizeOrigin(config.apiOrigin, "apiOrigin");
+  const p2pBootstrapAddress = config.p2pBootstrapAddress?.trim();
+  if (p2pBootstrapAddress === "")
+    throw new TypeError("p2pBootstrapAddress must not be empty");
   const accessToken = config.accessToken?.trim();
   if (accessToken === "") throw new TypeError("accessToken must not be empty");
   return {
     apiOrigin,
+    ...(config.history === undefined ? {} : { history: config.history }),
+    historyMode,
+    ...(config.p2p === undefined ? {} : { p2p: config.p2p }),
+    ...(p2pBootstrapAddress === undefined ? {} : { p2pBootstrapAddress }),
+    ...(config.dsh === undefined ? {} : { dsh: config.dsh }),
     ...(config.oauth === undefined
       ? {}
       : { oauth: normalizeOAuthConfig(config.oauth) }),
