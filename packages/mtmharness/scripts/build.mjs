@@ -65,9 +65,7 @@ const hostTypes = packageExport(".", "types");
 const clientOutput = packageExport("./client");
 const clientTypes = packageExport("./client", "types");
 const embedOutput = packageExport("./embed", "import");
-const embedTypes = packageExport("./embed", "types");
 const authOutput = packageExport("./auth", "import");
-const authTypes = packageExport("./auth", "types");
 const p2pWorkerOutput = packageExport("./p2p-worker");
 const p2pWorkerTypes = packageExport("./p2p-worker", "types");
 const embedIifeOutput = packageField("unpkg");
@@ -174,10 +172,6 @@ writeFileSync(clientOutput, artifact);
 rmSync(clientTemp, { force: true });
 
 execFileSync(vite, ["build"], { cwd: packageRoot, stdio: "inherit" });
-execFileSync(tsc, ["--project", resolve(packageRoot, )], {
-  cwd: packageRoot,
-  stdio: "inherit",
-});
 
 for (const [label, output] of [
   ["Host plugin", hostOutput],
@@ -187,9 +181,7 @@ for (const [label, output] of [
   ["embed ESM", embedOutput],
   ["embed IIFE", embedIifeOutput],
   ["embed jsDelivr", embedJsdelivrOutput],
-  ["embed declarations", embedTypes],
   ["auth ESM", authOutput],
-  ["auth declarations", authTypes],
   ["p2p worker", p2pWorkerOutput],
   ["p2p worker declarations", p2pWorkerTypes],
 ])

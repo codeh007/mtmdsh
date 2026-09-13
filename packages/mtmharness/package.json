@@ -21,11 +21,11 @@
       "default": "./lib/client.cjs"
     },
     "./embed": {
-      "types": "./dist/types/embed/index.d.ts",
+      "types": "./lib/types/embed/index.d.ts",
       "import": "./dist/embed/mtmharness.js"
     },
     "./auth": {
-      "types": "./dist/types/embed/app/auth.d.ts",
+      "types": "./lib/types/embed/app/auth.d.ts",
       "import": "./dist/auth.js"
     },
     "./p2p-worker": {
@@ -62,7 +62,6 @@
     "lib/types/**/*.d.ts",
     "dist/embed",
     "dist/auth.js",
-    "dist/types",
     "cordis.patch.yml",
     "README.md",
     "package.json",
@@ -70,7 +69,7 @@
   ],
   "scripts": {
     "build": "node scripts/build.mjs",
-    "typecheck": "tsc --noEmit && tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts && node --test tests/*.test.mjs",
     "prepack": "pnpm exec turbo run build --filter=mtmharness..."
   },
