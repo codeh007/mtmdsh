@@ -15,7 +15,7 @@ This installs only mtmharness. Install mtmcanvas separately when the Canvas over
 
 ## Embed
 
-The package exposes an embed IIFE at dist/embed/mtmharness.iife.js. The ./embed entry is mount-only; OAuth helpers and types are exposed through ./auth. Configure the API origin and pre-registered public OAuth client before the embed script runs:
+The package exposes browser bundles at dist/mtmharness.js (ESM) and dist/mtmharness.iife.js (IIFE). The ./embed entry is mount-only; OAuth helpers and types are exposed through ./auth. Configure the API origin and pre-registered public OAuth client before the embed script runs:
 
     <script>
       window.__MTM_HARNESS_CONFIG__ = {
