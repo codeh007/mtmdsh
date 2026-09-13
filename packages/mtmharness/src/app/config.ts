@@ -11,7 +11,7 @@ import {
 export type MtmHarnessClientMode = "floating" | "dialog" | "fullscreen";
 export type MtmHarnessHistoryMode = "memory" | "hash" | "browser";
 export type MtmHarnessRoute = "/" | "/workspace" | "/p2p";
-export type ClientPresentation = "embed";
+export type ClientPresentation = "app";
 export type MtmHarnessWebSocketFactory = (
   url: URL,
   protocols: readonly string[],

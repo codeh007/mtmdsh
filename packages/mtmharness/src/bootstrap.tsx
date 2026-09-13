@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-router";
 import { createRoot } from "react-dom/client";
 import { MtmHarnessApp } from "./app/app.js";
-import type { MtmHarnessAuthClient } from "./app/auth.js";
+import { createAuthCoordinator } from "./app/auth.js";
 import {
   createPresentationController,
   createTokenSource,
@@ -18,7 +18,7 @@ import {
 import { createClientRouter } from "./app/router.js";
 import { MtmP2pClient } from "./features/p2p/client.js";
 import { MtmHarnessRuntime } from "./runtime.js";
-import embedStyles from "./styles/globals.css?inline";
+import appStyles from "./styles/globals.css?inline";
 
 const mountedRoots = new WeakMap<Element, MtmHarnessClientHandle>();
 
@@ -53,7 +53,7 @@ function mountClient(config: MtmHarnessClientConfig): MtmHarnessClientHandle {
   host.dataset.mtmharness = "true";
   host.dataset.mtmharnessRoot = "true";
   style.textContent =
-    embedStyles +
+    appStyles +
     "\n:host { --font-sans: ui-sans-serif, system-ui, sans-serif; }";
   shadowRoot.append(style, container);
   target.append(host);
@@ -78,27 +78,16 @@ function mountClient(config: MtmHarnessClientConfig): MtmHarnessClientHandle {
     });
 
   const tokenSource = createTokenSource(normalizedConfig);
-  const auth =
-    tokenSource !== undefined && "consumeCallback" in tokenSource
-      ? (tokenSource as MtmHarnessAuthClient)
-      : undefined;
+  const auth = createAuthCoordinator(tokenSource);
   const runtime = new MtmHarnessRuntime(normalizedConfig.apiOrigin, {
     tokenSource,
     webSocketFactory: normalizedConfig.webSocketFactory,
   });
   const p2p = new MtmP2pClient(normalizedConfig.p2p);
-  if (auth !== undefined) {
-    void auth
-      .consumeCallback()
-      .then((consumed) =>
-        consumed ? runtime.refreshRegistry().catch(() => undefined) : undefined,
-      )
-      .catch(() => undefined);
-  }
   const router = createClientRouter({
     config: normalizedConfig,
     runtime,
-    presentation: "embed",
+    presentation: "app",
     history: createHistory(normalizedConfig),
     auth,
     dsh: normalizedConfig.dsh,
@@ -106,8 +95,13 @@ function mountClient(config: MtmHarnessClientConfig): MtmHarnessClientHandle {
     p2pBootstrapAddress: normalizedConfig.p2pBootstrapAddress,
     presentationController,
   });
+  void auth.ready.then(() => {
+    const target = auth.getReturnTarget();
+    if (target !== undefined && auth.getSnapshot().status === "authenticated")
+      void router.navigate({ to: target as never });
+  });
   const root = createRoot(container);
-  root.render(<MtmHarnessApp router={router} />);
+  root.render(<MtmHarnessApp router={router} auth={auth} />);
   let mounted = true;
   const handle: MtmHarnessClientHandle = {
     open: presentationController.open,
@@ -125,7 +119,7 @@ function mountClient(config: MtmHarnessClientConfig): MtmHarnessClientHandle {
       void p2p.close();
       if (normalizedConfig.dsh?.getSnapshot().status === "active")
         void normalizedConfig.dsh.disable();
-      auth?.dispose();
+      auth.dispose();
       observer.disconnect();
       host.remove();
     },
@@ -164,7 +158,7 @@ export function autoMount(
         clientId: oauthValues[1]!,
         redirectUri: oauthValues[2]!,
         resource: oauthValues[3]!,
-        scopes: oauthValues[4]?.split(/\s+/u),
+        scopes: oauthValues[4]!.split(/\s+/u),
       }
     : runtimeBootstrap.oauth;
   const handle = bootstrap({

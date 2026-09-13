@@ -27,7 +27,7 @@ import {
   useState,
 } from "react";
 import { AuthControls } from "../app/auth-controls.js";
-import type { MtmHarnessAuthClient } from "../app/auth.js";
+import type { MtmHarnessAuthCoordinator } from "../app/auth.js";
 import { DshIntegrationControl } from "../app/dsh-controls.js";
 import type { MtmSessionSummary } from "../dsh/adapter.js";
 import { cn } from "../lib/utils.js";
@@ -39,7 +39,7 @@ import { Separator } from "./ui/separator.js";
 export interface FullShellFrameProps {
   children: ReactNode;
   runtime: MtmHarnessRuntime;
-  auth?: MtmHarnessAuthClient;
+  auth?: MtmHarnessAuthCoordinator;
   dsh?: import("../host/contract.js").MtmHarnessDshIntegrationBridge;
   onOpenP2p?: () => Promise<void>;
   onClose?: () => void;
@@ -876,7 +876,6 @@ export function FullShellFrame({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    void runtime.refreshRegistry().catch(() => undefined);
   }, [runtime]);
 
   return (

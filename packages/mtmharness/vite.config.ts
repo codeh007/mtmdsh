@@ -17,7 +17,7 @@ const source = (file: string) => resolve(packageRoot, "src", file);
 const isBareImport = (id: string): boolean =>
   !id.startsWith(".") && !id.startsWith("/") && !id.startsWith("\0");
 const hostExternal = (id: string): boolean => isBareImport(id);
-type ProfileName = "host" | "worker" | "embed" | "auth";
+type ProfileName = "host" | "worker" | "browser";
 type Format = "es" | "cjs" | "iife";
 
 type Profile = {
@@ -49,8 +49,8 @@ const profiles: Record<ProfileName, Profile> = {
     external: () => false,
     emptyOutDir: false,
   },
-  embed: {
-    entry: source("embed/index.tsx"),
+  browser: {
+    entry: source("browser.tsx"),
     outDir: "dist",
     formats: ["es", "iife"],
     fileName: (format) =>
@@ -58,21 +58,12 @@ const profiles: Record<ProfileName, Profile> = {
     target: "es2020",
     emptyOutDir: true,
   },
-  auth: {
-    entry: source("embed/app/auth.ts"),
-    outDir: "dist",
-    formats: ["es"],
-    fileName: "auth",
-    target: "es2020",
-    emptyOutDir: false,
-  },
 };
 
 const profileOrder: readonly ProfileName[] = [
   "host",
   "worker",
-  "embed",
-  "auth",
+  "browser",
 ];
 
 function profileConfig(name: ProfileName, orchestrate: boolean): UserConfig {
@@ -81,8 +72,8 @@ function profileConfig(name: ProfileName, orchestrate: boolean): UserConfig {
     root: packageRoot,
     define: { "process.env.NODE_ENV": JSON.stringify("production") },
     plugins: [
-      ...(name === "embed" ? [react()] : []),
-      ...(name === "embed" ? [tailwindcss()] : []),
+      ...(name === "browser" ? [react()] : []),
+      ...(name === "browser" ? [tailwindcss()] : []),
       ...(name === "host" ? [declarationPlugin()] : []),
       ...(orchestrate ? [buildProfilesPlugin()] : []),
     ],

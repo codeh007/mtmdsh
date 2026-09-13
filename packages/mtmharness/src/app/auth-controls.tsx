@@ -2,9 +2,9 @@ import { LogIn, LogOut, RefreshCcw, UserRound } from "lucide-react";
 import { type ReactElement, useEffect, useState } from "react";
 import { Button } from "../components/ui/button.js";
 import { cn } from "../lib/utils.js";
-import type { MtmHarnessAuthClient, MtmHarnessAuthSnapshot } from "./auth.js";
+import type { MtmHarnessAuthCoordinator, MtmHarnessAuthSnapshot } from "./auth.js";
 
-function useAuthSnapshot(auth: MtmHarnessAuthClient): MtmHarnessAuthSnapshot {
+function useAuthSnapshot(auth: MtmHarnessAuthCoordinator): MtmHarnessAuthSnapshot {
   const [snapshot, setSnapshot] = useState(() => auth.getSnapshot());
   useEffect(() => {
     setSnapshot(auth.getSnapshot());
@@ -20,7 +20,7 @@ function redirectToAuthorization(url: string): void {
 export function AuthControls({
   auth,
 }: {
-  auth?: MtmHarnessAuthClient;
+  auth?: MtmHarnessAuthCoordinator;
 }): ReactElement | null {
   if (auth === undefined) return null;
   return <AuthControlsView auth={auth} />;
@@ -29,7 +29,7 @@ export function AuthControls({
 function AuthControlsView({
   auth,
 }: {
-  auth: MtmHarnessAuthClient;
+  auth: MtmHarnessAuthCoordinator;
 }): ReactElement {
   const snapshot = useAuthSnapshot(auth);
   const [busy, setBusy] = useState(false);
@@ -73,6 +73,8 @@ function AuthControlsView({
           <UserRound className="size-3.5" aria-hidden="true" />
           Signed in
         </span>
+        {auth.interactiveLogin ? (
+          <>
         <Button
           type="button"
           variant="ghost"
@@ -95,6 +97,8 @@ function AuthControlsView({
         >
           <LogOut />
         </Button>
+          </>
+        ) : null}
       </div>
     );
   }

@@ -2,10 +2,10 @@ import { Outlet } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { FullShellFrame } from "../components/full-shell.js";
 import type { MtmHarnessRuntime } from "../runtime.js";
-import type { MtmHarnessAuthClient } from "./auth.js";
+import type { MtmHarnessAuthCoordinator } from "./auth.js";
 import type { MtmHarnessPresentationController } from "./config.js";
 
-export function EmbeddedFullShell({
+export function FullscreenShell({
   runtime,
   auth,
   dsh,
@@ -13,7 +13,7 @@ export function EmbeddedFullShell({
   presentationController,
 }: {
   runtime: MtmHarnessRuntime;
-  auth?: MtmHarnessAuthClient;
+  auth?: MtmHarnessAuthCoordinator;
   dsh?: import("../host/contract.js").MtmHarnessDshIntegrationBridge;
   onOpenP2p?: () => Promise<void>;
   presentationController: MtmHarnessPresentationController;

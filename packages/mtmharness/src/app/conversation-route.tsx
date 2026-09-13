@@ -2,7 +2,6 @@ import { type ReactElement, useSyncExternalStore } from "react";
 import { ConversationSurface } from "../components/conversation-surface.js";
 import type { MtmHarnessRuntime } from "../runtime.js";
 import type {
-  ClientPresentation,
   MtmHarnessPresentationController,
   NormalizedClientConfig,
 } from "./config.js";
@@ -10,12 +9,10 @@ import type {
 export function ConversationRoute({
   config,
   runtime,
-  presentation,
   presentationController,
 }: {
   config: NormalizedClientConfig;
   runtime: MtmHarnessRuntime;
-  presentation: ClientPresentation;
   presentationController: MtmHarnessPresentationController;
 }): ReactElement {
   const fullShell =
@@ -29,7 +26,6 @@ export function ConversationRoute({
       config={config}
       runtime={runtime}
       compact
-      connectOnMount
       showHeader={!fullShell}
     />
   );

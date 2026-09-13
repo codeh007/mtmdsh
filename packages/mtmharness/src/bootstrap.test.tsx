@@ -1,6 +1,6 @@
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { bootstrap } from "./embed.js";
+import { bootstrap } from "./bootstrap.js";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
