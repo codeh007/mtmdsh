@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  createAuthCoordinator,
+  createMemoryTokenSource,
   createPkceChallenge,
   OAuthClient,
   type OAuthClientConfig,
   OAuthError,
   oauthTransactionStorageKey,
+  validateReturnTarget,
 } from "./auth";
 import { normalizeConfig } from "./config";
 
@@ -497,6 +500,25 @@ describe("OAuthClient", () => {
     await expect(auth.getAccessToken()).rejects.toMatchObject({
       code: "auth_required",
     });
+    auth.dispose();
+  });
+});
+
+describe("auth coordinator", () => {
+  it("exposes static token capability without OAuth actions", async () => {
+    const auth = createAuthCoordinator(createMemoryTokenSource("access-token"));
+    await auth.ready;
+    expect(auth.getSnapshot()).toMatchObject({ status: "authenticated", accountPartition: "explicit" });
+    expect(auth.interactiveLogin).toBe(false);
+    auth.dispose();
+  });
+
+  it("represents missing auth as unavailable and rejects unsafe targets", async () => {
+    const auth = createAuthCoordinator(undefined);
+    await auth.ready;
+    expect(auth.getSnapshot().status).toBe("unavailable");
+    expect(validateReturnTarget("/workspace?tab=files")).toBe("/workspace?tab=files");
+    expect(() => validateReturnTarget("https://evil.example/")).toThrowError(OAuthError);
     auth.dispose();
   });
 });

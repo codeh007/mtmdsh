@@ -6,7 +6,7 @@ The package does not register an mtmharness card in the DSH Settings page and do
 
 ## Browser App
 
-The package exposes browser bundles at dist/mtmharness.js (ESM) and dist/mtmharness.iife.js (IIFE). The ./embed entry exposes bootstrap/mount, MtmHarnessApp, the route contract, P2P client types, the settings capability view, and the optional host-owned DSH bridge. Configure the API origin and pre-registered public OAuth client before the embed script runs:
+The package exposes browser bundles at dist/mtmharness.js (ESM) and dist/mtmharness.iife.js (IIFE). The ./browser entry exposes bootstrap/mount, MtmHarnessApp, the route contract, P2P client types, the settings capability view, and the optional host-owned DSH bridge. Configure the API origin and pre-registered public OAuth client before the browser script runs:
 
     window.__MTM_HARNESS_CONFIG__ = {
       apiOrigin: "https://gomtm-dev.yuepa8.com",
@@ -21,7 +21,7 @@ The package exposes browser bundles at dist/mtmharness.js (ESM) and dist/mtmharn
 
 Use the ESM bootstrap API from an application build:
 
-    import { bootstrap } from "mtmharness/embed";
+    import { bootstrap } from "mtmharness/browser";
 
     const handle = bootstrap({
       target: "#agent-panel",

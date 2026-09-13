@@ -32,7 +32,8 @@ export type MtmHarnessAuthStatus =
   | "ready"
   | "authorizing"
   | "authenticated"
-  | "error";
+  | "error"
+  | "unavailable";
 
 export interface MtmHarnessAuthSnapshot {
   status: MtmHarnessAuthStatus;
@@ -51,8 +52,9 @@ export interface MtmHarnessTokenSource {
 export interface MtmHarnessAuthClient extends MtmHarnessTokenSource {
   getSnapshot(): MtmHarnessAuthSnapshot;
   discover(): Promise<OAuthDiscovery>;
-  beginLogin(options?: { selectAccount?: boolean }): Promise<string>;
+  beginLogin(options?: { selectAccount?: boolean; returnTarget?: string }): Promise<string>;
   consumeCallback(callbackUrl?: string): Promise<boolean>;
+  getReturnTarget(): string | undefined;
   logout(): Promise<void>;
   switchAccount(): Promise<string>;
   dispose(options?: { preserveAuthorization?: boolean }): void;
@@ -86,6 +88,7 @@ interface OAuthTransaction {
   verifier: string;
   nonce: string;
   createdAt: number;
+  returnTarget?: string;
 }
 
 interface TokenSet {
@@ -254,6 +257,16 @@ export function oauthTransactionStorageKey(config: OAuthClientConfig): string {
   return storageKey(config);
 }
 
+export function validateReturnTarget(value: string | undefined): string {
+  if (value === undefined || value === "") return "/";
+  if (!value.startsWith("/") || value.startsWith("//") || value.includes("#"))
+    throw new OAuthError("OAuth return target is invalid", "oauth_return_target_invalid");
+  const target = new URL(value, "https://mtmharness.invalid");
+  if (target.origin !== "https://mtmharness.invalid" || !["/", "/workspace", "/p2p", "/login", "/unavailable"].includes(target.pathname))
+    throw new OAuthError("OAuth return target is invalid", "oauth_return_target_invalid");
+  return target.pathname + target.search;
+}
+
 function scopesFor(config: OAuthClientConfig): readonly string[] {
   const scopes = config.scopes;
   if (
@@ -351,6 +364,7 @@ export class OAuthClient implements MtmHarnessAuthClient {
   private tokens: TokenSet | undefined;
   private refreshPromise: Promise<string> | undefined;
   private disposed = false;
+  private callbackReturnTarget: string | undefined;
 
   constructor(config: OAuthClientConfig, options: OAuthClientOptions = {}) {
     const issuer = canonicalIssuer(config.issuer);
@@ -393,6 +407,10 @@ export class OAuthClient implements MtmHarnessAuthClient {
 
   getAccountPartition(): string | undefined {
     return this.tokens?.accountPartition;
+  }
+
+  getReturnTarget(): string | undefined {
+    return this.callbackReturnTarget;
   }
 
   subscribe(listener: Listener): () => void {
@@ -531,7 +549,7 @@ export class OAuthClient implements MtmHarnessAuthClient {
     }
   }
 
-  async beginLogin(options: { selectAccount?: boolean } = {}): Promise<string> {
+  async beginLogin(options: { selectAccount?: boolean; returnTarget?: string } = {}): Promise<string> {
     this.ensureActive();
     this.clear();
     const metadata = await this.discover();
@@ -544,6 +562,7 @@ export class OAuthClient implements MtmHarnessAuthClient {
       verifier: randomText(),
       nonce: randomText(),
       createdAt: this.now(),
+      ...(options.returnTarget === undefined ? {} : { returnTarget: validateReturnTarget(options.returnTarget) }),
     };
     const challenge = await createPkceChallenge(transaction.verifier);
     try {
@@ -596,6 +615,7 @@ export class OAuthClient implements MtmHarnessAuthClient {
       return false;
     try {
       const transaction = this.readTransaction();
+      this.callbackReturnTarget = transaction.returnTarget;
       this.removeTransaction();
       if (
         !callbackMatchesRedirect(callback, transaction.redirectUri) ||
@@ -1111,6 +1131,9 @@ export class OAuthClient implements MtmHarnessAuthClient {
       verifier: safeString(record.verifier, "login state verifier", 512),
       nonce: safeString(record.nonce, "login state nonce", 512),
       createdAt: typeof record.createdAt === "number" ? record.createdAt : NaN,
+      ...(record.returnTarget === undefined
+        ? {}
+        : { returnTarget: validateReturnTarget(safeString(record.returnTarget, "login state return target", 2048)) }),
     };
     const age = this.now() - transaction.createdAt;
     if (
@@ -1200,4 +1223,56 @@ export function createMemoryTokenSource(
   accountPartition?: string,
 ): MemoryTokenSource {
   return new MemoryTokenSource(accessToken, accountPartition);
+}
+
+export interface MtmHarnessAuthCoordinator extends MtmHarnessAuthClient {
+  readonly interactiveLogin: boolean;
+  readonly ready: Promise<void>;
+}
+
+class AuthCoordinator implements MtmHarnessAuthCoordinator {
+  readonly interactiveLogin: boolean;
+  readonly ready: Promise<void>;
+  private snapshot: MtmHarnessAuthSnapshot;
+  private readonly listeners = new Set<Listener>();
+  private readonly unsubscribe: () => void;
+
+  constructor(private readonly source: MtmHarnessTokenSource | undefined) {
+    this.interactiveLogin = source instanceof OAuthClient;
+    const accountPartition = source?.getAccountPartition();
+    this.snapshot = source === undefined
+      ? { status: "unavailable" }
+      : accountPartition === undefined
+        ? { status: "signed-out" }
+        : { status: "authenticated", accountPartition };
+    this.unsubscribe = source?.subscribe((next) => this.publish(next)) ?? (() => undefined);
+    this.ready = this.bootstrap();
+  }
+
+  getSnapshot(): MtmHarnessAuthSnapshot { return this.snapshot; }
+  getAccountPartition(): string | undefined { return this.source?.getAccountPartition(); }
+  getReturnTarget(): string | undefined { return this.source instanceof OAuthClient ? this.source.getReturnTarget() : undefined; }
+  subscribe(listener: Listener): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
+  getAccessToken(): Promise<string> { return this.source?.getAccessToken() ?? Promise.reject(new OAuthError("Authentication is unavailable", "auth_unavailable", 503)); }
+  clear(): void { this.source?.clear(); if (this.source === undefined) this.publish({ status: "unavailable" }); }
+  discover(): Promise<OAuthDiscovery> { return this.oauth().discover(); }
+  beginLogin(options?: { selectAccount?: boolean; returnTarget?: string }): Promise<string> { return this.oauth().beginLogin(options); }
+  consumeCallback(callbackUrl?: string): Promise<boolean> { return this.oauth().consumeCallback(callbackUrl); }
+  async logout(): Promise<void> { if (this.source instanceof OAuthClient) return this.source.logout(); this.clear(); }
+  switchAccount(): Promise<string> { return this.oauth().switchAccount(); }
+  dispose(options?: { preserveAuthorization?: boolean }): void { this.unsubscribe(); this.listeners.clear(); if (this.source instanceof OAuthClient) this.source.dispose(options); }
+
+  private oauth(): OAuthClient {
+    if (this.source instanceof OAuthClient) return this.source;
+    throw new OAuthError("Interactive authentication is unavailable", "auth_unavailable", 503);
+  }
+  private async bootstrap(): Promise<void> {
+    if (!(this.source instanceof OAuthClient)) return;
+    try { if (!(await this.source.consumeCallback())) await this.source.discover(); } catch { /* snapshot carries the failure */ }
+  }
+  private publish(next: MtmHarnessAuthSnapshot): void { this.snapshot = next; for (const listener of this.listeners) listener(next); }
+}
+
+export function createAuthCoordinator(source: MtmHarnessTokenSource | undefined): MtmHarnessAuthCoordinator {
+  return new AuthCoordinator(source);
 }

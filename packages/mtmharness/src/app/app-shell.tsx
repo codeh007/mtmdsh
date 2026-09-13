@@ -9,16 +9,16 @@ import {
 import { type ReactElement, useSyncExternalStore } from "react";
 import { Button } from "../components/ui/button.js";
 import type { MtmHarnessRuntime } from "../runtime.js";
-import type { MtmHarnessAuthClient } from "./auth.js";
+import type { MtmHarnessAuthCoordinator } from "./auth.js";
 import { AuthControls } from "./auth-controls.js";
 import { DshIntegrationControl } from "./dsh-controls.js";
 import type {
   MtmHarnessPresentationController,
   NormalizedClientConfig,
 } from "./config.js";
-import { EmbeddedFullShell } from "./embedded-full-shell.js";
+import { FullscreenShell } from "./fullscreen-shell.js";
 
-export function EmbeddedShell({
+export function AppShell({
   config,
   runtime,
   auth,
@@ -27,7 +27,7 @@ export function EmbeddedShell({
 }: {
   config: NormalizedClientConfig;
   runtime: MtmHarnessRuntime;
-  auth?: MtmHarnessAuthClient;
+  auth?: MtmHarnessAuthCoordinator;
   dsh?: NormalizedClientConfig["dsh"];
   presentationController: MtmHarnessPresentationController;
 }): ReactElement {
@@ -47,7 +47,7 @@ export function EmbeddedShell({
 
   if (state === "fullscreen") {
     return (
-      <EmbeddedFullShell
+      <FullscreenShell
         runtime={runtime}
         auth={auth}
         dsh={dsh}

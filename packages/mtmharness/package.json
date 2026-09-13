@@ -16,13 +16,9 @@
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
-    "./embed": {
-      "types": "./lib/types/embed/index.d.ts",
+    "./browser": {
+      "types": "./lib/types/browser.d.ts",
       "import": "./dist/mtmharness.js"
-    },
-    "./auth": {
-      "types": "./lib/types/embed/app/auth.d.ts",
-      "import": "./dist/auth.js"
     },
     "./p2p-worker": {
       "types": "./lib/types/features/p2p/worker.d.ts",
@@ -42,7 +38,6 @@
     "lib/types/**/*.d.ts",
     "dist/mtmharness.js",
     "dist/mtmharness.iife.js",
-    "dist/auth.js",
     "cordis.patch.yml",
     "README.md",
     "package.json",
