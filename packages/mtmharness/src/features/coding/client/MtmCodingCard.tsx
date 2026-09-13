@@ -170,19 +170,6 @@ export function MtmCodingCard(props: MtmCodingCardProps) {
           />
           <BooleanField
             t={t}
-            label="dynamicCanvasEnabled"
-            hint="dynamicCanvasEnabledHint"
-            field={state.fields.dynamicCanvasEnabled}
-            disabled={disabled}
-            onChange={(value) => {
-              props.edit("dynamicCanvasEnabled", String(value));
-            }}
-            onReset={() => {
-              props.resetField("dynamicCanvasEnabled");
-            }}
-          />
-          <BooleanField
-            t={t}
             label="codebaseMemoryAugmentHooks"
             hint="codebaseMemoryAugmentHooksHint"
             field={state.fields.codebaseMemoryAugmentHooks}

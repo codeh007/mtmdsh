@@ -26,7 +26,6 @@ export const RTK_MODE_VALUES: readonly RtkMode[] = [
 ];
 const FIELD_NAMES = [
   "codebaseMemoryEnabled",
-  "dynamicCanvasEnabled",
   "codebaseMemoryAugmentHooks",
   "ponytailEnabled",
   "ponytailMode",

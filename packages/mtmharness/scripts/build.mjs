@@ -174,6 +174,10 @@ writeFileSync(clientOutput, artifact);
 rmSync(clientTemp, { force: true });
 
 execFileSync(vite, ["build"], { cwd: packageRoot, stdio: "inherit" });
+execFileSync(tsc, ["--project", resolve(packageRoot, "tsconfig.embed.json")], {
+  cwd: packageRoot,
+  stdio: "inherit",
+});
 
 for (const [label, output] of [
   ["Host plugin", hostOutput],
