@@ -22,7 +22,7 @@
     },
     "./p2p-worker": {
       "types": "./lib/types/features/p2p/worker.d.ts",
-      "default": "./lib/p2p-worker.cjs"
+      "default": "./lib/p2p-worker.js"
     },
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
@@ -34,7 +34,7 @@
   },
   "files": [
     "lib/index.js",
-    "lib/p2p-worker.cjs",
+    "lib/p2p-worker.js",
     "lib/types/**/*.d.ts",
     "dist/mtmharness.js",
     "dist/mtmharness.iife.js",

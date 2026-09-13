@@ -44,7 +44,7 @@ const profiles: Record<ProfileName, Profile> = {
     entry: source("features/p2p/worker.ts"),
     outDir: "lib",
     formats: ["es"],
-    fileName: () => "p2p-worker.cjs",
+    fileName: () => "p2p-worker.js",
     target: "es2022",
     external: () => false,
     emptyOutDir: false,
