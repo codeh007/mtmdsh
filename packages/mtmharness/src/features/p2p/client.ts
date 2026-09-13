@@ -25,7 +25,11 @@ type Pending = {
   cleanup: () => void;
 };
 
-const initial: P2pSnapshot = { status: "idle", peers: [] };
+const initial: P2pSnapshot = {
+  status: "idle",
+  peers: [],
+  discoveryStatus: "idle",
+};
 
 export class MtmP2pClient {
   private snapshot = freeze(initial);
@@ -45,7 +49,12 @@ export class MtmP2pClient {
         ? new SharedWorker(options.workerUrl, { type: "module" })
         : undefined);
     if (worker === undefined) {
-      this.snapshot = freeze({ status: "error", peers: [], error: "p2p SharedWorker is unavailable" });
+      this.snapshot = freeze({
+        status: "error",
+        peers: [],
+        discoveryStatus: "idle",
+        error: "p2p SharedWorker is unavailable",
+      });
       return;
     }
     this.port = worker.port;

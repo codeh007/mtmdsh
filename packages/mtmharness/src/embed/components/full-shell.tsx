@@ -28,6 +28,7 @@ import {
 } from "react";
 import type { MtmHarnessAuthClient } from "../app/auth.js";
 import { AuthControls } from "../app/auth-controls.js";
+import { DshIntegrationControl } from "../app/dsh-controls.js";
 import type { MtmSessionSummary } from "../dsh/adapter.js";
 import { cn } from "../lib/utils.js";
 import type { MtmHarnessRuntime, RuntimeSnapshot } from "../runtime.js";
@@ -39,6 +40,8 @@ export interface FullShellFrameProps {
   children: ReactNode;
   runtime: MtmHarnessRuntime;
   auth?: MtmHarnessAuthClient;
+  dsh?: import("../../host/contract.js").MtmHarnessDshIntegrationBridge;
+  onOpenP2p?: () => Promise<void>;
   onClose?: () => void;
 }
 
@@ -864,6 +867,8 @@ export function FullShellFrame({
   children,
   runtime,
   auth,
+  dsh,
+  onOpenP2p,
   onClose,
 }: FullShellFrameProps): ReactElement {
   const snapshot = useRuntimeSnapshot(runtime);
@@ -920,6 +925,10 @@ export function FullShellFrame({
               {statusLabel(snapshot)}
             </Badge>
             <AuthControls auth={auth} />
+            <DshIntegrationControl
+              bridge={dsh}
+              onOpenP2p={onOpenP2p}
+            />
             {onClose ? (
               <Button
                 type="button"
