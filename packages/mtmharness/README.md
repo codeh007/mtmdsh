@@ -27,7 +27,7 @@ Use the ESM bootstrap API from an application build:
       target: "#agent-panel",
       apiOrigin: "https://api.example.test",
       mode: "floating",
-      p2p: { workerUrl: "/mtmharness/p2p-worker.js" },
+      p2p: { workerUrl: new URL("mtmharness/p2p-worker", import.meta.url).href },
       p2pBootstrapAddress: "/ip4/127.0.0.1/tcp/443/wss/p2p/<peer-id>"
     });
     handle.open();

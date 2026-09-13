@@ -87,7 +87,6 @@ function mountClient(config: MtmHarnessClientConfig): MtmHarnessClientHandle {
   const router = createClientRouter({
     config: normalizedConfig,
     runtime,
-    presentation: "app",
     history: createHistory(normalizedConfig),
     auth,
     dsh: normalizedConfig.dsh,

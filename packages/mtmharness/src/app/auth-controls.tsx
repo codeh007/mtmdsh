@@ -1,20 +1,23 @@
+import { useRouter, useRouterState } from "@tanstack/react-router";
 import { LogIn, LogOut, RefreshCcw, UserRound } from "lucide-react";
 import { type ReactElement, useEffect, useState } from "react";
 import { Button } from "../components/ui/button.js";
 import { cn } from "../lib/utils.js";
-import type { MtmHarnessAuthCoordinator, MtmHarnessAuthSnapshot } from "./auth.js";
+import {
+  type MtmHarnessAuthCoordinator,
+  type MtmHarnessAuthSnapshot,
+  validateReturnTarget,
+} from "./auth.js";
 
-function useAuthSnapshot(auth: MtmHarnessAuthCoordinator): MtmHarnessAuthSnapshot {
+function useAuthSnapshot(
+  auth: MtmHarnessAuthCoordinator,
+): MtmHarnessAuthSnapshot {
   const [snapshot, setSnapshot] = useState(() => auth.getSnapshot());
   useEffect(() => {
     setSnapshot(auth.getSnapshot());
     return auth.subscribe(setSnapshot);
   }, [auth]);
   return snapshot;
-}
-
-function redirectToAuthorization(url: string): void {
-  window.location.assign(url);
 }
 
 export function AuthControls({
@@ -32,17 +35,29 @@ function AuthControlsView({
   auth: MtmHarnessAuthCoordinator;
 }): ReactElement {
   const snapshot = useAuthSnapshot(auth);
+  const router = useRouter();
+  const location = useRouterState({ select: (state) => state.location });
   const [busy, setBusy] = useState(false);
 
   async function signIn(selectAccount = false): Promise<void> {
     if (busy) return;
     setBusy(true);
     try {
-      const authorizationUrl = await (selectAccount
-        ? auth.switchAccount()
-        : auth.beginLogin());
-      auth.dispose({ preserveAuthorization: true });
-      redirectToAuthorization(authorizationUrl);
+      const rawTarget =
+        location.pathname === "/login"
+          ? (new URLSearchParams(location.searchStr).get("returnTo") ?? "/")
+          : location.pathname + location.searchStr;
+      let returnTarget = "/";
+      try {
+        returnTarget = validateReturnTarget(rawTarget);
+      } catch {
+        // Invalid or external targets never leave the application.
+      }
+      if (selectAccount) await auth.logout();
+      await router.navigate({
+        to: "/login",
+        search: { returnTo: returnTarget },
+      });
     } catch {
       setBusy(false);
     }
@@ -75,28 +90,28 @@ function AuthControlsView({
         </span>
         {auth.interactiveLogin ? (
           <>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Switch account"
-          title="Switch account"
-          disabled={busy}
-          onClick={() => void signIn(true)}
-        >
-          <RefreshCcw />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Sign out"
-          title="Sign out"
-          disabled={busy}
-          onClick={() => void signOut()}
-        >
-          <LogOut />
-        </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Switch account"
+              title="Switch account"
+              disabled={busy}
+              onClick={() => void signIn(true)}
+            >
+              <RefreshCcw />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Sign out"
+              title="Sign out"
+              disabled={busy}
+              onClick={() => void signOut()}
+            >
+              <LogOut />
+            </Button>
           </>
         ) : null}
       </div>
