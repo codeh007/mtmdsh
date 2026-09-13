@@ -2,7 +2,6 @@
 import type { Context } from "@deepseek-ai/cordis";
 import type {} from "@deepseek-ai/dsh-client-connection";
 import { apply as applyCodingHost } from "./features/coding/index.js";
-import { apply as applyUpdateHost } from "./features/update/index.js";
 
 export { apply as applyCodebaseMemory } from "./features/coding/codebase-memory.js";
 export {
@@ -48,6 +47,15 @@ export type {
   PonytailMode,
   RtkMode,
 } from "./features/coding/types.js";
+export type {
+  MtmHarnessCapability,
+  MtmHarnessCapabilitySnapshot,
+  MtmHarnessCapabilityStatus,
+  MtmHarnessSettingsCapability,
+  MtmHarnessSettingsField,
+  MtmHarnessSettingsSnapshot,
+  MtmHarnessSettingsValue,
+} from "./features/settings/contract.js";
 export const name = "mtmharness";
 export const inject = ["connection", "settings", "subprocess", "webServer"];
 
@@ -58,6 +66,5 @@ export async function apply(
 ): Promise<void> {
   if (ctx.connection === undefined)
     throw new Error("mtmharness: DSH connection service is unavailable");
-  applyUpdateHost(ctx);
   await applyCodingHost(ctx, config);
 }

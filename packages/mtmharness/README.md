@@ -1,36 +1,25 @@
 # mtmharness
 
-mtmharness is a browser-first React application with optional DSH integration. The package root and ./client remain static DSH graph entries for hosts; they are not the browser app startup path.
+mtmharness is a browser-first React application with optional DSH integration. The package root supplies the DSH Host plugin; the browser app owns its mount root, presentation, and navigation. The browser startup path is the explicit bootstrap/mount API, not a static Host or client apply entry.
 
-The client entry owns the browser P2P feature and coding settings inside the mtmharness fiber. Canvas is a separate `mtmcanvas` plugin and is not composed, configured, or loaded by this package. All registrations, styles, listeners, and clients owned by mtmharness are disposed with its Cordis fiber.
-
-The Modern Go Guidelines wrapper uses the pinned upstream CLI with standard go install and user cache behavior. It never creates a project-local cache or overrides the active DSH file policy.
-
-## DSH Web Plugin
-
-    dsh plugin --profile web add mtmharness
-    dsh --profile web --dump-config
-
-This installs only mtmharness. Install mtmcanvas separately when the Canvas overlay is needed. Restart the DSH Web host after changing profile composition.
+The package does not register an mtmharness card in the DSH Settings page and does not implement package updates. In particular, it never reads a DSH profile from the filesystem or runs pnpm to update itself. A future DSH host may expose a narrow update capability; mtmharness will consume it only after that public contract exists.
 
 ## Browser App
 
-The package exposes browser bundles at dist/mtmharness.js (ESM) and dist/mtmharness.iife.js (IIFE). The ./embed entry exposes bootstrap/mount, MtmHarnessApp, the route contract, P2P client types, and the optional host-owned DSH bridge. Configure the API origin and pre-registered public OAuth client before the embed script runs:
+The package exposes browser bundles at dist/mtmharness.js (ESM) and dist/mtmharness.iife.js (IIFE). The ./embed entry exposes bootstrap/mount, MtmHarnessApp, the route contract, P2P client types, the settings capability view, and the optional host-owned DSH bridge. Configure the API origin and pre-registered public OAuth client before the embed script runs:
 
-    <script>
-      window.__MTM_HARNESS_CONFIG__ = {
-        apiOrigin: "https://gomtm-dev.yuepa8.com",
-        oauth: {
-          issuer: "https://gomtm-dev.yuepa8.com",
-          clientId: "<pre-registered-client-id>",
-          redirectUri: "https://host.example.test/mtm/callback",
-          resource: "https://gomtm-dev.yuepa8.com/api/dsh",
-          scopes: ["openid", "dsh:connect"]
-        }
-      };
-    </script>
+    window.__MTM_HARNESS_CONFIG__ = {
+      apiOrigin: "https://gomtm-dev.yuepa8.com",
+      oauth: {
+        issuer: "https://gomtm-dev.yuepa8.com",
+        clientId: "<pre-registered-client-id>",
+        redirectUri: "https://host.example.test/mtm/callback",
+        resource: "https://gomtm-dev.yuepa8.com/api/dsh",
+        scopes: ["openid", "dsh:connect"]
+      }
+    };
 
-Use the ESM export from an application build:
+Use the ESM bootstrap API from an application build:
 
     import { bootstrap } from "mtmharness/embed";
 
@@ -47,23 +36,24 @@ Use the ESM export from an application build:
     handle.close();
     handle.unmount();
 
-The embed uses memory history by default and never changes the host page URL. mode: "fullscreen" defaults to hash history; historyMode: "browser" selects browser history for an independent harness. Every mode mounts one owned root inside an open ShadowRoot, and unmount removes its DOM, styles, observers, router, runtime, auth source, and P2P client.
-
-Declarative auto-mounting accepts only non-sensitive data-api-origin, data-mode, and data-target attributes. OAuth attributes must be provided together. It never reads a token from markup.
+Widget mounts use memory history and do not change the host page URL. Independent applications can use hash or browser history. Every mode mounts one owned root inside an open ShadowRoot, and unmount removes its DOM, styles, observers, router, runtime, auth source, and P2P client. The settings view accepts explicit capability objects for authentication, the remote product API, P2P, DSH-local actions, and browser-owned coding settings. Missing capabilities render as unavailable; errors are shown as errors.
 
 The shared route tree contains /, /workspace, and /p2p. The P2P route shows node identity, worker/bootstrap/discovery state, peers and protocols, connect/disconnect controls, and bounded HTTP-over-P2P request, response, timeout, and cancellation errors.
 
-The reusable browser OAuth client uses discovery-first OAuth/OIDC Authorization Code + PKCE (S256). Issuer, client ID, exact redirect URI, resource, scopes, HTTPS endpoints, and provider capabilities are validated before authorization. Production clients and redirect URIs must be registered by the provider.
+The reusable browser OAuth client uses discovery-first OAuth/OIDC Authorization Code + PKCE (S256). Access and refresh tokens live only in JavaScript memory. HTTP resource calls use an Authorization: Bearer header with credentials omitted.
 
-Access and refresh tokens live only in JavaScript memory. The short-lived PKCE transaction is removed on every callback path. Tokens, roles, and capabilities are never put in markup, localStorage, or logs.
+## DSH Web
 
-HTTP resource calls and revocation use an Authorization: Bearer header with credentials: omit. Session and streaming operations remain unavailable until their protected canonical contracts are implemented.
+Install mtmharness as a DSH host plugin when local coding capabilities are required:
 
-A host may pass an explicit dsh bridge to the browser bootstrap. The bridge exposes only observable unavailable, loading, active, failed, and disposing states plus enable()/disable(); the host owns the real Cordis Loader/fiber lifecycle. The app never imports or calls either static apply(ctx) entry.
+    dsh plugin --profile web add mtmharness
+    dsh --profile web --dump-config
 
-The official DSH plugin keeps the host FullShell and local session untouched.
+The host plugin owns Codebase Memory, Modern Go, Ponytail, and RTK. These are DSH-local capabilities and are not automatically enabled by the browser app. A host may pass an explicit DSH bridge to the browser bootstrap. The bridge exposes only observable unavailable, loading, active, failed, and disposing states plus enable()/disable(); the host owns the real Cordis Loader/fiber lifecycle. The app never imports or calls either static apply(ctx) entry. Canvas is a separate mtmcanvas plugin.
 
 ## Development
 
     pnpm install
-    pnpm exec turbo run typecheck test --filter=mtmharness...
+    pnpm --filter mtmharness typecheck
+    pnpm --filter mtmharness build
+    pnpm --filter mtmharness test
