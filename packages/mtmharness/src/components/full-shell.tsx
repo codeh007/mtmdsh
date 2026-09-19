@@ -26,8 +26,8 @@ import {
   useEffect,
   useState,
 } from "react";
-import { AuthControls } from "../app/auth-controls.js";
 import type { MtmHarnessAuthCoordinator } from "../app/auth.js";
+import { AuthControls } from "../app/auth-controls.js";
 import { DshIntegrationControl } from "../app/dsh-controls.js";
 import type { MtmSessionSummary } from "../dsh/adapter.js";
 import { cn } from "../lib/utils.js";
@@ -874,9 +874,6 @@ export function FullShellFrame({
   const snapshot = useRuntimeSnapshot(runtime);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  useEffect(() => {
-  }, [runtime]);
 
   return (
     <div

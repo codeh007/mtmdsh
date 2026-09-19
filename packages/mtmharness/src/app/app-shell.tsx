@@ -11,11 +11,11 @@ import { Button } from "../components/ui/button.js";
 import type { MtmHarnessRuntime } from "../runtime.js";
 import type { MtmHarnessAuthCoordinator } from "./auth.js";
 import { AuthControls } from "./auth-controls.js";
-import { DshIntegrationControl } from "./dsh-controls.js";
 import type {
   MtmHarnessPresentationController,
   NormalizedClientConfig,
 } from "./config.js";
+import { DshIntegrationControl } from "./dsh-controls.js";
 import { FullscreenShell } from "./fullscreen-shell.js";
 
 export function AppShell({
@@ -45,6 +45,13 @@ export function AppShell({
   const navigationTo = isWorkspace || isP2p ? "/" : "/workspace";
   const NavigationIcon = isWorkspace || isP2p ? MessageSquare : LayoutDashboard;
 
+  if (state === "fullscreen" && matchRoute({ to: "/vnc" })) {
+    return (
+      <main className="fixed inset-0 h-dvh w-dvw overflow-hidden bg-background">
+        <Outlet />
+      </main>
+    );
+  }
   if (state === "fullscreen") {
     return (
       <FullscreenShell

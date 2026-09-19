@@ -1,4 +1,8 @@
-import { generateKeyPair, privateKeyFromProtobuf, privateKeyToProtobuf } from "@libp2p/crypto/keys";
+import {
+  generateKeyPair,
+  privateKeyFromProtobuf,
+  privateKeyToProtobuf,
+} from "@libp2p/crypto/keys";
 
 export type PrivateKey = Awaited<ReturnType<typeof generateKeyPair>>;
 
@@ -20,10 +24,18 @@ export async function saveStorage(state: P2pStorage): Promise<void> {
   if (typeof indexedDB === "undefined") return;
   const db = await open();
   await new Promise<void>((resolve, reject) => {
-    const request = db.transaction(STORE, "readwrite").objectStore(STORE).put(
-      { privateKey: state.privateKey ? new Uint8Array(state.privateKey) : undefined, peers: [...state.peers] },
-      "state",
-    );
+    const request = db
+      .transaction(STORE, "readwrite")
+      .objectStore(STORE)
+      .put(
+        {
+          privateKey: state.privateKey
+            ? new Uint8Array(state.privateKey)
+            : undefined,
+          peers: [...state.peers],
+        },
+        "state",
+      );
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
   });
@@ -50,8 +62,13 @@ function normalize(value: unknown): P2pStorage {
   if (typeof value !== "object" || value === null) return { peers: [] };
   const stored = value as { privateKey?: unknown; peers?: unknown };
   return {
-    privateKey: stored.privateKey instanceof Uint8Array ? new Uint8Array(stored.privateKey) : undefined,
-    peers: Array.isArray(stored.peers) ? stored.peers.filter((peer): peer is string => typeof peer === "string") : [],
+    privateKey:
+      stored.privateKey instanceof Uint8Array
+        ? new Uint8Array(stored.privateKey)
+        : undefined,
+    peers: Array.isArray(stored.peers)
+      ? stored.peers.filter((peer): peer is string => typeof peer === "string")
+      : [],
   };
 }
 

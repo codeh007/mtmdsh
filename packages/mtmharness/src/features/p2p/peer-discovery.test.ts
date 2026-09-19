@@ -25,8 +25,16 @@ function streamFrom(chunks: Uint8Array[]): Stream {
 
 describe("gomtm peer discovery wire contract", () => {
   it("reads a big-endian frame split across chunks", async () => {
-    const frame = encodePeerDiscoveryFrame({ type: "get_peers", version: 1, peer_id: peerId });
-    await expect(readPeerDiscoveryFrame(streamFrom([frame.subarray(0, 3), frame.subarray(3)]))).resolves.toEqual({
+    const frame = encodePeerDiscoveryFrame({
+      type: "get_peers",
+      version: 1,
+      peer_id: peerId,
+    });
+    await expect(
+      readPeerDiscoveryFrame(
+        streamFrom([frame.subarray(0, 3), frame.subarray(3)]),
+      ),
+    ).resolves.toEqual({
       type: "get_peers",
       version: 1,
       peer_id: peerId,
@@ -34,21 +42,40 @@ describe("gomtm peer discovery wire contract", () => {
   });
 
   it("validates transport-only records and adds the peer suffix", () => {
-    expect(parsePeerDiscoveryResponse({ type: "peer_list", version: 1, peers: [peerRecord] }).peers).toEqual([
-      peerRecord,
+    expect(
+      parsePeerDiscoveryResponse({
+        type: "peer_list",
+        version: 1,
+        peers: [peerRecord],
+      }).peers,
+    ).toEqual([peerRecord]);
+    expect(fullPeerMultiaddrs(peerRecord)).toEqual([
+      "/dns4/example.com/tcp/443/wss/p2p/" + peerId,
     ]);
-    expect(fullPeerMultiaddrs(peerRecord)).toEqual(["/dns4/example.com/tcp/443/wss/p2p/" + peerId]);
     expect(() =>
-      parsePeerRecord({ ...peerRecord, addresses: ["/dns4/example.com/tcp/443/wss/p2p/" + peerId] }),
+      parsePeerRecord({
+        ...peerRecord,
+        addresses: ["/dns4/example.com/tcp/443/wss/p2p/" + peerId],
+      }),
     ).toThrow("peer suffix");
   });
 
   it("rejects trailing frames", async () => {
-    const first = encodePeerDiscoveryFrame({ type: "get_peers", version: 1, peer_id: peerId });
-    const second = encodePeerDiscoveryFrame({ type: "get_peers", version: 1, peer_id: peerId });
+    const first = encodePeerDiscoveryFrame({
+      type: "get_peers",
+      version: 1,
+      peer_id: peerId,
+    });
+    const second = encodePeerDiscoveryFrame({
+      type: "get_peers",
+      version: 1,
+      peer_id: peerId,
+    });
     const combined = new Uint8Array(first.byteLength + second.byteLength);
     combined.set(first);
     combined.set(second, first.byteLength);
-    await expect(readPeerDiscoveryFrame(streamFrom([combined]))).rejects.toThrow("trailing data");
+    await expect(
+      readPeerDiscoveryFrame(streamFrom([combined])),
+    ).rejects.toThrow("trailing data");
   });
 });

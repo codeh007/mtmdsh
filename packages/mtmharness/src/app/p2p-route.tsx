@@ -20,6 +20,7 @@ import { Button } from "../components/ui/button.js";
 import { Separator } from "../components/ui/separator.js";
 import type { MtmP2pClient } from "../features/p2p/client.js";
 import type { P2pSnapshot } from "../features/p2p/protocol.js";
+import { DesktopAction } from "../features/vnc/view.js";
 
 function useP2pSnapshot(client: MtmP2pClient): P2pSnapshot {
   return useSyncExternalStore(
@@ -312,6 +313,11 @@ export function P2pDebugView({
                     <p className="break-all text-muted-foreground text-xs">
                       {item.protocols.join(", ") || "No protocols"}
                     </p>
+                    <DesktopAction
+                      client={client}
+                      peer={item.id}
+                      address={item.addresses[0]}
+                    />
                     <Button
                       type="button"
                       size="sm"

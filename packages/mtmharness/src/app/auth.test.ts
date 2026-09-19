@@ -508,7 +508,10 @@ describe("auth coordinator", () => {
   it("exposes static token capability without OAuth actions", async () => {
     const auth = createAuthCoordinator(createMemoryTokenSource("access-token"));
     await auth.ready;
-    expect(auth.getSnapshot()).toMatchObject({ status: "authenticated", accountPartition: "explicit" });
+    expect(auth.getSnapshot()).toMatchObject({
+      status: "authenticated",
+      accountPartition: "explicit",
+    });
     expect(auth.interactiveLogin).toBe(false);
     auth.dispose();
   });
@@ -517,8 +520,12 @@ describe("auth coordinator", () => {
     const auth = createAuthCoordinator(undefined);
     await auth.ready;
     expect(auth.getSnapshot().status).toBe("unavailable");
-    expect(validateReturnTarget("/workspace?tab=files")).toBe("/workspace?tab=files");
-    expect(() => validateReturnTarget("https://evil.example/")).toThrowError(OAuthError);
+    expect(validateReturnTarget("/workspace?tab=files")).toBe(
+      "/workspace?tab=files",
+    );
+    expect(() => validateReturnTarget("https://evil.example/")).toThrowError(
+      OAuthError,
+    );
     auth.dispose();
   });
 });
