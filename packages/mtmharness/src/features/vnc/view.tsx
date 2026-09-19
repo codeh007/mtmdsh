@@ -197,6 +197,14 @@ export function VncView({
       });
     return () => {
       controller.abort();
+      if (status === "Starting desktop") {
+        void confirmVnc(
+          client,
+          target,
+          new AbortController().signal,
+          "stop",
+        ).catch(() => undefined);
+      }
       observer?.disconnect();
       rfb?.disconnect();
       socket?.close();
