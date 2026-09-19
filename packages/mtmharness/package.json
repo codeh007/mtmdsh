@@ -63,7 +63,7 @@
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "3.18.2",
-    "@kasmtech/novnc": "https://api.github.com/repos/kasmtech/noVNC/tarball/475ecfa5356579ef222983c7ce4619a7576a3bce",
+    "@kasmtech/novnc": "https://codeload.github.com/kasmtech/noVNC/tar.gz/475ecfa5356579ef222983c7ce4619a7576a3bce",
     "@libp2p/http": "2.0.6",
     "npm": "11.7.0",
     "pako": "2.1.0",
