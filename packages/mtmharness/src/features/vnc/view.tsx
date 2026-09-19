@@ -98,6 +98,7 @@ export function VncView({
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [fit, setFit] = useState(true);
+  const startedByView = useRef(false);
   const target = address || peer;
 
   useEffect(() => {
@@ -112,6 +113,7 @@ export function VncView({
     setStatus(
       request.action === "start" ? "Starting desktop" : "Checking desktop",
     );
+    if (request.action === "start") startedByView.current = true;
     void (async () => {
       if (!peer || (address && !address.endsWith(`/p2p/${peer}`)))
         throw new Error("The desktop link does not match its target peer.");
@@ -197,7 +199,7 @@ export function VncView({
       });
     return () => {
       controller.abort();
-      if (status === "Starting desktop") {
+      if (startedByView.current) {
         void confirmVnc(
           client,
           target,
