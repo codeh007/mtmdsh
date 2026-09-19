@@ -108,6 +108,7 @@ index ff347acc3b16235448031d56479a58c5fafcf972..963deb109e237128ef2edcedabef1443
 -        });
 +        messageComplete = true;
 +        writer.close().catch(fail);
++        cleanup();
      };
      let read = 0;
 -    stream.addEventListener('message', ({ data }) => {
