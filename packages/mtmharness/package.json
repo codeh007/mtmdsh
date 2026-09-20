@@ -1,6 +1,6 @@
 {
   "name": "mtmharness",
-  "version": "0.9.26",
+  "version": "0.9.27",
   "description": "Browser-first DeepSeek Harness app with optional DSH-local coding capabilities.",
   "type": "module",
   "engines": {
