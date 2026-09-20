@@ -236,6 +236,8 @@ for (const [name, chunks, eof] of [
       for (const chunk of chunks) stream.receive(chunk);
       if (eof) stream.dispatchEvent(new Event("remoteCloseWrite"));
       assert.equal(await (await response).text(), "hello");
+      // Body consumption and writer.closed settle in different orders across Node versions.
+      await nextTurn();
       cleaned(stream, controller);
       controller.abort();
       assert.deepEqual(stream.resets, []);
