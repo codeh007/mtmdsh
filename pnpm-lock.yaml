@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@kasmtech/novnc@1.3.0': 2b3921e94227c783396bbf8f7f706e12f9c5d94a7b48840f6d2dfa4c320367dd
+  '@libp2p/http-fetch@4.0.4': b3f0092fe219df11571381fd96e582cfdb067bc03219686544960683de728f6a
+  '@libp2p/http-websocket@2.0.4': 6fcbb269fee763661d3037598c44600f9392fd7125d9a859389f8f6a9b2514ad
+
 importers:
 
   .:
@@ -62,12 +67,18 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: 3.18.2
         version: 3.18.2
+      '@kasmtech/novnc':
+        specifier: https://api.github.com/repos/kasmtech/noVNC/tarball/475ecfa5356579ef222983c7ce4619a7576a3bce
+        version: https://api.github.com/repos/kasmtech/noVNC/tarball/475ecfa5356579ef222983c7ce4619a7576a3bce(patch_hash=2b3921e94227c783396bbf8f7f706e12f9c5d94a7b48840f6d2dfa4c320367dd)
       '@libp2p/http':
         specifier: 2.0.6
         version: 2.0.6
       npm:
         specifier: 11.7.0
         version: 11.7.0
+      pako:
+        specifier: 2.1.0
+        version: 2.1.0
       yaml:
         specifier: ^2.4.2
         version: 2.9.0
@@ -910,6 +921,10 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@kasmtech/novnc@https://api.github.com/repos/kasmtech/noVNC/tarball/475ecfa5356579ef222983c7ce4619a7576a3bce':
+    resolution: {integrity: sha512-+tCGA8s1s8GpAy3SlgyeWu3GGrO5Uq++o5pXzAApeubkDSC8Kildl3EhXjwWTmS5RkbTjHVApzswbMRAd2xtqA==, tarball: https://api.github.com/repos/kasmtech/noVNC/tarball/475ecfa5356579ef222983c7ce4619a7576a3bce}
+    version: 1.3.0
 
   '@leichtgewicht/ip-codec@2.0.5':
     resolution: {integrity: sha512-Vo+PSpZG2/fmgmiNzYK9qWRh8h/CHrwD0mo1h1DzL4yzHNSfWYujGTYsWGreD000gcgmZ7K4Ys6Tx9TxtsKdDw==}
@@ -2018,6 +2033,11 @@ packages:
     resolution: {integrity: sha512-Lbgzdk0h4juoQ9fCKXW4by0UJqj+nOOrI9MJ1sSj4nI8aI2eo1qmvQEie4VD1glsS250n15LsWsYtCugiStS5A==}
     engines: {node: '>=18'}
 
+  mime@4.1.0:
+    resolution: {integrity: sha512-X5ju04+cAzsojXKes0B/S4tcYtFAJ6tTMuSPBEn9CPGlrWr8Fiw7qYeLT0XyH80HSoAoqWCaz+MWKh22P7G1cw==}
+    engines: {node: '>=16'}
+    hasBin: true
+
   mortice@3.3.1:
     resolution: {integrity: sha512-t3oESfijIPGsmsdLEKjF+grHfrbnKSXflJtgb1wY14cjxZpS6GnhHRXTxxzCAoCCnq1YYfpEPwY3gjiCPhOufQ==}
 
@@ -2160,6 +2180,9 @@ packages:
 
   package-manager-detector@1.8.0:
     resolution: {integrity: sha512-yQA4H19AmPEoMUeavPMDIe1higySl/gH/yaQrkT/s07Qp+7pp2hYz30N3z2l5BkjVkF9Ow6o0wjJamm2y7Sn0A==}
+
+  pako@2.1.0:
+    resolution: {integrity: sha512-w+eufiZ1WuJYgPXbV/PO3NCMEc3xqylkKHzp8bxp1uW4qaSNQUkwmLLEc3kKsfz8lpV1F8Ht3U1Cm+9Srog2ug==}
 
   parse5@8.0.1:
     resolution: {integrity: sha512-z1e/HMG90obSGeidlli3hj7cbocou0/wa5HacvI3ASx34PecNjNQeaHNo5WIZpWofN9kgkqV1q5YvXe3F0FoPw==}
@@ -3267,6 +3290,10 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
+  '@kasmtech/novnc@https://api.github.com/repos/kasmtech/noVNC/tarball/475ecfa5356579ef222983c7ce4619a7576a3bce(patch_hash=2b3921e94227c783396bbf8f7f706e12f9c5d94a7b48840f6d2dfa4c320367dd)':
+    dependencies:
+      mime: 4.1.0
+
   '@leichtgewicht/ip-codec@2.0.5': {}
 
   '@libp2p/crypto@5.1.23':
@@ -3279,7 +3306,7 @@ snapshots:
       uint8arraylist: 3.0.2
       uint8arrays: 6.1.1
 
-  '@libp2p/http-fetch@4.0.4':
+  '@libp2p/http-fetch@4.0.4(patch_hash=b3f0092fe219df11571381fd96e582cfdb067bc03219686544960683de728f6a)':
     dependencies:
       '@achingbrain/http-parser-js': 0.5.9
       '@libp2p/http-utils': 2.0.6
@@ -3310,7 +3337,7 @@ snapshots:
       uint8arraylist: 3.0.2
       uint8arrays: 6.1.1
 
-  '@libp2p/http-websocket@2.0.4':
+  '@libp2p/http-websocket@2.0.4(patch_hash=6fcbb269fee763661d3037598c44600f9392fd7125d9a859389f8f6a9b2514ad)':
     dependencies:
       '@achingbrain/http-parser-js': 0.5.9
       '@libp2p/http-utils': 2.0.6
@@ -3325,10 +3352,10 @@ snapshots:
 
   '@libp2p/http@2.0.6':
     dependencies:
-      '@libp2p/http-fetch': 4.0.4
+      '@libp2p/http-fetch': 4.0.4(patch_hash=b3f0092fe219df11571381fd96e582cfdb067bc03219686544960683de728f6a)
       '@libp2p/http-peer-id-auth': 2.0.3
       '@libp2p/http-utils': 2.0.6
-      '@libp2p/http-websocket': 2.0.4
+      '@libp2p/http-websocket': 2.0.4(patch_hash=6fcbb269fee763661d3037598c44600f9392fd7125d9a859389f8f6a9b2514ad)
       '@libp2p/interface': 3.3.0
       '@libp2p/interface-internal': 3.1.13
       '@multiformats/multiaddr': 13.0.3
@@ -4470,6 +4497,8 @@ snapshots:
     dependencies:
       mime-db: 1.54.0
 
+  mime@4.1.0: {}
+
   mortice@3.3.1:
     dependencies:
       abort-error: 1.0.2
@@ -4526,6 +4555,8 @@ snapshots:
   p-timeout@7.0.1: {}
 
   package-manager-detector@1.8.0: {}
+
+  pako@2.1.0: {}
 
   parse5@8.0.1:
     dependencies:

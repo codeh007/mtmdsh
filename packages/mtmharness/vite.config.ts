@@ -1,3 +1,4 @@
+import { copyFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
@@ -10,14 +11,13 @@ import {
   build as viteBuild,
 } from "vite";
 
-
 const packageRoot = fileURLToPath(new URL(".", import.meta.url));
 
 const source = (file: string) => resolve(packageRoot, "src", file);
 const isBareImport = (id: string): boolean =>
   !id.startsWith(".") && !id.startsWith("/") && !id.startsWith("\0");
 const hostExternal = (id: string): boolean => isBareImport(id);
-type ProfileName = "host" | "worker" | "browser";
+type ProfileName = "host" | "worker" | "rfb" | "browser";
 type Format = "es" | "cjs" | "iife";
 
 type Profile = {
@@ -49,6 +49,14 @@ const profiles: Record<ProfileName, Profile> = {
     external: () => false,
     emptyOutDir: false,
   },
+  rfb: {
+    entry: source("features/vnc/rfb.ts"),
+    outDir: "lib",
+    formats: ["es"],
+    fileName: () => "vnc-client.js",
+    target: "es2022",
+    emptyOutDir: false,
+  },
   browser: {
     entry: source("browser.tsx"),
     outDir: "dist",
@@ -63,6 +71,7 @@ const profiles: Record<ProfileName, Profile> = {
 const profileOrder: readonly ProfileName[] = [
   "host",
   "worker",
+  "rfb",
   "browser",
 ];
 
@@ -75,6 +84,43 @@ function profileConfig(name: ProfileName, orchestrate: boolean): UserConfig {
       ...(name === "browser" ? [react()] : []),
       ...(name === "browser" ? [tailwindcss()] : []),
       ...(name === "host" ? [declarationPlugin()] : []),
+      ...(name === "rfb"
+        ? [
+            {
+              name: "vnc-license",
+              writeBundle() {
+                copyFileSync(
+                  resolve(
+                    packageRoot,
+                    "node_modules/@kasmtech/novnc/LICENSE.txt",
+                  ),
+                  resolve(packageRoot, "lib/vnc-client.LICENSE.txt"),
+                );
+                copyFileSync(
+                  resolve(packageRoot, "node_modules/@kasmtech/novnc/AUTHORS"),
+                  resolve(packageRoot, "lib/vnc-client.AUTHORS"),
+                );
+                for (const name of [
+                  "MPL-2.0",
+                  "BSD-2-Clause",
+                  "BSD-3-Clause",
+                ]) {
+                  copyFileSync(
+                    resolve(
+                      packageRoot,
+                      `node_modules/@kasmtech/novnc/docs/LICENSE.${name}`,
+                    ),
+                    resolve(packageRoot, `lib/vnc-client.LICENSE.${name}`),
+                  );
+                }
+                copyFileSync(
+                  resolve(packageRoot, "node_modules/pako/LICENSE"),
+                  resolve(packageRoot, "lib/vnc-client.LICENSE.pako"),
+                );
+              },
+            },
+          ]
+        : []),
       ...(orchestrate ? [buildProfilesPlugin()] : []),
     ],
     build: {

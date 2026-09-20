@@ -1,14 +1,16 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
-import { MtmHarnessSettingsView } from "./view.js";
 import type {
   MtmHarnessCapability,
   MtmHarnessSettingsCapability,
   MtmHarnessSettingsSnapshot,
 } from "./contract.js";
+import { MtmHarnessSettingsView } from "./view.js";
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
 afterEach(() => document.body.replaceChildren());
 
 function capability(status: "available" | "unavailable"): MtmHarnessCapability {
@@ -34,7 +36,10 @@ function settingsCapability(): MtmHarnessSettingsCapability {
     user: {},
   };
   const listeners = new Set<() => void>();
-  const publish = (): void => listeners.forEach((listener) => listener());
+  const publish = (): void =>
+    listeners.forEach((listener) => {
+      listener();
+    });
   return {
     getSnapshot: () => snapshot,
     subscribe: (listener) => {
@@ -60,7 +65,9 @@ describe("MtmHarnessSettingsView", () => {
     document.body.append(container);
     const root = createRoot(container);
     await act(async () => root.render(<MtmHarnessSettingsView />));
-    expect(container.querySelector('[data-status="unavailable"]')).not.toBeNull();
+    expect(
+      container.querySelector('[data-status="unavailable"]'),
+    ).not.toBeNull();
     expect(container.textContent).toContain("Coding settings");
     await act(async () => root.unmount());
   });
@@ -71,9 +78,16 @@ describe("MtmHarnessSettingsView", () => {
     const settings = settingsCapability();
     const root = createRoot(container);
     await act(async () =>
-      root.render(<MtmHarnessSettingsView settings={settings} auth={capability("available")} />),
+      root.render(
+        <MtmHarnessSettingsView
+          settings={settings}
+          auth={capability("available")}
+        />,
+      ),
     );
-    const toggle = container.querySelector<HTMLInputElement>('input[type="checkbox"]');
+    const toggle = container.querySelector<HTMLInputElement>(
+      'input[type="checkbox"]',
+    );
     expect(toggle?.checked).toBe(true);
     await act(async () => toggle?.click());
     expect(settings.getSnapshot().value?.codebaseMemoryEnabled).toBe(false);

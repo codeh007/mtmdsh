@@ -11,6 +11,7 @@ import {
 import type { ReactElement } from "react";
 import { WorkspaceOverview } from "../components/full-shell.js";
 import type { MtmP2pClient } from "../features/p2p/client.js";
+import { VncView } from "../features/vnc/view.js";
 import type { MtmHarnessDshIntegrationBridge } from "../host/contract.js";
 import type { MtmHarnessRuntime } from "../runtime.js";
 import { AppShell } from "./app-shell.js";
@@ -195,11 +196,53 @@ export function createClientRouter(options: ClientRouterOptions) {
       />
     ),
   });
+  const vncRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/vnc",
+    validateSearch: (search: Record<string, unknown>) => {
+      if (
+        typeof search.peer !== "string" ||
+        search.peer.length > 128 ||
+        search.instance !== "desktop"
+      )
+        throw new Error("Invalid desktop link");
+      if (
+        search.address !== undefined &&
+        (typeof search.address !== "string" || search.address.length > 2048)
+      )
+        throw new Error("Invalid desktop address");
+      return {
+        peer: search.peer,
+        address: search.address as string | undefined,
+        instance: "desktop",
+      };
+    },
+    component: () => {
+      const { peer, address } = vncRoute.useSearch();
+      const moduleUrl =
+        config.p2p?.workerUrl === undefined
+          ? undefined
+          : new URL(
+              "vnc-client.js",
+              new URL(config.p2p.workerUrl, window.location.href),
+            ).href;
+      return (
+        <VncView
+          key={`${peer}:${address}`}
+          client={p2p}
+          peer={peer}
+          address={address}
+          moduleUrl={moduleUrl}
+        />
+      );
+    },
+  });
   const routeTree = rootRoute.addChildren([
     loginRoute,
     unavailableRoute,
     authenticatedRoute.addChildren([conversationRoute, workspaceRoute]),
     p2pRoute,
+    vncRoute,
   ]);
   return createRouter({
     routeTree,

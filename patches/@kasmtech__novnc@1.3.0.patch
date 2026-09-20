@@ -1,0 +1,112 @@
+diff --git a/core/display.js b/core/display.js
+index 93fef11..15ef318 100644
+--- a/core/display.js
++++ b/core/display.js
+@@ -12,7 +12,6 @@ import Base64 from "./base64.js";
+ import { toSigned32bit } from './util/int.js';
+ import { isWindows } from './util/browser.js';
+ import { uuidv4 } from './util/strings.js';
+-import UI from '../app/ui.js';
+ import { encodings } from "./encodings.js";
+ import {Canvas2DRenderer} from "./renderers/Canvas2DRenderer";
+ import {WebGLRenderer} from "./renderers/WebGLRenderer";
+@@ -470,7 +469,6 @@ export default class Display {
+ 
+             this._screens.push(new_screen);
+             if (new_screen.channel) {
+-                UI.registeredWindows.set(screenID, windowId);
+                 new_screen.channel.postMessage({eventType: "registered", screenIndex: new_screen.screenIndex});
+             } else
+                 Log.Debug(`Channel not found for screenId ${screenID}`);
+@@ -508,11 +506,6 @@ export default class Display {
+                 if (this._screens[i].screenID == screenID) {
+                     //flush all rects on target screen
+                     this._flushRectsScreen(i);
+-                    const windowId = UI.registeredWindows.get(screenID);
+-                    if (windowId) {
+-                        UI.registeredWindows.delete(screenID);
+-                        UI.displayWindows.delete(windowId);
+-                    }
+                     this._screens.splice(i, 1);
+                     removed = true;
+                     break;
+@@ -677,6 +670,10 @@ export default class Display {
+     * Cleans up resources, should be called on a disconnect
+     */
+     dispose() {
++        this._broadcastChannel?.close();
++        this._portRelayWorker?.port.close();
++        this._encodedFramePort?.close();
++        for (const screen of this._screens) screen.channel?.close();
+         if (this._frameStatsInterval) {
+             clearInterval(this._frameStatsInterval);
+             this._frameStatsInterval = null;
+diff --git a/core/rfb.js b/core/rfb.js
+index de4ee6c..0413205 100644
+--- a/core/rfb.js
++++ b/core/rfb.js
+@@ -20,8 +20,6 @@ import Display from "./display.js";
+ import Inflator from "./inflator.js";
+ import Deflator from "./deflator.js";
+ import Keyboard from "./input/keyboard.js";
+-import initializePrinterRelay from "./output/printer.js";
+-import initializeSmartcardRelay from "./output/smartcard.js";
+ import GestureHandler from "./input/gesturehandler.js";
+ import Cursor from "./util/cursor.js";
+ import Websock from "./websock.js";
+@@ -227,12 +225,12 @@ export default class RFB extends EventTargetMixin {
+         this._gestureLastMagnitudeY = 0;
+ 
+         // Secondary Displays
+-        this._supportsMultiMonitor = (typeof BroadcastChannel !== "undefined" && typeof SharedWorker !== "undefined");
++        this._supportsMultiMonitor = options.multiMonitor !== false && (typeof BroadcastChannel !== "undefined" && typeof SharedWorker !== "undefined");
+         if (this._supportsMultiMonitor) {
+             this._controlChannel = new BroadcastChannel(this._connectionID);
+             this._controlChannel.addEventListener('message', this._handleControlMessage.bind(this));
+             Log.Debug("Attached to registrationChannel for secondary displays.")
+-        } else {
++        } else if (options.multiMonitor !== false) {
+             Log.Warn("This browser does not support multi-monitor setups.");
+         }
+         if (!this._isPrimaryDisplay) {
+@@ -309,6 +307,7 @@ export default class RFB extends EventTargetMixin {
+         this._decoders[encodings.encodingTightPNG] = new TightPNGDecoder();
+         this._decoders[encodings.encodingUDP] = new UDPDecoder();
+ 
++        this._touchInput = touchInput;
+         this._keyboard = new Keyboard(this._canvas, touchInput, navigator.keyboard);
+         this._keyboard.onkeyevent = this._handleKeyEvent.bind(this);
+ 
+@@ -1530,6 +1529,12 @@ export default class RFB extends EventTargetMixin {
+         this._canvas.removeEventListener("focus", this._eventHandlers.handleFocusChange);
+         window.removeEventListener('resize', this._eventHandlers.windowResize);
+         window.removeEventListener('focus', this._eventHandlers.handleFocusChange);
++        window.removeEventListener('blur', this._eventHandlers.handleFocusChange);
++        window.removeEventListener('mouseover', this._eventHandlers.handleMouseOut);
++        this._canvas.removeEventListener('touchend', this._eventHandlers.updateHiddenKeyboard);
++        this._controlChannel?.close();
++        this._controlChannel = null;
++        clearInterval(this._watchForPinchAndZoom);
+         document.removeEventListener('visibilitychange', this._eventHandlers.handleVisibilityChange);
+ 
+         this._keyboard.ungrab();
+@@ -1565,7 +1570,7 @@ export default class RFB extends EventTargetMixin {
+     _updateHiddenKeyboard(event) {
+         // On iOS 15 the navigation bar is at the bottom so we need to account for it
+         const y = Math.max(0, event.pageY - 50);
+-        document.querySelector("#noVNC_keyboardinput").style.top = `${y}px`;
++        this._touchInput.style.top = `${y}px`;
+     }
+ 
+     _handleFocusChange(event) {
+@@ -3246,10 +3251,6 @@ export default class RFB extends EventTargetMixin {
+ 
+         this._updateConnectionState('connected');
+ 
+-        //Register pipe based extensions
+-        initializePrinterRelay(this);
+-        initializeSmartcardRelay(this);
+-
+         return true;
+     }
+ 

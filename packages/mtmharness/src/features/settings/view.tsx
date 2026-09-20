@@ -1,4 +1,4 @@
-import { useSyncExternalStore, useState, type ReactElement } from "react";
+import { type ReactElement, useState, useSyncExternalStore } from "react";
 import type { PonytailMode, RtkMode } from "../coding/types.js";
 import type {
   MtmHarnessCapability,
@@ -15,7 +15,10 @@ const UNAVAILABLE_SETTINGS: MtmHarnessSettingsSnapshot = {
   status: "unavailable",
   writable: false,
 };
-const NOOP_SUBSCRIBE = (_listener: () => void): (() => void) => () => undefined;
+const NOOP_SUBSCRIBE =
+  (_listener: () => void): (() => void) =>
+  () =>
+    undefined;
 
 function useCapabilitySnapshot(
   capability: MtmHarnessCapability | undefined,
@@ -76,7 +79,6 @@ const LABELS: Record<MtmHarnessSettingsField, string> = {
   rtkMode: "RTK mode",
 };
 
-
 const MODE_VALUES: readonly PonytailMode[] = ["off", "lite", "full", "ultra"];
 const RTK_VALUES: readonly RtkMode[] = ["off", "guidance", "auto", "rewrite"];
 
@@ -123,7 +125,10 @@ function CodingSettings({
 
   if (snapshot.status === "unavailable" || snapshot.status === "error") {
     return (
-      <section aria-labelledby="coding-settings-title" className="border-border border-t pt-5">
+      <section
+        aria-labelledby="coding-settings-title"
+        className="border-border border-t pt-5"
+      >
         <h2 className="font-semibold text-base" id="coding-settings-title">
           Coding settings
         </h2>
@@ -135,28 +140,41 @@ function CodingSettings({
   }
 
   return (
-    <section aria-labelledby="coding-settings-title" className="border-border border-t pt-5">
+    <section
+      aria-labelledby="coding-settings-title"
+      className="border-border border-t pt-5"
+    >
       <div className="flex items-baseline justify-between gap-4">
         <h2 className="font-semibold text-base" id="coding-settings-title">
           Coding settings
         </h2>
-        <span className="text-muted-foreground text-sm">{statusLabel(snapshot)}</span>
+        <span className="text-muted-foreground text-sm">
+          {statusLabel(snapshot)}
+        </span>
       </div>
       <div className="mt-3 grid gap-3">
-        {(["codebaseMemoryEnabled", "codebaseMemoryAugmentHooks", "ponytailEnabled", "ponytailSubagents"] as const).map(
-          (field) => (
-            <label className="flex items-center justify-between gap-4 text-sm" key={field}>
-              <span>{LABELS[field]}</span>
-              <input
-                aria-label={LABELS[field]}
-                checked={value[field] === true}
-                disabled={!snapshot.writable || busy !== undefined}
-                onChange={(event) => void update(field, event.target.checked)}
-                type="checkbox"
-              />
-            </label>
-          ),
-        )}
+        {(
+          [
+            "codebaseMemoryEnabled",
+            "codebaseMemoryAugmentHooks",
+            "ponytailEnabled",
+            "ponytailSubagents",
+          ] as const
+        ).map((field) => (
+          <label
+            className="flex items-center justify-between gap-4 text-sm"
+            key={field}
+          >
+            <span>{LABELS[field]}</span>
+            <input
+              aria-label={LABELS[field]}
+              checked={value[field] === true}
+              disabled={!snapshot.writable || busy !== undefined}
+              onChange={(event) => void update(field, event.target.checked)}
+              type="checkbox"
+            />
+          </label>
+        ))}
         <label className="grid gap-1 text-sm">
           <span>{LABELS.ponytailMode}</span>
           <select
@@ -167,7 +185,11 @@ function CodingSettings({
             }
             value={value.ponytailMode ?? "full"}
           >
-            {MODE_VALUES.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
+            {MODE_VALUES.map((mode) => (
+              <option key={mode} value={mode}>
+                {mode}
+              </option>
+            ))}
           </select>
         </label>
         <label className="grid gap-1 text-sm">
@@ -180,7 +202,11 @@ function CodingSettings({
             }
             value={value.rtkMode ?? "auto"}
           >
-            {RTK_VALUES.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
+            {RTK_VALUES.map((mode) => (
+              <option key={mode} value={mode}>
+                {mode}
+              </option>
+            ))}
           </select>
         </label>
       </div>
@@ -202,7 +228,11 @@ function CodingSettings({
           Reset overrides
         </button>
       ) : null}
-      {error ? <p className="mt-2 text-destructive text-sm" role="alert">{error}</p> : null}
+      {error ? (
+        <p className="mt-2 text-destructive text-sm" role="alert">
+          {error}
+        </p>
+      ) : null}
     </section>
   );
 }
@@ -223,13 +253,20 @@ export function MtmHarnessSettingsView({
   settings,
 }: MtmHarnessSettingsViewProps): ReactElement {
   return (
-    <main className="mx-auto w-full max-w-2xl overflow-auto p-5" data-settings-view>
+    <main
+      className="mx-auto w-full max-w-2xl overflow-auto p-5"
+      data-settings-view
+    >
       <header>
         <h1 className="font-semibold text-xl">Settings</h1>
-        <p className="mt-1 text-muted-foreground text-sm">Capability status and browser-owned configuration.</p>
+        <p className="mt-1 text-muted-foreground text-sm">
+          Capability status and browser-owned configuration.
+        </p>
       </header>
       <section aria-labelledby="capabilities-title" className="mt-6">
-        <h2 className="font-semibold text-base" id="capabilities-title">Capabilities</h2>
+        <h2 className="font-semibold text-base" id="capabilities-title">
+          Capabilities
+        </h2>
         <ul className="mt-2 border-border border-t">
           <CapabilityRow capability={auth} name="Authentication" />
           <CapabilityRow capability={api} name="Remote product API" />

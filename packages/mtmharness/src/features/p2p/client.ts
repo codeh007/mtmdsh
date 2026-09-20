@@ -8,6 +8,7 @@ import {
   validateMessageId,
   validateRequest,
 } from "./protocol.js";
+import { P2pSocket } from "./socket.js";
 
 export * from "./protocol.js";
 
@@ -38,7 +39,11 @@ export class MtmP2pClient {
   private readonly port?: MessagePort;
   private readonly maxBodyBytes: number;
   private readonly timeoutMs: number;
+  private readonly sockets = new Set<P2pSocket>();
   private closed = false;
+  private readonly onPageHide = () => {
+    void this.close();
+  };
 
   constructor(options: P2pClientOptions = {}) {
     this.maxBodyBytes = options.maxBodyBytes ?? MAX_BODY_BYTES;
@@ -58,9 +63,16 @@ export class MtmP2pClient {
       return;
     }
     this.port = worker.port;
-    this.port.onmessage = (event: MessageEvent<P2pMessage>) => this.receive(event.data);
-    this.port.onmessageerror = () => this.publish({ ...this.snapshot, status: "error", error: "p2p message could not be decoded" });
+    this.port.onmessage = (event: MessageEvent<P2pMessage>) =>
+      this.receive(event.data);
+    this.port.onmessageerror = () =>
+      this.publish({
+        ...this.snapshot,
+        status: "error",
+        error: "p2p message could not be decoded",
+      });
     this.port.start();
+    globalThis.addEventListener?.("pagehide", this.onPageHide);
   }
 
   getSnapshot = (): P2pSnapshot => this.snapshot;
@@ -71,22 +83,40 @@ export class MtmP2pClient {
   };
 
   connect = (address: string): Promise<void> => {
-    if (address.trim() === "") return Promise.reject(new Error("p2p address is required"));
+    if (address.trim() === "")
+      return Promise.reject(new Error("p2p address is required"));
     this.publish({ ...this.snapshot, status: "connecting", error: undefined });
     const id = crypto.randomUUID();
-    return this.wait<void>(id, { type: "connect", id, address }, this.timeoutMs);
+    return this.wait<void>(
+      id,
+      { type: "connect", id, address },
+      this.timeoutMs,
+    );
   };
 
   disconnect = (peerId: string): Promise<void> => {
-    if (peerId.trim() === "") return Promise.reject(new Error("p2p peer ID is required"));
+    if (peerId.trim() === "")
+      return Promise.reject(new Error("p2p peer ID is required"));
     const id = crypto.randomUUID();
-    return this.wait<void>(id, { type: "disconnect", id, peerId }, this.timeoutMs);
+    return this.wait<void>(
+      id,
+      { type: "disconnect", id, peerId },
+      this.timeoutMs,
+    );
   };
 
-  fetch = (peer: string, input: RequestInfo | URL, init?: RequestInit): Promise<Response> =>
-    this.request(peer, input, init);
+  fetch = (
+    peer: string,
+    input: RequestInfo | URL,
+    init?: RequestInit,
+  ): Promise<Response> => this.request(peer, input, init);
 
-  request = async (peer: string, input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  request = async (
+    peer: string,
+    input: RequestInfo | URL,
+    init?: RequestInit,
+    timeoutMs = this.timeoutMs,
+  ): Promise<Response> => {
     const request = makeRequest(input, init);
     const url = new URL(request.url);
     if (url.hash !== "") throw new Error("p2p URL must not contain a fragment");
@@ -96,19 +126,66 @@ export class MtmP2pClient {
     const id = crypto.randomUUID();
     const messageRequest: P2pHttpRequest = {
       id,
-      ...(peer.trim().startsWith("/") ? { address: peer.trim() } : { peerId: peer.trim() }),
+      ...(peer.trim().startsWith("/")
+        ? { address: peer.trim() }
+        : { peerId: peer.trim() }),
       method: request.method,
       target: url.pathname + url.search,
       headers: [...headers],
       body,
-      timeoutMs: this.timeoutMs,
+      timeoutMs,
     };
     validateRequest(messageRequest, this.maxBodyBytes);
-    return this.wait<Response>(id, { type: "request", request: messageRequest }, this.timeoutMs, request.signal);
+    return this.wait<Response>(
+      id,
+      { type: "request", request: messageRequest },
+      timeoutMs,
+      request.signal,
+    );
+  };
+
+  openSocket = (
+    peer: string,
+    target: string,
+    signal?: AbortSignal,
+  ): P2pSocket => {
+    if (this.closed || this.port === undefined)
+      throw new Error("p2p client is unavailable");
+    if (!target.startsWith("/") || target.startsWith("//"))
+      throw new Error("socket target must be a relative path");
+    const request: P2pHttpRequest = {
+      id: crypto.randomUUID(),
+      ...(peer.startsWith("/") ? { address: peer } : { peerId: peer }),
+      method: "GET",
+      target,
+      headers: [],
+      body: new Uint8Array(),
+    };
+    validateRequest(request);
+    const channel = new MessageChannel();
+    const socket = new P2pSocket(
+      channel.port1,
+      () => this.sockets.delete(socket),
+      signal,
+    );
+    this.sockets.add(socket);
+    try {
+      this.port.postMessage(
+        { type: "socket", request, port: channel.port2 } satisfies P2pMessage,
+        [channel.port2],
+      );
+    } catch (error) {
+      socket.close(1006, "P2P worker unavailable");
+      channel.port2.close();
+      throw error;
+    }
+    return socket;
   };
 
   close = async (): Promise<void> => {
     if (this.closed) return;
+    globalThis.removeEventListener?.("pagehide", this.onPageHide);
+    for (const socket of this.sockets) socket.close();
     this.closed = true;
     if (this.port !== undefined) {
       try {
@@ -127,8 +204,14 @@ export class MtmP2pClient {
     this.publish({ ...this.snapshot, status: "closed" });
   };
 
-  private wait<T>(id: string, message: P2pMessage, timeoutMs: number, signal?: AbortSignal): Promise<T> {
-    if (this.closed || this.port === undefined) return Promise.reject(new Error("p2p client is unavailable"));
+  private wait<T>(
+    id: string,
+    message: P2pMessage,
+    timeoutMs: number,
+    signal?: AbortSignal,
+  ): Promise<T> {
+    if (this.closed || this.port === undefined)
+      return Promise.reject(new Error("p2p client is unavailable"));
     return new Promise<T>((resolve, reject) => {
       const finish = (action: () => void): void => {
         const pending = this.pending.get(id);
@@ -167,14 +250,18 @@ export class MtmP2pClient {
       try {
         this.send(message);
       } catch (error) {
-        finish(() => reject(error instanceof Error ? error : new Error(String(error))));
+        finish(() =>
+          reject(error instanceof Error ? error : new Error(String(error))),
+        );
       }
     });
   }
 
   private send(message: P2pMessage): void {
-    if (this.port === undefined || this.closed) throw new Error("p2p client is unavailable");
-    const transfer = message.type === "request" ? [message.request.body.buffer] : [];
+    if (this.port === undefined || this.closed)
+      throw new Error("p2p client is unavailable");
+    const transfer =
+      message.type === "request" ? [message.request.body.buffer] : [];
     this.port.postMessage(message, transfer);
   }
 
@@ -186,9 +273,14 @@ export class MtmP2pClient {
     if (message.type === "response") {
       validateMessageId(message.response.id);
       const response = new Response(
-        message.response.body.byteLength === 0 ? null : (message.response.body as unknown as BodyInit),
+        message.response.body.byteLength === 0
+          ? null
+          : (message.response.body as unknown as BodyInit),
         {
-          headers: new Headers([...message.response.headers] as [string, string][]),
+          headers: new Headers([...message.response.headers] as [
+            string,
+            string,
+          ][]),
           status: message.response.status,
           statusText: message.response.statusText,
         },
@@ -202,9 +294,15 @@ export class MtmP2pClient {
       return;
     }
     if (message.type === "error") {
-      const pending = message.id === undefined ? undefined : this.pending.get(message.id);
+      const pending =
+        message.id === undefined ? undefined : this.pending.get(message.id);
       if (pending !== undefined) pending.reject(new Error(message.error));
-      else this.publish({ ...this.snapshot, status: "error", error: message.error });
+      else
+        this.publish({
+          ...this.snapshot,
+          status: "error",
+          error: message.error,
+        });
     }
   }
 
@@ -214,7 +312,10 @@ export class MtmP2pClient {
   }
 }
 
-async function readBodyLimited(request: Request, maxBytes: number): Promise<Uint8Array> {
+async function readBodyLimited(
+  request: Request,
+  maxBytes: number,
+): Promise<Uint8Array> {
   if (request.body === null) return new Uint8Array();
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -253,7 +354,15 @@ function makeRequest(input: RequestInfo | URL, init?: RequestInit): Request {
 function freeze(snapshot: P2pSnapshot): P2pSnapshot {
   return Object.freeze({
     ...snapshot,
-    peers: Object.freeze(snapshot.peers.map((peer) => Object.freeze({ ...peer, addresses: Object.freeze([...peer.addresses]), protocols: Object.freeze([...peer.protocols]) }))),
+    peers: Object.freeze(
+      snapshot.peers.map((peer) =>
+        Object.freeze({
+          ...peer,
+          addresses: Object.freeze([...peer.addresses]),
+          protocols: Object.freeze([...peer.protocols]),
+        }),
+      ),
+    ),
   });
 }
 
@@ -265,7 +374,10 @@ function abortError(): Error {
 
 export interface MtmP2pClientConfig extends P2pClientOptions {}
 
-export function apply(ctx: ClientContext, config: MtmP2pClientConfig = {}): void {
+export function apply(
+  ctx: ClientContext,
+  config: MtmP2pClientConfig = {},
+): void {
   const client = new MtmP2pClient(config);
   ctx.provide("mtm-p2p-client", client);
   ctx.effect(() => () => void client.close(), "mtm-p2p: client lifecycle");

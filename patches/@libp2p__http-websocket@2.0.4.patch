@@ -1,0 +1,382 @@
+diff --git a/dist/src/utils.js b/dist/src/utils.js
+index e970c26556154e6ffab6fc7a0e74b7160da707bd..340770655790beebeff6d7813ec93442e49173cc 100644
+--- a/dist/src/utils.js
++++ b/dist/src/utils.js
+@@ -83,7 +83,7 @@ export async function* performClientUpgrade(url, protocols = [], headers) {
+         headers.set('sec-websocket-protocol', protocols.join(', '));
+     }
+     yield uint8ArrayFromString([
+-        `GET ${url.pathname ?? '/'} HTTP/1.1`,
++        `GET ${url.pathname || '/'}${url.search} HTTP/1.1`,
+         ...[...headers.entries()].map(([key, value]) => `${key}: ${value}`),
+         '',
+         ''
+diff --git a/dist/src/websocket.js b/dist/src/websocket.js
+index 44428d17e278b6386e4728c3392b96b2ed0b3976..f29b63c85553c7de8ff22561f7829e3fc3e0761e 100644
+--- a/dist/src/websocket.js
++++ b/dist/src/websocket.js
+@@ -58,7 +58,7 @@ class AbstractWebSocket extends TypedEventEmitter {
+         }
+     }
+     _send(type, data) {
+-        if (this.readyState !== this.OPEN) {
++        if (this.readyState !== this.OPEN && !(type === 'CONNECTION_CLOSE' && this.readyState === this.CLOSING)) {
+             return;
+         }
+         const message = encodeMessage(type, data, this.isClient);
+@@ -69,44 +69,67 @@ class AbstractWebSocket extends TypedEventEmitter {
+             if (err != null) {
+                 this._errored(err);
+             }
++            else if (type === 'CONNECTION_CLOSE') {
++                this._remoteClosed();
++            }
+         });
+     }
+     close(code, reason) {
+-        if (this.readyState !== this.OPEN) {
+-            throw new Error('WebSocket was not open');
++        if (this.readyState === this.CLOSING || this.readyState === this.CLOSED) {
++            return;
++        }
++        if (this.readyState === this.CONNECTING) {
++            this._remoteClosed(new Error('WebSocket closed before opening'));
++            return;
+         }
+         this.readyState = this.CLOSING;
+         this.sentClose = true;
+-        this._send('CONNECTION_CLOSE');
++        this._send('CONNECTION_CLOSE', new Uint8Array(0));
+     }
+     _errored(err) {
+-        this.readyState = this.CLOSED;
++        if (this.readyState === this.CLOSED) {
++            return;
++        }
++        this.readyState = this.CLOSING;
+         this.dispatchEvent(new ErrorEvent(err));
++        this._remoteClosed(err);
+     }
+     set onclose(listener) {
++        if (this._onclose != null)
++            this.removeEventListener('close', this._onclose);
+         this._onclose = listener;
+-        this.addEventListener('close', listener);
++        if (listener != null)
++            this.addEventListener('close', listener);
+     }
+     get onclose() {
+         return this._onclose ?? null;
+     }
+     set onerror(listener) {
++        if (this._onerror != null)
++            this.removeEventListener('error', this._onerror);
+         this._onerror = listener;
+-        this.addEventListener('error', listener);
++        if (listener != null)
++            this.addEventListener('error', listener);
+     }
+     get onerror() {
+         return this._onerror ?? null;
+     }
+     set onmessage(listener) {
++        if (this._onmessage != null)
++            this.removeEventListener('message', this._onmessage);
+         this._onmessage = listener;
+-        this.addEventListener('message', listener);
++        if (listener != null)
++            this.addEventListener('message', listener);
+     }
+     get onmessage() {
+         return this._onmessage ?? null;
+     }
+     set onopen(listener) {
++        if (this._onopen != null)
++            this.removeEventListener('open', this._onopen);
+         this._onopen = listener;
+-        this.addEventListener('open', listener);
++        if (listener != null)
++            this.addEventListener('open', listener);
+     }
+     get onopen() {
+         return this._onopen ?? null;
+@@ -153,11 +176,7 @@ class AbstractWebSocket extends TypedEventEmitter {
+                 if (!this.sentClose) {
+                     this.close();
+                 }
+-                this.closeController.abort();
+-                this._close(undefined, () => {
+-                    this.readyState = this.CLOSED;
+-                    this.dispatchEvent(new CloseEvent('close'));
+-                });
++                return;
+             }
+         }
+     }
+@@ -165,9 +184,12 @@ class AbstractWebSocket extends TypedEventEmitter {
+      * To be invoked when the underlying transport is closed by the remote end
+      */
+     _remoteClosed(err) {
+-        this.readyState = this.CLOSING;
++        if (this.readyState === this.CLOSED) {
++            return;
++        }
++        this.readyState = this.CLOSED;
++        this.closeController.abort(err);
+         this._close(err, () => {
+-            this.readyState = this.CLOSED;
+             this.dispatchEvent(new CloseEvent('close'));
+         });
+     }
+@@ -333,13 +355,25 @@ export class WebSocket extends AbstractWebSocket {
+         });
+         this.handshakeTimeout = init.handshakeTimeout ?? 10_000;
+         this.drainTimeout = init.drainTimeout ?? 10_000;
++        const onAbort = () => { this._errored(init.signal?.reason ?? new Error('WebSocket aborted')); };
++        init.signal?.addEventListener('abort', onAbort, { once: true });
++        this.addEventListener('close', () => { init.signal?.removeEventListener('abort', onAbort); }, { once: true });
+         Promise.resolve()
+             .then(async () => {
+-            const signal = AbortSignal.timeout(this.handshakeTimeout);
++            const signal = AbortSignal.any([
++                AbortSignal.timeout(this.handshakeTimeout),
++                this.closeController.signal,
++                ...(init.signal != null ? [init.signal] : [])
++            ]);
++            signal.throwIfAborted();
+             this.stream = await connectionManager.openStream(mas, HTTP_PROTOCOL, {
+                 ...init,
+                 signal
+             });
++            if (signal.aborted) {
++                this.stream.abort(signal.reason);
++                signal.throwIfAborted();
++            }
+             for await (const buf of performClientUpgrade(url, init.protocols, getHeaders(init))) {
+                 if (!this.stream.send(buf)) {
+                     await this.stream.onDrain({
+@@ -356,13 +390,17 @@ export class WebSocket extends AbstractWebSocket {
+             await init.onHandshakeResponse?.(res, {
+                 signal
+             });
++            signal.throwIfAborted();
+             // if a protocol was selected by the server, expose it
+             this.protocol = res.headers.get('Sec-WebSocket-Protocol') ?? '';
+             this.readyState = this.OPEN;
+             this.dispatchEvent(new Event('open'));
+             for await (const buf of this.stream) {
+                 this._push(buf);
++                if (this.readyState === this.CLOSED)
++                    break;
+             }
++            this._remoteClosed();
+         })
+             .catch(err => {
+             this._errored(err);
+@@ -375,7 +413,7 @@ export class WebSocket extends AbstractWebSocket {
+         }
+         if (!this.stream.send(buf)) {
+             this.stream.onDrain({
+-                signal: AbortSignal.timeout(this.drainTimeout)
++                signal: AbortSignal.any([AbortSignal.timeout(this.drainTimeout), this.closeController.signal])
+             }).then(() => {
+                 cb();
+             }, (err) => {
+@@ -405,4 +443,3 @@ export class WebSocket extends AbstractWebSocket {
+         });
+     }
+ }
+-//# sourceMappingURL=websocket.js.map
+\ No newline at end of file
+diff --git a/src/utils.ts b/src/utils.ts
+index 6e5ed4c0acc85620b9800d369966599b366ce968..b7a1ac7c1ff1715bab9363fc59aa5a23813ddee6 100644
+--- a/src/utils.ts
++++ b/src/utils.ts
+@@ -108,7 +108,7 @@ export async function * performClientUpgrade (url: URL, protocols: string[] = []
+   }
+ 
+   yield uint8ArrayFromString([
+-    `GET ${url.pathname ?? '/'} HTTP/1.1`,
++    `GET ${url.pathname || '/'}${url.search} HTTP/1.1`,
+     ...[...headers.entries()].map(([key, value]) => `${key}: ${value}`),
+     '',
+     ''
+diff --git a/src/websocket.ts b/src/websocket.ts
+index 20e0c136b9ccb7ffdf4e25a17101c291125d0604..85cc64eccd748d5adc984575d037ed65f88de967 100644
+--- a/src/websocket.ts
++++ b/src/websocket.ts
+@@ -84,7 +84,7 @@ abstract class AbstractWebSocket extends TypedEventEmitter<WebSocketEvents> {
+   }
+ 
+   _send (type: MESSAGE_TYPE, data?: Uint8Array): void {
+-    if (this.readyState !== this.OPEN) {
++    if (this.readyState !== this.OPEN && !(type === 'CONNECTION_CLOSE' && this.readyState === this.CLOSING)) {
+       return
+     }
+ 
+@@ -98,28 +98,41 @@ abstract class AbstractWebSocket extends TypedEventEmitter<WebSocketEvents> {
+ 
+       if (err != null) {
+         this._errored(err)
++      } else if (type === 'CONNECTION_CLOSE') {
++        this._remoteClosed()
+       }
+     })
+   }
+ 
+   close (code?: number, reason?: string): void {
+-    if (this.readyState !== this.OPEN) {
+-      throw new Error('WebSocket was not open')
++    if (this.readyState === this.CLOSING || this.readyState === this.CLOSED) {
++      return
++    }
++
++    if (this.readyState === this.CONNECTING) {
++      this._remoteClosed(new Error('WebSocket closed before opening'))
++      return
+     }
+ 
+     this.readyState = this.CLOSING
+     this.sentClose = true
+-    this._send('CONNECTION_CLOSE')
++    this._send('CONNECTION_CLOSE', new Uint8Array(0))
+   }
+ 
+   _errored (err: Error): void {
+-    this.readyState = this.CLOSED
++    if (this.readyState === this.CLOSED) {
++      return
++    }
++
++    this.readyState = this.CLOSING
+     this.dispatchEvent(new ErrorEvent(err))
++    this._remoteClosed(err)
+   }
+ 
+   set onclose (listener: CloseListener) {
++    if (this._onclose != null) this.removeEventListener('close', this._onclose)
+     this._onclose = listener
+-    this.addEventListener('close', listener)
++    if (listener != null) this.addEventListener('close', listener)
+   }
+ 
+   get onclose (): CloseListener | null {
+@@ -127,8 +140,9 @@ abstract class AbstractWebSocket extends TypedEventEmitter<WebSocketEvents> {
+   }
+ 
+   set onerror (listener: ErrorListener) {
++    if (this._onerror != null) this.removeEventListener('error', this._onerror)
+     this._onerror = listener
+-    this.addEventListener('error', listener)
++    if (listener != null) this.addEventListener('error', listener)
+   }
+ 
+   get onerror (): ErrorListener | null {
+@@ -136,8 +150,9 @@ abstract class AbstractWebSocket extends TypedEventEmitter<WebSocketEvents> {
+   }
+ 
+   set onmessage (listener: MessageListener) {
++    if (this._onmessage != null) this.removeEventListener('message', this._onmessage)
+     this._onmessage = listener
+-    this.addEventListener('message', listener)
++    if (listener != null) this.addEventListener('message', listener)
+   }
+ 
+   get onmessage (): MessageListener | null {
+@@ -145,8 +160,9 @@ abstract class AbstractWebSocket extends TypedEventEmitter<WebSocketEvents> {
+   }
+ 
+   set onopen (listener: OpenListener) {
++    if (this._onopen != null) this.removeEventListener('open', this._onopen)
+     this._onopen = listener
+-    this.addEventListener('open', listener)
++    if (listener != null) this.addEventListener('open', listener)
+   }
+ 
+   get onopen (): OpenListener | null {
+@@ -202,11 +218,7 @@ abstract class AbstractWebSocket extends TypedEventEmitter<WebSocketEvents> {
+           this.close()
+         }
+ 
+-        this.closeController.abort()
+-        this._close(undefined, () => {
+-          this.readyState = this.CLOSED
+-          this.dispatchEvent(new CloseEvent('close'))
+-        })
++        return
+       }
+     }
+   }
+@@ -215,9 +227,13 @@ abstract class AbstractWebSocket extends TypedEventEmitter<WebSocketEvents> {
+    * To be invoked when the underlying transport is closed by the remote end
+    */
+   protected _remoteClosed (err?: Error): void {
+-    this.readyState = this.CLOSING
++    if (this.readyState === this.CLOSED) {
++      return
++    }
++
++    this.readyState = this.CLOSED
++    this.closeController.abort(err)
+     this._close(err, () => {
+-      this.readyState = this.CLOSED
+       this.dispatchEvent(new CloseEvent('close'))
+     })
+   }
+@@ -428,13 +444,26 @@ export class WebSocket extends AbstractWebSocket {
+     this.handshakeTimeout = init.handshakeTimeout ?? 10_000
+     this.drainTimeout = init.drainTimeout ?? 10_000
+ 
++    const onAbort = (): void => { this._errored(init.signal?.reason ?? new Error('WebSocket aborted')) }
++    init.signal?.addEventListener('abort', onAbort, { once: true })
++    this.addEventListener('close', () => { init.signal?.removeEventListener('abort', onAbort) }, { once: true })
++
+     Promise.resolve()
+       .then(async () => {
+-        const signal = AbortSignal.timeout(this.handshakeTimeout)
++        const signal = AbortSignal.any([
++          AbortSignal.timeout(this.handshakeTimeout),
++          this.closeController.signal,
++          ...(init.signal != null ? [init.signal] : [])
++        ])
++        signal.throwIfAborted()
+         this.stream = await connectionManager.openStream(mas, HTTP_PROTOCOL, {
+           ...init,
+           signal
+         })
++        if (signal.aborted) {
++          this.stream.abort(signal.reason)
++          signal.throwIfAborted()
++        }
+ 
+         for await (const buf of performClientUpgrade(url, init.protocols, getHeaders(init))) {
+           if (!this.stream.send(buf)) {
+@@ -456,6 +485,8 @@ export class WebSocket extends AbstractWebSocket {
+           signal
+         })
+ 
++        signal.throwIfAborted()
++
+         // if a protocol was selected by the server, expose it
+         this.protocol = res.headers.get('Sec-WebSocket-Protocol') ?? ''
+ 
+@@ -464,7 +495,10 @@ export class WebSocket extends AbstractWebSocket {
+ 
+         for await (const buf of this.stream) {
+           this._push(buf)
++          if (this.readyState === this.CLOSED) break
+         }
++
++        this._remoteClosed()
+       })
+       .catch(err => {
+         this._errored(err)
+@@ -479,7 +513,7 @@ export class WebSocket extends AbstractWebSocket {
+ 
+     if (!this.stream.send(buf)) {
+       this.stream.onDrain({
+-        signal: AbortSignal.timeout(this.drainTimeout)
++        signal: AbortSignal.any([AbortSignal.timeout(this.drainTimeout), this.closeController.signal])
+       }).then(() => {
+         cb()
+       }, (err) => {

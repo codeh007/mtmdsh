@@ -1,4 +1,3 @@
-export { MtmHarnessSettingsView } from "./view.js";
 export type {
   MtmHarnessCapability,
   MtmHarnessCapabilitySnapshot,
@@ -8,3 +7,4 @@ export type {
   MtmHarnessSettingsSnapshot,
   MtmHarnessSettingsValue,
 } from "./contract.js";
+export { MtmHarnessSettingsView } from "./view.js";

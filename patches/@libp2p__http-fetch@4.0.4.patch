@@ -1,0 +1,376 @@
+diff --git a/dist/src/index.js b/dist/src/index.js
+index 59362210f5f941792cf812fd2e0b1729aaa7958a..d5787ae76932de7371983c2cc3184920367cd419 100644
+--- a/dist/src/index.js
++++ b/dist/src/index.js
+@@ -10,20 +10,25 @@ import { sendRequest } from "./send-request.js";
+ export async function fetch(stream, resource, init = {}) {
+     const log = stream.log.newScope('http-fetch');
+     resource = typeof resource === 'string' ? new URL(resource) : resource;
+-    const [response] = await Promise.all([
+-        readResponse(stream, resource, {
+-            ...init,
+-            log
+-        }),
+-        sendRequest(stream, resource, {
+-            ...init,
+-            log
+-        })
+-    ]);
+-    // close our writable end we've sent the request
+-    await stream.close({
+-        signal: init.signal ?? undefined
+-    });
+-    return response;
++    try {
++        const [response] = await Promise.all([
++            readResponse(stream, resource, {
++                ...init,
++                log
++            }),
++            sendRequest(stream, resource, {
++                ...init,
++                log
++            })
++        ]);
++        // close our writable end we've sent the request
++        await stream.close({
++            signal: init.signal ?? undefined
++        });
++        return response;
++    }
++    catch (err) {
++        stream.abort(err instanceof Error ? err : new Error(String(err)));
++        throw err;
++    }
+ }
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/dist/src/read-response.js b/dist/src/read-response.js
+index ff347acc3b16235448031d56479a58c5fafcf972..963deb109e237128ef2edcedabef1443fbc53109 100644
+--- a/dist/src/read-response.js
++++ b/dist/src/read-response.js
+@@ -7,6 +7,25 @@ export async function readResponse(stream, resource, init) {
+     const body = new TransformStream();
+     const writer = body.writable.getWriter();
+     let headersComplete = false;
++    let messageComplete = false;
++    let settled = false;
++    const cleanup = () => {
++        settled = true;
++        init.signal?.removeEventListener('abort', onAbort);
++        stream.removeEventListener('message', onMessage);
++        stream.removeEventListener('remoteCloseWrite', onEnd);
++        stream.removeEventListener('close', onClose);
++    };
++    const fail = (reason) => {
++        if (settled)
++            return;
++        const err = reason instanceof Error ? reason : new Error(String(reason ?? 'Response body cancelled'));
++        cleanup();
++        output.reject(err);
++        writer.abort(err).catch(() => { });
++        stream.abort(err);
++    };
++    const onAbort = () => { fail(init.signal?.reason); };
+     const parser = new HTTPParser('RESPONSE');
+     parser.maxHeaderSize = init.maxHeaderSize ?? HTTPParser.maxHeaderSize;
+     parser[HTTPParser.kOnHeadersComplete] = (info) => {
+@@ -16,13 +35,7 @@ export async function readResponse(stream, resource, init) {
+         for (let i = 0; i < info.headers.length; i += 2) {
+             headers.append(info.headers[i], info.headers[i + 1]);
+         }
+-        let responseBody = body.readable;
+-        if (nullBodyStatus.includes(info.statusCode)) {
+-            body.writable.close().catch(() => { });
+-            body.readable.cancel().catch(() => { });
+-            responseBody = null;
+-        }
+-        const response = new Response(responseBody, {
++        const response = new Response(nullBodyStatus.includes(info.statusCode) ? null : body.readable, {
+             status: info.statusCode,
+             statusText: info.statusMessage,
+             headers
+@@ -31,34 +44,51 @@ export async function readResponse(stream, resource, init) {
+     };
+     parser[HTTPParser.kOnBody] = (buf) => {
+         init.log('response read body %d bytes', buf.byteLength);
+-        writer.write(buf)
+-            .catch((err) => {
+-            output.reject(err);
+-        });
++        writer.write(buf).catch(fail);
+     };
+     parser[HTTPParser.kOnMessageComplete] = () => {
+         init.log('response message complete');
+-        writer.close()
+-            .catch((err) => {
+-            output.reject(err);
+-        });
++        messageComplete = true;
++        writer.close().catch(fail);
+     };
+     let read = 0;
+-    stream.addEventListener('message', ({ data }) => {
++    const onMessage = ({ data }) => {
++        if (messageComplete || settled)
++            return;
+         init.log('response stream read %d bytes', data.byteLength);
+         read += data.byteLength;
+-        const result = parser.execute(data.subarray(), 0, data.byteLength);
+-        if (result instanceof Error) {
+-            stream.abort(result);
+-            parser.finish();
++        try {
++            const result = parser.execute(data.subarray(), 0, data.byteLength);
++            if (result instanceof Error)
++                fail(result);
+         }
+-    });
+-    stream.addEventListener('remoteCloseWrite', () => {
++        catch (err) {
++            fail(err);
++        }
++    };
++    const onEnd = () => {
++        if (messageComplete || settled)
++            return;
+         if (!headersComplete) {
+-            output.reject(new InvalidResponseError(`Response ended before headers were received, read ${read} bytes`));
++            fail(new InvalidResponseError(`Response ended before headers were received, read ${read} bytes`));
++            return;
+         }
+-        parser.finish();
+-    });
++        const result = parser.finish();
++        if (result instanceof Error)
++            fail(result);
++    };
++    const onClose = (evt) => {
++        if (evt.error != null)
++            fail(evt.error);
++        else
++            onEnd();
++    };
++    writer.closed.then(cleanup, fail);
++    stream.addEventListener('message', onMessage);
++    stream.addEventListener('remoteCloseWrite', onEnd);
++    stream.addEventListener('close', onClose);
++    init.signal?.addEventListener('abort', onAbort, { once: true });
++    if (init.signal?.aborted === true)
++        onAbort();
+     return output.promise;
+ }
+-//# sourceMappingURL=read-response.js.map
+\ No newline at end of file
+diff --git a/dist/src/send-request.js b/dist/src/send-request.js
+index 3ec5ba3469bd7184561dbb65bb1e744ec5a81238..904d66d730354c7cb6328e9a4d4a3fdcf4b24ebd 100644
+--- a/dist/src/send-request.js
++++ b/dist/src/send-request.js
+@@ -2,6 +2,7 @@ import { writeHeaders } from '@libp2p/http-utils';
+ import { fromString as uint8arrayFromString } from 'uint8arrays/from-string';
+ import { normalizeContent } from "./utils.js";
+ export async function sendRequest(stream, url, init) {
++    init.signal?.throwIfAborted();
+     const headers = new Headers(init.headers);
+     const host = headers.get('host') ?? url.hostname;
+     headers.set('host', host);
+@@ -10,7 +11,7 @@ export async function sendRequest(stream, url, init) {
+     }
+     const content = normalizeContent(init.body, headers);
+     const req = [
+-        `${init?.method?.toUpperCase() ?? 'GET'} ${url.pathname ?? '/'} HTTP/1.1`,
++        `${init?.method?.toUpperCase() ?? 'GET'} ${url.pathname || '/'}${url.search} HTTP/1.1`,
+         ...writeHeaders(headers),
+         '',
+         ''
+@@ -43,4 +44,3 @@ async function sendBody(stream, body, init) {
+         }
+     }
+ }
+-//# sourceMappingURL=send-request.js.map
+\ No newline at end of file
+diff --git a/src/index.ts b/src/index.ts
+index a9a7a6fe86210546cb359f20587f92e0893e0521..7e0d64f2f7a522bf68ada9a3377fe7f4d32bbc61 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -29,23 +29,28 @@ export async function fetch (stream: Stream, resource: string | URL, init: Fetch
+   const log = stream.log.newScope('http-fetch')
+   resource = typeof resource === 'string' ? new URL(resource) : resource
+ 
+-  const [
+-    response
+-  ] = await Promise.all([
+-    readResponse(stream, resource, {
+-      ...init,
+-      log
+-    }),
+-    sendRequest(stream, resource, {
+-      ...init,
+-      log
+-    })
+-  ])
++  try {
++    const [
++      response
++    ] = await Promise.all([
++      readResponse(stream, resource, {
++        ...init,
++        log
++      }),
++      sendRequest(stream, resource, {
++        ...init,
++        log
++      })
++    ])
+ 
+-  // close our writable end we've sent the request
+-  await stream.close({
+-    signal: init.signal ?? undefined
+-  })
++    // close our writable end we've sent the request
++    await stream.close({
++      signal: init.signal ?? undefined
++    })
+ 
+-  return response
++    return response
++  } catch (err) {
++    stream.abort(err instanceof Error ? err : new Error(String(err)))
++    throw err
++  }
+ }
+diff --git a/src/read-response.ts b/src/read-response.ts
+index 90a81bd44a102996a62aa37914d399e6a7313d75..032f3e248710e809047d99eb8f8354aba3c440ea 100644
+--- a/src/read-response.ts
++++ b/src/read-response.ts
+@@ -11,6 +11,25 @@ export async function readResponse (stream: Stream, resource: URL, init: SendReq
+   const body = new TransformStream()
+   const writer = body.writable.getWriter()
+   let headersComplete = false
++  let messageComplete = false
++  let settled = false
++
++  const cleanup = (): void => {
++    settled = true
++    init.signal?.removeEventListener('abort', onAbort)
++    stream.removeEventListener('message', onMessage)
++    stream.removeEventListener('remoteCloseWrite', onEnd)
++    stream.removeEventListener('close', onClose)
++  }
++  const fail = (reason: unknown): void => {
++    if (settled) return
++    const err = reason instanceof Error ? reason : new Error(String(reason ?? 'Response body cancelled'))
++    cleanup()
++    output.reject(err)
++    writer.abort(err).catch(() => {})
++    stream.abort(err)
++  }
++  const onAbort = (): void => { fail(init.signal?.reason) }
+ 
+   const parser = new HTTPParser('RESPONSE')
+   parser.maxHeaderSize = init.maxHeaderSize ?? HTTPParser.maxHeaderSize
+@@ -23,15 +42,7 @@ export async function readResponse (stream: Stream, resource: URL, init: SendReq
+       headers.append(info.headers[i], info.headers[i + 1])
+     }
+ 
+-    let responseBody: BodyInit | null = body.readable
+-
+-    if (nullBodyStatus.includes(info.statusCode)) {
+-      body.writable.close().catch(() => {})
+-      body.readable.cancel().catch(() => {})
+-      responseBody = null
+-    }
+-
+-    const response = new Response(responseBody, {
++    const response = new Response(nullBodyStatus.includes(info.statusCode) ? null : body.readable, {
+       status: info.statusCode,
+       statusText: info.statusMessage,
+       headers
+@@ -41,38 +52,47 @@ export async function readResponse (stream: Stream, resource: URL, init: SendReq
+   }
+   parser[HTTPParser.kOnBody] = (buf) => {
+     init.log('response read body %d bytes', buf.byteLength)
+-    writer.write(buf)
+-      .catch((err: Error) => {
+-        output.reject(err)
+-      })
++    writer.write(buf).catch(fail)
+   }
+   parser[HTTPParser.kOnMessageComplete] = () => {
+     init.log('response message complete')
+-    writer.close()
+-      .catch((err: Error) => {
+-        output.reject(err)
+-      })
++    messageComplete = true
++    writer.close().catch(fail)
+   }
+ 
+   let read = 0
+-  stream.addEventListener('message', ({ data }) => {
++  const onMessage = ({ data }: { data: { byteLength: number, subarray(): Uint8Array } }): void => {
++    if (messageComplete || settled) return
+     init.log('response stream read %d bytes', data.byteLength)
+     read += data.byteLength
+ 
+-    const result = parser.execute(data.subarray(), 0, data.byteLength)
+-
+-    if (result instanceof Error) {
+-      stream.abort(result)
+-      parser.finish()
++    try {
++      const result = parser.execute(data.subarray(), 0, data.byteLength)
++      if (result instanceof Error) fail(result)
++    } catch (err) {
++      fail(err)
+     }
+-  })
+-  stream.addEventListener('remoteCloseWrite', () => {
++  }
++  const onEnd = (): void => {
++    if (messageComplete || settled) return
+     if (!headersComplete) {
+-      output.reject(new InvalidResponseError(`Response ended before headers were received, read ${read} bytes`))
++      fail(new InvalidResponseError(`Response ended before headers were received, read ${read} bytes`))
++      return
+     }
++    const result = parser.finish()
++    if (result instanceof Error) fail(result)
++  }
++  const onClose = (evt: { error?: Error }): void => {
++    if (evt.error != null) fail(evt.error)
++    else onEnd()
++  }
+ 
+-    parser.finish()
+-  })
++  writer.closed.then(cleanup, fail)
++  stream.addEventListener('message', onMessage)
++  stream.addEventListener('remoteCloseWrite', onEnd)
++  stream.addEventListener('close', onClose)
++  init.signal?.addEventListener('abort', onAbort, { once: true })
++  if (init.signal?.aborted === true) onAbort()
+ 
+   return output.promise
+ }
+diff --git a/src/send-request.ts b/src/send-request.ts
+index 6b2cbaac97fdb5b397e702d1843352c1357d8ce0..c5b5778f5c35ecf8d50242ca64bd0f2e8cd57b0f 100644
+--- a/src/send-request.ts
++++ b/src/send-request.ts
+@@ -5,6 +5,7 @@ import type { SendRequestInit } from './index.ts'
+ import type { Stream } from '@libp2p/interface'
+ 
+ export async function sendRequest (stream: Stream, url: URL, init: SendRequestInit): Promise<void> {
++  init.signal?.throwIfAborted()
+   const headers = new Headers(init.headers)
+ 
+   const host = headers.get('host') ?? url.hostname
+@@ -17,7 +18,7 @@ export async function sendRequest (stream: Stream, url: URL, init: SendRequestIn
+   const content = normalizeContent(init.body, headers)
+ 
+   const req = [
+-    `${init?.method?.toUpperCase() ?? 'GET'} ${url.pathname ?? '/'} HTTP/1.1`,
++    `${init?.method?.toUpperCase() ?? 'GET'} ${url.pathname || '/'}${url.search} HTTP/1.1`,
+     ...writeHeaders(headers),
+     '',
+     ''

@@ -1,30 +1,66 @@
 import { noise } from "@chainsafe/libp2p-noise";
 import { yamux } from "@chainsafe/libp2p-yamux";
+import type { HTTP } from "@libp2p/http";
 import { identify, identifyPush } from "@libp2p/identify";
-import { webSockets } from "@libp2p/websockets";
 import type { Libp2p, Stream } from "@libp2p/interface";
 import { peerIdFromString } from "@libp2p/peer-id";
+import { webSockets } from "@libp2p/websockets";
 import { multiaddr } from "@multiformats/multiaddr";
 import { createLibp2p } from "libp2p";
 import {
+  fullPeerMultiaddrs,
   PEER_DISCOVERY_MAX_ADDRESSES,
   PEER_DISCOVERY_MAX_PROTOCOLS,
   PEER_DISCOVERY_PROTOCOL_ID,
   PEER_DISCOVERY_VERSION,
-  fullPeerMultiaddrs,
+  type PeerRecord,
   parsePeerDiscoveryRequest,
   parsePeerDiscoveryResponse,
   readPeerDiscoveryFrame,
-  type PeerRecord,
   writePeerDiscoveryFrame,
 } from "./peer-discovery.js";
-import { createIdentity, loadStorage, restoreIdentity, saveStorage } from "./storage.js";
-import { DEFAULT_TIMEOUT_MS, MAX_BODY_BYTES, type P2pDiscoveryStatus, type P2pHttpRequest, type P2pMessage, type P2pSnapshot, type P2pStatus, validateMessageId, validateRequest } from "./protocol.js";
+import {
+  DEFAULT_TIMEOUT_MS,
+  MAX_BODY_BYTES,
+  type P2pDiscoveryStatus,
+  type P2pHttpRequest,
+  type P2pMessage,
+  type P2pSnapshot,
+  type P2pStatus,
+  validateMessageId,
+  validateRequest,
+} from "./protocol.js";
+import { SOCKET_BUFFER_LIMIT } from "./socket.js";
+import {
+  createIdentity,
+  loadStorage,
+  restoreIdentity,
+  saveStorage,
+} from "./storage.js";
+import { bridgeSocket } from "./worker-socket.js";
 
 const ports = new Set<MessagePort>();
-const peers = new Map<string, { id: string; addresses: Set<string>; protocols: Set<string>; status: P2pStatus }>();
-const activeRequests = new Map<string, { controller: AbortController; port: MessagePort }>();
-const activeOperations = new Map<string, { controller: AbortController; port: MessagePort }>();
+const activeSockets = new Map<
+  string,
+  { port: MessagePort; close: () => void }
+>();
+const peers = new Map<
+  string,
+  {
+    id: string;
+    addresses: Set<string>;
+    protocols: Set<string>;
+    status: P2pStatus;
+  }
+>();
+const activeRequests = new Map<
+  string,
+  { controller: AbortController; port: MessagePort }
+>();
+const activeOperations = new Map<
+  string,
+  { controller: AbortController; port: MessagePort }
+>();
 const activeTasks = new Set<Promise<void>>();
 const storedPeers = new Set<string>();
 let node: Libp2p | undefined;
@@ -71,19 +107,39 @@ async function initializeNode(): Promise<Libp2p> {
   const created = await createLibp2p({
     privateKey: restoreIdentity(serializedKey),
     connectionEncrypters: [noise()],
-    services: { http: libp2pHttp(), identify: identify(), identifyPush: identifyPush() },
+    // Explicit WS peers may be local in the internal-test profile. The browser
+    // still enforces mixed-content policy; only our supported WS shape is dialed.
+    connectionGater: {
+      denyDialMultiaddr: (address) => transportAddress(address) === undefined,
+    },
+    services: {
+      http: libp2pHttp(),
+      identify: identify(),
+      identifyPush: identifyPush(),
+    },
     start: true,
     streamMuxers: [yamux()],
     transports: [webSockets()],
   });
+  created.addEventListener("peer:disconnect", ({ detail }) => {
+    const peer = peers.get(detail.toString());
+    if (peer) peer.status = "closed";
+    publish();
+  });
   await created.handle(PEER_DISCOVERY_PROTOCOL_ID, (stream, connection) =>
-    handlePeerDiscoveryStream(created, stream, connection.remotePeer.toString()),
+    handlePeerDiscoveryStream(
+      created,
+      stream,
+      connection.remotePeer.toString(),
+    ),
   );
   for (const address of storage.peers) {
     try {
       const target = parsePeerAddress(address);
       rememberPeer(target, "idle");
-      await created.peerStore.merge(target.id, { multiaddrs: [target.transport] });
+      await created.peerStore.merge(target.id, {
+        multiaddrs: [target.transport],
+      });
     } catch {
       // Ignore stale addresses; identity and the usable peer book remain authoritative.
     }
@@ -92,16 +148,24 @@ async function initializeNode(): Promise<Libp2p> {
   return created;
 }
 
-async function connectPeer(port: MessagePort, id: string, rawAddress: string, signal: AbortSignal): Promise<void> {
+async function connectPeer(
+  port: MessagePort,
+  id: string,
+  rawAddress: string,
+  signal: AbortSignal,
+): Promise<void> {
   try {
     validateMessageId(id);
     const target = parsePeerAddress(rawAddress);
     const created = await getNode();
     if (signal.aborted) throw new Error("p2p connection aborted");
     rememberPeer(target, "connecting");
-    await created.peerStore.merge(target.id, { multiaddrs: [target.transport] });
+    await created.peerStore.merge(target.id, {
+      multiaddrs: [target.transport],
+    });
     const connection = await created.dial(target.address, { signal });
-    if (connection.remotePeer.toString() !== target.peerId) throw new Error("connected peer ID does not match the address");
+    if (connection.remotePeer.toString() !== target.peerId)
+      throw new Error("connected peer ID does not match the address");
     rememberPeer(target, "connected");
     discoveryStatus = "discovering";
     discoveryError = undefined;
@@ -125,7 +189,12 @@ async function connectPeer(port: MessagePort, id: string, rawAddress: string, si
   }
 }
 
-async function disconnectPeer(port: MessagePort, id: string, peerId: string, signal: AbortSignal): Promise<void> {
+async function disconnectPeer(
+  port: MessagePort,
+  id: string,
+  peerId: string,
+  signal: AbortSignal,
+): Promise<void> {
   try {
     validateMessageId(id);
     const created = await getNode();
@@ -145,26 +214,42 @@ async function disconnectPeer(port: MessagePort, id: string, peerId: string, sig
   }
 }
 
-async function handleRequest(port: MessagePort, request: P2pHttpRequest): Promise<void> {
+async function handleRequest(
+  port: MessagePort,
+  request: P2pHttpRequest,
+): Promise<void> {
   const controller = new AbortController();
   activeRequests.set(request.id, { controller, port });
-  const timer = setTimeout(() => controller.abort(), request.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const timer = setTimeout(
+    () => controller.abort(),
+    request.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+  );
   try {
     validateRequest(request, MAX_BODY_BYTES);
     const created = await getNode();
     const target = await resolvePeerTarget(created, request);
-    const resource = target.address.encapsulate(`/http-path/${encodeURIComponent(request.target.substring(1))}`);
+    const resource = target.address.encapsulate(
+      `/http-path/${encodeURIComponent(request.target.substring(1))}`,
+    );
     const httpService = created.services.http as unknown as {
-      fetch(resource: ReturnType<typeof multiaddr>, init: RequestInit & { maxHeaderSize?: number }): Promise<Response>;
+      fetch(
+        resource: ReturnType<typeof multiaddr>,
+        init: RequestInit & { maxHeaderSize?: number },
+      ): Promise<Response>;
     };
     const response = await httpService.fetch(resource, {
       method: request.method,
       headers: new Headers([...request.headers]),
-      body: request.body.byteLength === 0 ? undefined : (request.body as BodyInit),
+      body:
+        request.body.byteLength === 0 ? undefined : (request.body as BodyInit),
       signal: controller.signal,
       maxHeaderSize: 32 * 1024,
     });
-    const body = await readResponseBody(response, MAX_BODY_BYTES, controller.signal);
+    const body = await readResponseBody(
+      response,
+      MAX_BODY_BYTES,
+      controller.signal,
+    );
     safePost(
       port,
       {
@@ -184,14 +269,21 @@ async function handleRequest(port: MessagePort, request: P2pHttpRequest): Promis
     await persistPeers();
     publish();
   } catch (error) {
-    safePost(port, { type: "error", id: request.id, error: errorMessage(error) });
+    safePost(port, {
+      type: "error",
+      id: request.id,
+      error: errorMessage(error),
+    });
   } finally {
     clearTimeout(timer);
     activeRequests.delete(request.id);
   }
 }
 
-async function resolvePeerTarget(created: Libp2p, request: P2pHttpRequest): Promise<PeerTarget> {
+async function resolvePeerTarget(
+  created: Libp2p,
+  request: P2pHttpRequest,
+): Promise<PeerTarget> {
   if (request.address !== undefined) return parsePeerAddress(request.address);
   if (request.peerId === undefined) throw new Error("p2p target is missing");
   const peer = peers.get(request.peerId);
@@ -202,18 +294,34 @@ async function resolvePeerTarget(created: Libp2p, request: P2pHttpRequest): Prom
   return target;
 }
 
-async function discover(created: Libp2p, connection: Awaited<ReturnType<Libp2p["dial"]>>, remotePeer: string): Promise<void> {
+async function discover(
+  created: Libp2p,
+  connection: Awaited<ReturnType<Libp2p["dial"]>>,
+  remotePeer: string,
+): Promise<void> {
   const stream = await connection.newStream(PEER_DISCOVERY_PROTOCOL_ID);
   try {
-    await writePeerDiscoveryFrame(stream, { type: "get_peers", version: PEER_DISCOVERY_VERSION, peer_id: created.peerId.toString() });
-    const response = parsePeerDiscoveryResponse(await readPeerDiscoveryFrame(stream));
-    if (!response.peers.some((peer) => peer.peer_id === remotePeer)) throw new Error("peer discovery response does not include the connected peer");
+    await writePeerDiscoveryFrame(stream, {
+      type: "get_peers",
+      version: PEER_DISCOVERY_VERSION,
+      peer_id: created.peerId.toString(),
+    });
+    const response = parsePeerDiscoveryResponse(
+      await readPeerDiscoveryFrame(stream),
+    );
+    if (!response.peers.some((peer) => peer.peer_id === remotePeer))
+      throw new Error(
+        "peer discovery response does not include the connected peer",
+      );
     for (const record of response.peers) {
       for (const full of fullPeerMultiaddrs(record)) {
         try {
           const target = parsePeerAddress(full);
           rememberPeer(target, "idle", record.protocols);
-          await created.peerStore.merge(target.id, { multiaddrs: [target.transport], protocols: record.protocols });
+          await created.peerStore.merge(target.id, {
+            multiaddrs: [target.transport],
+            protocols: record.protocols,
+          });
         } catch {
           // Ignore peers that this browser transport cannot dial.
         }
@@ -224,10 +332,17 @@ async function discover(created: Libp2p, connection: Awaited<ReturnType<Libp2p["
   }
 }
 
-async function handlePeerDiscoveryStream(created: Libp2p, stream: Stream, remotePeer: string): Promise<void> {
+async function handlePeerDiscoveryStream(
+  created: Libp2p,
+  stream: Stream,
+  remotePeer: string,
+): Promise<void> {
   try {
-    const request = parsePeerDiscoveryRequest(await readPeerDiscoveryFrame(stream));
-    if (request.peer_id !== remotePeer) throw new Error("requesting peer ID does not match authenticated peer");
+    const request = parsePeerDiscoveryRequest(
+      await readPeerDiscoveryFrame(stream),
+    );
+    if (request.peer_id !== remotePeer)
+      throw new Error("requesting peer ID does not match authenticated peer");
     await writePeerDiscoveryFrame(stream, {
       type: "peer_list",
       version: PEER_DISCOVERY_VERSION,
@@ -251,7 +366,10 @@ async function peerRecords(created: Libp2p): Promise<PeerRecord[]> {
     records.push({
       peer_id: peer.id.toString(),
       addresses,
-      protocols: [...new Set(peer.protocols)].slice(0, PEER_DISCOVERY_MAX_PROTOCOLS),
+      protocols: [...new Set(peer.protocols)].slice(
+        0,
+        PEER_DISCOVERY_MAX_PROTOCOLS,
+      ),
     });
   }
   return records.slice(0, 128);
@@ -261,16 +379,32 @@ function parsePeerAddress(raw: string): PeerTarget {
   const address = multiaddr(raw);
   const components = address.getComponents();
   const suffix = components.at(-1);
-  if (suffix === undefined || (suffix.name !== "p2p" && suffix.name !== "ipfs")) throw new Error("p2p address must end with a peer ID");
-  if (components.length !== 4 || !["ip4", "ip6", "dns", "dns4", "dns6"].includes(components[0]?.name ?? "") || components[1]?.name !== "tcp" || !["ws", "wss"].includes(components[2]?.name ?? "")) {
+  if (suffix === undefined || (suffix.name !== "p2p" && suffix.name !== "ipfs"))
+    throw new Error("p2p address must end with a peer ID");
+  if (
+    components.length !== 4 ||
+    !["ip4", "ip6", "dns", "dns4", "dns6"].includes(
+      components[0]?.name ?? "",
+    ) ||
+    components[1]?.name !== "tcp" ||
+    !["ws", "wss"].includes(components[2]?.name ?? "")
+  ) {
     throw new Error("browser p2p address must use a WebSocket transport");
   }
-  if (suffix.value === undefined) throw new Error("p2p address peer ID is missing");
+  if (suffix.value === undefined)
+    throw new Error("p2p address peer ID is missing");
   const id = peerIdFromString(suffix.value);
   const transportRaw = transportAddress(address);
-  if (transportRaw === undefined) throw new Error("p2p address transport is invalid");
+  if (transportRaw === undefined)
+    throw new Error("p2p address transport is invalid");
   const transport = multiaddr(transportRaw);
-  return { address, full: address.toString(), id, peerId: id.toString(), transport };
+  return {
+    address,
+    full: address.toString(),
+    id,
+    peerId: id.toString(),
+    transport,
+  };
 }
 
 type PeerTarget = {
@@ -281,17 +415,43 @@ type PeerTarget = {
   transport: ReturnType<typeof multiaddr>;
 };
 
-function transportAddress(address: ReturnType<typeof multiaddr>): string | undefined {
+function transportAddress(
+  address: ReturnType<typeof multiaddr>,
+): string | undefined {
   const components = address.getComponents();
-  const peerIndex = components.findIndex((component) => component.name === "p2p" || component.name === "ipfs");
-  const transport = components.slice(0, peerIndex === -1 ? components.length : peerIndex);
+  const peerIndex = components.findIndex(
+    (component) => component.name === "p2p" || component.name === "ipfs",
+  );
+  const transport = components.slice(
+    0,
+    peerIndex === -1 ? components.length : peerIndex,
+  );
   const host = transport[0];
-  if (host === undefined || !["ip4", "ip6", "dns", "dns4", "dns6"].includes(host.name)) return undefined;
-  if (transport[1]?.name !== "tcp" || !["ws", "wss"].includes(transport[2]?.name ?? "")) return undefined;
-  return transport.reduce((value, component) => value + "/" + component.name + (component.value === undefined ? "" : "/" + component.value), "");
+  if (
+    host === undefined ||
+    !["ip4", "ip6", "dns", "dns4", "dns6"].includes(host.name)
+  )
+    return undefined;
+  if (
+    transport[1]?.name !== "tcp" ||
+    !["ws", "wss"].includes(transport[2]?.name ?? "")
+  )
+    return undefined;
+  return transport.reduce(
+    (value, component) =>
+      value +
+      "/" +
+      component.name +
+      (component.value === undefined ? "" : "/" + component.value),
+    "",
+  );
 }
 
-async function readResponseBody(response: Response, maxBytes: number, signal: AbortSignal): Promise<Uint8Array> {
+async function readResponseBody(
+  response: Response,
+  maxBytes: number,
+  signal: AbortSignal,
+): Promise<Uint8Array> {
   if (response.body === null) return new Uint8Array();
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -303,7 +463,10 @@ async function readResponseBody(response: Response, maxBytes: number, signal: Ab
       if (done) {
         const body = new Uint8Array(length);
         let offset = 0;
-        for (const chunk of chunks) { body.set(chunk, offset); offset += chunk.byteLength; }
+        for (const chunk of chunks) {
+          body.set(chunk, offset);
+          offset += chunk.byteLength;
+        }
         return body;
       }
       length += value.byteLength;
@@ -318,11 +481,21 @@ async function readResponseBody(response: Response, maxBytes: number, signal: Ab
   }
 }
 
-function rememberPeer(target: PeerTarget, nextStatus: P2pStatus, protocols: readonly string[] = []): void {
-  const peer = peers.get(target.peerId) ?? { id: target.peerId, addresses: new Set<string>(), protocols: new Set<string>(), status: nextStatus };
+function rememberPeer(
+  target: PeerTarget,
+  nextStatus: P2pStatus,
+  protocols: readonly string[] = [],
+): void {
+  const peer = peers.get(target.peerId) ?? {
+    id: target.peerId,
+    addresses: new Set<string>(),
+    protocols: new Set<string>(),
+    status: nextStatus,
+  };
   peer.addresses.add(target.full);
   for (const protocol of protocols) peer.protocols.add(protocol);
-  peer.status = nextStatus;
+  if (nextStatus !== "idle" || peer.status !== "connected")
+    peer.status = nextStatus;
   peers.set(target.peerId, peer);
 }
 
@@ -331,7 +504,10 @@ function persistPeers(): Promise<void> {
     const storage = await loadStorage();
     await saveStorage({ ...storage, peers: [...storedPeers].slice(0, 128) });
   });
-  peerWriteChain = write.then(() => undefined, () => undefined);
+  peerWriteChain = write.then(
+    () => undefined,
+    () => undefined,
+  );
   return write;
 }
 
@@ -339,7 +515,12 @@ function publish(): void {
   const snapshot: P2pSnapshot = {
     status,
     ...(node === undefined ? {} : { peerId: node.peerId.toString() }),
-    peers: [...peers.values()].map((peer) => ({ id: peer.id, addresses: [...peer.addresses], protocols: [...peer.protocols], status: peer.status })),
+    peers: [...peers.values()].map((peer) => ({
+      id: peer.id,
+      addresses: [...peer.addresses],
+      protocols: [...peer.protocols],
+      status: peer.status,
+    })),
     discoveryStatus,
     ...(discoveryError === undefined ? {} : { discoveryError }),
     ...(lastError === undefined ? {} : { error: lastError }),
@@ -356,7 +537,11 @@ function abortStream(stream: Stream): void {
   stream.abort(new Error("p2p stream aborted"));
 }
 
-function safePost(port: MessagePort, message: P2pMessage, transfer: Transferable[] = []): void {
+function safePost(
+  port: MessagePort,
+  message: P2pMessage,
+  transfer: Transferable[] = [],
+): void {
   try {
     port.postMessage(message, transfer);
   } catch {
@@ -379,6 +564,7 @@ function trackTask(task: Promise<void>): void {
 async function stopNode(): Promise<void> {
   if (stopPromise !== undefined) return stopPromise;
   stopPromise = (async () => {
+    for (const active of activeSockets.values()) active.close();
     for (const active of activeRequests.values()) active.controller.abort();
     for (const active of activeOperations.values()) active.controller.abort();
     await Promise.all([...activeTasks]);
@@ -404,13 +590,25 @@ async function stopNode(): Promise<void> {
   }
 }
 
-function runOperation(port: MessagePort, id: string, operation: (signal: AbortSignal) => Promise<void>): void {
+function runOperation(
+  port: MessagePort,
+  id: string,
+  operation: (signal: AbortSignal) => Promise<void>,
+): void {
   const controller = new AbortController();
   activeOperations.set(id, { controller, port });
-  trackTask(operation(controller.signal).finally(() => activeOperations.delete(id)));
+  trackTask(
+    operation(controller.signal).finally(() => activeOperations.delete(id)),
+  );
 }
 
 function detachPort(port: MessagePort): void {
+  for (const [id, active] of activeSockets) {
+    if (active.port === port) {
+      active.close();
+      activeSockets.delete(id);
+    }
+  }
   for (const [id, active] of activeRequests) {
     if (active.port === port) {
       active.controller.abort();
@@ -429,11 +627,48 @@ function detachPort(port: MessagePort): void {
 
 async function handle(port: MessagePort, message: P2pMessage): Promise<void> {
   if (message.type === "connect") {
-    runOperation(port, message.id, (signal) => connectPeer(port, message.id, message.address, signal));
+    runOperation(port, message.id, (signal) =>
+      connectPeer(port, message.id, message.address, signal),
+    );
     return;
   }
   if (message.type === "disconnect") {
-    runOperation(port, message.id, (signal) => disconnectPeer(port, message.id, message.peerId, signal));
+    runOperation(port, message.id, (signal) =>
+      disconnectPeer(port, message.id, message.peerId, signal),
+    );
+    return;
+  }
+  if (message.type === "socket") {
+    const { request, port: socketPort } = message;
+    try {
+      validateRequest(request);
+      if (activeSockets.has(request.id)) throw new Error("Duplicate socket ID");
+      if (request.method !== "GET" || request.body.byteLength !== 0)
+        throw new Error("Invalid socket handshake");
+      const close = bridgeSocket(
+        socketPort,
+        async (signal) => {
+          const created = await getNode();
+          signal.throwIfAborted();
+          const target = await resolvePeerTarget(created, request);
+          signal.throwIfAborted();
+          const resource = target.address.encapsulate(
+            `/http-path/${encodeURIComponent(request.target.substring(1))}`,
+          );
+          return (created.services.http as HTTP).connect(resource, {
+            protocols: ["binary"],
+            headers: new Headers([...request.headers]),
+            signal,
+            maxMessageSize: SOCKET_BUFFER_LIMIT,
+          });
+        },
+        () => activeSockets.delete(request.id),
+      );
+      activeSockets.set(request.id, { port, close });
+    } catch (error) {
+      socketPort.postMessage({ type: "close", reason: errorMessage(error) });
+      socketPort.close();
+    }
     return;
   }
   if (message.type === "request") {
@@ -448,11 +683,14 @@ async function handle(port: MessagePort, message: P2pMessage): Promise<void> {
   if (message.type === "detach") detachPort(port);
 }
 
-(self as unknown as { onconnect: (event: MessageEvent) => void }).onconnect = (event: MessageEvent) => {
+(self as unknown as { onconnect: (event: MessageEvent) => void }).onconnect = (
+  event: MessageEvent,
+) => {
   const port = (event as unknown as { ports: MessagePort[] }).ports[0];
   if (port === undefined) return;
   ports.add(port);
-  port.onmessage = (input: MessageEvent<P2pMessage>) => void handle(port, input.data);
+  port.onmessage = (input: MessageEvent<P2pMessage>) =>
+    void handle(port, input.data);
   port.onmessageerror = () => detachPort(port);
   port.start();
   publish();
